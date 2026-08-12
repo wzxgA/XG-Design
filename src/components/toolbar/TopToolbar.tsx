@@ -1,5 +1,6 @@
 import type { EditorState, EditorDispatch, ToolType } from '../../state/editor-store'
 import type { DesignDocument } from '../../types/design'
+import type { SaveStatus } from '../../types/project'
 import { Icon, Watermelon, type IconName } from '../common/brand'
 
 const toolItems: [IconName, string, string, ToolType][] = [
@@ -17,15 +18,26 @@ interface Props {
   dispatch: EditorDispatch
   onRenameDocument: (name: string) => void
   onPreview?: () => void
+  onOpenProjects?: () => void
+  onShare?: () => void
+  saveStatus?: SaveStatus
 }
 
-export function TopToolbar({ state, dispatch, onRenameDocument, onPreview }: Props) {
+const SAVE_LABEL: Record<SaveStatus, string> = {
+  idle: '已保存',
+  saving: '保存中…',
+  saved: '已保存',
+  error: '保存失败',
+}
+
+export function TopToolbar({ state, dispatch, onRenameDocument, onPreview, onOpenProjects, onShare, saveStatus = 'idle' }: Props) {
   const doc: DesignDocument = state.document
   const zoom = state.zoom
+  const saving = saveStatus === 'saving'
 
   return (
     <header className="topbar">
-      <div className="brand"><Watermelon /><strong>XG<span>Design</span></strong></div>
+      <div className="brand" onClick={onOpenProjects} title="打开项目" style={{ cursor: 'pointer' }}><Watermelon /><strong>XG<span>Design</span></strong></div>
       <div className="file-meta" title="点击重命名">
         <input
           className="file-name-input"
@@ -40,7 +52,8 @@ export function TopToolbar({ state, dispatch, onRenameDocument, onPreview }: Pro
           }}
         />
         <Icon name="chevron" />
-        <span className="save-dot" /> <span className="saved">已保存</span>
+        <span className={`save-dot ${saveStatus}`} />
+        <span className="saved">{SAVE_LABEL[saveStatus]}</span>
       </div>
       <div className="toolbar-tools">
         {toolItems.map(([icon, label, key, tool], index) => (
@@ -63,7 +76,7 @@ export function TopToolbar({ state, dispatch, onRenameDocument, onPreview }: Pro
           <span className="avatar-more">+2</span>
         </div>
         <button className="preview-button" onClick={onPreview}><Icon name="play" /> 预览</button>
-        <button className="share-button">分享 <Icon name="external" /></button>
+        <button className="share-button" onClick={onShare}>分享 <Icon name="external" /></button>
         <span className="top-zoom">{zoom}%</span>
       </div>
     </header>

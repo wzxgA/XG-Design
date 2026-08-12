@@ -5,11 +5,21 @@ import { LayersPanel } from './components/layers/LayersPanel'
 import { CanvasArea } from './components/canvas/CanvasArea'
 import { InspectorPanel } from './components/inspector/InspectorPanel'
 import { PreviewOverlay } from './components/canvas/PreviewOverlay'
+import { ProjectsModal } from './components/projects/ProjectsModal'
+import { ShareModal } from './components/share/ShareModal'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 
+function readProjectId(): string | undefined {
+  const m = window.location.hash.match(/#\/doc\/([^/]+)/)
+  return m ? m[1] : undefined
+}
+
 export default function App() {
-  const [state, dispatch] = useEditorStore()
+  const projectId = readProjectId()
+  const { state, dispatch, saveStatus } = useEditorStore(projectId)
   const [previewing, setPreviewing] = useState(false)
+  const [projectsOpen, setProjectsOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const onToolChange = useCallback((tool: ToolType) => dispatch({ type: 'SET_ACTIVE_TOOL', tool }), [dispatch])
   const onDelete = useCallback(() => {
@@ -22,9 +32,11 @@ export default function App() {
   const onRedo = useCallback(() => dispatch({ type: 'REDO' }), [dispatch])
   const onEscape = useCallback(() => {
     if (previewing) { setPreviewing(false); return }
+    if (projectsOpen) { setProjectsOpen(false); return }
+    if (shareOpen) { setShareOpen(false); return }
     dispatch({ type: 'SELECT_LAYERS', ids: [] })
     if (state.activeTool !== 'select') dispatch({ type: 'SET_ACTIVE_TOOL', tool: 'select' })
-  }, [dispatch, state.activeTool, previewing])
+  }, [dispatch, state.activeTool, previewing, projectsOpen, shareOpen])
 
   useKeyboardShortcuts({ onToolChange, onDelete, onDuplicate, onUndo, onRedo, onEscape })
 
@@ -35,6 +47,9 @@ export default function App() {
         dispatch={dispatch}
         onRenameDocument={(name) => dispatch({ type: 'RENAME_DOCUMENT', name })}
         onPreview={() => setPreviewing(true)}
+        onOpenProjects={() => setProjectsOpen(true)}
+        onShare={() => setShareOpen(true)}
+        saveStatus={saveStatus}
       />
       <div className="workspace">
         <LayersPanel state={state} dispatch={dispatch} />
@@ -42,6 +57,8 @@ export default function App() {
         <InspectorPanel state={state} dispatch={dispatch} />
       </div>
       {previewing && <PreviewOverlay state={state} onClose={() => setPreviewing(false)} />}
+      {projectsOpen && <ProjectsModal onClose={() => setProjectsOpen(false)} />}
+      {shareOpen && <ShareModal projectId={state.document.id} onClose={() => setShareOpen(false)} />}
     </div>
   )
 }

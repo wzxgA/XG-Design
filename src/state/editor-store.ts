@@ -1,19 +1,23 @@
-import { useReducer, useEffect } from 'react'
+import { useReducer, useEffect, useState, useCallback } from 'react'
 import type { DesignDocument, EditorState, EditorAction, ToolType } from '../types/design'
+import type { SaveStatus } from '../types/project'
 import { editorReducer } from './editor-reducer'
 import { starterDocument } from '../fixtures/starter-document'
+import { localRepository } from '../services/documentRepository'
 
 export type { EditorState, EditorAction, ToolType }
+export type EditorDispatch = (action: EditorAction) => void
 
-const STORAGE_KEY = 'xgdesign:editor:v1'
 const SAVE_DEBOUNCE = 500
 
-// 初始化：拷贝一份初始文档，避免共享引用被 reducer 修改
+// 兼容旧版单文档持久化 key
+const STORAGE_KEY = 'xgdesign:editor:v1'
+
 function initDocument(): DesignDocument {
   return JSON.parse(JSON.stringify(starterDocument)) as DesignDocument
 }
 
-interface PersistedState {
+interface LegacyPersistedState {
   version: number
   document: DesignDocument
   zoom: number
@@ -24,16 +28,13 @@ interface PersistedState {
   activePageId: string
 }
 
-function loadPersisted(): Partial<EditorState> | null {
+function loadLegacy(): Partial<EditorState> | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const data = JSON.parse(raw) as PersistedState
+    const data = JSON.parse(raw) as LegacyPersistedState
     if (data.version !== 1 || !data.document) return null
-    // 兼容旧数据：补齐原型连接字段
     if (!data.document.prototypeLinks) data.document.prototypeLinks = []
-    // 旧结构迁移：早期版本是"单页含多 frame"，与原型跳转（按页面）不兼容，
-    // 检测到该旧结构时放弃缓存，回退到新 fixture（每页一个 frame）。
     const isLegacyLayout = data.document.pages.length === 1 && data.document.pages[0].children.filter((n) => n.type === 'frame').length > 1
     if (isLegacyLayout) return null
     return {
@@ -49,49 +50,76 @@ function loadPersisted(): Partial<EditorState> | null {
   }
 }
 
-export function createInitialState(): EditorState {
-  const persisted = loadPersisted()
-  const doc = persisted?.document ?? initDocument()
+/** 加载当前项目文档：优先 URL 指定的项目，其次最近项目，再回退 legacy/初始 */
+function loadDocument(projectId?: string): { doc: DesignDocument; fromProject: boolean } {
+  if (projectId) {
+    const doc = localRepository.getDocument(projectId)
+    if (doc) return { doc, fromProject: true }
+  }
+  const recent = localRepository.listDocuments()[0]
+  if (recent) {
+    const doc = localRepository.getDocument(recent.id)
+    if (doc) return { doc, fromProject: true }
+  }
+  const legacy = loadLegacy()
+  if (legacy?.document) return { doc: legacy.document, fromProject: false }
+  return { doc: initDocument(), fromProject: false }
+}
+
+export function createInitialState(projectId?: string): EditorState {
+  const { doc, fromProject } = loadDocument(projectId)
   return {
     document: doc,
-    selectedIds: persisted?.selectedIds ?? ['grp-data-cards'],
+    selectedIds: fromProject ? [] : ['grp-data-cards'],
     activeTool: 'select',
-    zoom: persisted?.zoom ?? 100,
-    pan: persisted?.pan ?? { x: 0, y: 0 },
-    leftPanelTab: persisted?.leftPanelTab ?? 'layers',
-    inspectorTab: persisted?.inspectorTab ?? 'design',
+    zoom: 100,
+    pan: { x: 0, y: 0 },
+    leftPanelTab: 'layers',
+    inspectorTab: 'design',
     history: { past: [], future: [] },
   }
 }
 
-function persist(state: EditorState) {
-  const payload: PersistedState = {
-    version: 1,
-    document: state.document,
-    zoom: state.zoom,
-    pan: state.pan,
-    selectedIds: state.selectedIds,
-    leftPanelTab: state.leftPanelTab,
-    inspectorTab: state.inspectorTab,
-    activePageId: state.document.activePageId,
-  }
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-  } catch {
-    // 存储失败静默处理，UI 层的保存状态另行提示
-  }
-}
+export function useEditorStore(projectId?: string) {
+  const [state, dispatch] = useReducer(editorReducer, undefined, () => createInitialState(projectId))
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [dirty, setDirty] = useState(false)
 
-export function useEditorStore() {
-  const [state, dispatch] = useReducer(editorReducer, undefined, createInitialState)
-
-  // 自动保存（防抖）
+  // 文档变更 → 标记未保存 + 防抖保存
   useEffect(() => {
-    const timer = window.setTimeout(() => persist(state), SAVE_DEBOUNCE)
+    setDirty(true)
+    setSaveStatus('saving')
+    const timer = window.setTimeout(() => {
+      try {
+        const projects = localRepository.listDocuments()
+        if (projects.some((p) => p.id === state.document.id)) {
+          localRepository.updateDocument(state.document.id, state.document)
+          setSaveStatus('saved')
+        } else {
+          // 未纳入项目列表的文档（如初始/legacy），暂存到 legacy key，保持旧行为
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, document: state.document, zoom: state.zoom, pan: state.pan, selectedIds: state.selectedIds, leftPanelTab: state.leftPanelTab, inspectorTab: state.inspectorTab, activePageId: state.document.activePageId }))
+            setSaveStatus('saved')
+          } catch {
+            setSaveStatus('error')
+          }
+        }
+        setDirty(false)
+      } catch {
+        setSaveStatus('error')
+      }
+    }, SAVE_DEBOUNCE)
     return () => window.clearTimeout(timer)
-  }, [state])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.document])
 
-  return [state, dispatch] as const
+  const createAndOpen = useCallback((name?: string) => {
+    const meta = localRepository.createDocument(name)
+    // 打开新项目：通过 URL 变化 + 重置状态实现
+    window.location.hash = `#/doc/${meta.id}`
+    window.location.reload()
+    return meta
+  }, [])
+
+  return { state, dispatch, saveStatus, dirty }
 }
-
-export type EditorDispatch = (action: EditorAction) => void
