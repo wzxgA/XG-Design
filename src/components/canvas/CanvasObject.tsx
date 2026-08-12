@@ -56,7 +56,11 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
     if (!start) return
     let dx = (e.clientX - start.pointerX) / scale
     let dy = (e.clientY - start.pointerY) / scale
-    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) movedRef.current = true
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+      // 首次产生位移时记录一次快照，供整次移动撤销
+      if (!movedRef.current) dispatch({ type: 'BEGIN_MOVE', ids: [node.id] })
+      movedRef.current = true
+    }
     // 基础吸附：吸附到画板边缘与中线
     const targetX = start.x + dx
     const targetY = start.y + dy

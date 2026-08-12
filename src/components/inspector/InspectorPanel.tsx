@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
 import { Icon } from '../common/brand'
 import { PropertyInput } from './PropertyInput'
 import { MIN_SIZE } from '../../utils/geometry'
+import { exportNodeAsPng } from '../../utils/export'
 
 interface Props {
   state: EditorState
@@ -30,6 +32,21 @@ export function InspectorPanel({ state, dispatch }: Props) {
   const patchStyle = (style: Partial<LayerNode['style']>) => {
     if (!selected) return
     dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [selected.id], patch: { style } })
+  }
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
+
+  const handleExport = async () => {
+    if (!selected || exporting) return
+    setExporting(true)
+    setExportError('')
+    try {
+      await exportNodeAsPng(selected, 2)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : '导出失败，请重试')
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -87,7 +104,8 @@ export function InspectorPanel({ state, dispatch }: Props) {
           <section className="property-section export-section">
             <div className="section-heading">导出 <span>＋</span></div>
             <div className="export-row"><span>1x</span><span>PNG</span><Icon name="chevron" /></div>
-            <button className="export-button">导出 {selected.name} <Icon name="external" /></button>
+            <button className="export-button" onClick={handleExport} disabled={exporting}>{exporting ? '导出中…' : `导出 ${selected.name}`} <Icon name="external" /></button>
+            {exportError && <div className="export-error">{exportError}</div>}
           </section>
         </>
       ) : (

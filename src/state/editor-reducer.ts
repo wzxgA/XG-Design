@@ -1,4 +1,4 @@
-import type { EditorAction, EditorState, LayerNode, DesignDocument, LayerStyle } from '../types/design'
+import type { EditorAction, EditorState, LayerNode, DesignDocument, LayerStyle, HistoryState } from '../types/design'
 
 export const ZOOM_MIN = 25
 export const ZOOM_MAX = 200
@@ -54,6 +54,23 @@ function deleteIds(root: LayerNode[], ids: Set<string>): LayerNode[] {
   return result
 }
 
+// ---- 历史记录辅助 ----
+
+/** 在文档变更前记录快照：将当前文档压入 past，清空 future */
+function withHistory(state: EditorState, nextDoc: DesignDocument, extra: Partial<EditorState> = {}): EditorState {
+  const past = [...state.history.past, cloneDocument(state.document)].slice(-HISTORY_LIMIT)
+  return {
+    ...state,
+    ...extra,
+    document: { ...nextDoc, updatedAt: Date.now() },
+    history: { past, future: [] },
+  }
+}
+
+function emptyHistory(): HistoryState {
+  return { past: [], future: [] }
+}
+
 // ---- Reducer ----
 
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
@@ -77,14 +94,14 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return { ...state, pan: action.pan }
 
     case 'RENAME_DOCUMENT':
-      return { ...state, document: { ...state.document, name: action.name, updatedAt: Date.now() } }
+      return withHistory(state, { ...state.document, name: action.name })
 
     case 'CREATE_PAGE': {
       const doc = cloneDocument(state.document)
       const pageId = `page-${Date.now().toString(36)}`
       doc.pages.push({ id: pageId, name: action.name, children: [] })
       doc.activePageId = pageId
-      return { ...state, document: { ...doc, updatedAt: Date.now() }, selectedIds: [] }
+      return withHistory(state, doc, { selectedIds: [] })
     }
 
     case 'CREATE_LAYER': {
@@ -100,7 +117,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         if (!parent) return state
         parent.children = [...parent.children, newLayer]
       }
-      return { ...state, document: { ...doc, updatedAt: Date.now() } }
+      return withHistory(state, doc)
     }
 
     case 'DELETE_LAYERS': {
@@ -111,7 +128,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       if (!page) return state
       page.children = deleteIds(page.children, ids)
       const remainingSelected = state.selectedIds.filter((id) => !ids.has(id))
-      return { ...state, document: { ...doc, updatedAt: Date.now() }, selectedIds: remainingSelected }
+      return withHistory(state, doc, { selectedIds: remainingSelected })
     }
 
     case 'DUPLICATE_LAYERS': {
@@ -133,7 +150,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         offset += 1
       }
       page.children = [...page.children, ...clones]
-      return { ...state, document: { ...doc, updatedAt: Date.now() }, selectedIds: clones.map((c) => c.id) }
+      return withHistory(state, doc, { selectedIds: clones.map((c) => c.id) })
     }
 
     case 'UPDATE_LAYER_PROPERTIES': {
@@ -147,26 +164,26 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         }
         return next
       })
-      return { ...state, document: { ...doc, updatedAt: Date.now() } }
+      return withHistory(state, doc)
     }
 
     case 'TOGGLE_LAYER_VISIBILITY': {
       const ids = new Set(action.ids)
       const doc = mapLayers(state.document, ids, (node) => ({ ...node, visible: !node.visible }))
-      return { ...state, document: { ...doc, updatedAt: Date.now() } }
+      return withHistory(state, doc)
     }
 
     case 'TOGGLE_LAYER_LOCK': {
       const ids = new Set(action.ids)
       const doc = mapLayers(state.document, ids, (node) => ({ ...node, locked: !node.locked }))
-      return { ...state, document: { ...doc, updatedAt: Date.now() } }
+      return withHistory(state, doc)
     }
 
     case 'TOGGLE_LAYER_EXPANDED': {
       const doc = mapAllLayers(state.document, (node) =>
         node.id === action.id ? { ...node, expanded: !node.expanded } : node,
       )
-      return { ...state, document: { ...doc, updatedAt: Date.now() } }
+      return withHistory(state, doc)
     }
 
     case 'RENAME_LAYER': {
@@ -174,7 +191,12 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const doc = mapAllLayers(state.document, (node) =>
         node.id === action.id ? { ...node, name } : node,
       )
-      return { ...state, document: { ...doc, updatedAt: Date.now() } }
+      return withHistory(state, doc)
+    }
+
+    case 'BEGIN_MOVE': {
+      // 拖拽开始时记录一次快照，供整次移动撤销；随后 MOVE_LAYERS 不再写历史
+      return withHistory(state, state.document)
     }
 
     case 'MOVE_LAYERS': {
@@ -184,14 +206,41 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         x: node.x + action.dx,
         y: node.y + action.dy,
       }))
+      // 拖拽中间帧不记历史（快照已在 BEGIN_MOVE 时记录）
       return { ...state, document: { ...doc, updatedAt: Date.now() } }
     }
 
-    case 'UNDO':
-    case 'REDO':
-      return state
+    case 'UNDO': {
+      const past = state.history.past
+      if (past.length === 0) return state
+      const previous = past[past.length - 1]
+      return {
+        ...state,
+        document: previous,
+        history: {
+          past: past.slice(0, -1),
+          future: [cloneDocument(state.document), ...state.history.future],
+        },
+      }
+    }
+
+    case 'REDO': {
+      const future = state.history.future
+      if (future.length === 0) return state
+      const next = future[0]
+      return {
+        ...state,
+        document: next,
+        history: {
+          past: [...state.history.past, cloneDocument(state.document)],
+          future: future.slice(1),
+        },
+      }
+    }
 
     default:
       return state
   }
 }
+
+export { emptyHistory }

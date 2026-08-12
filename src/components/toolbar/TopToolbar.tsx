@@ -16,9 +16,10 @@ interface Props {
   state: EditorState
   dispatch: EditorDispatch
   onRenameDocument: (name: string) => void
+  onPreview?: () => void
 }
 
-export function TopToolbar({ state, dispatch, onRenameDocument }: Props) {
+export function TopToolbar({ state, dispatch, onRenameDocument, onPreview }: Props) {
   const doc: DesignDocument = state.document
   const zoom = state.zoom
 
@@ -29,7 +30,14 @@ export function TopToolbar({ state, dispatch, onRenameDocument }: Props) {
         <input
           className="file-name-input"
           value={doc.name}
-          onChange={(e) => onRenameDocument(e.target.value)}
+          maxLength={80}
+          onChange={(e) => {
+            const v = e.target.value
+            if (v.trim().length > 0) onRenameDocument(v)
+          }}
+          onBlur={(e) => {
+            if (!e.target.value.trim()) { e.target.value = doc.name }
+          }}
         />
         <Icon name="chevron" />
         <span className="save-dot" /> <span className="saved">已保存</span>
@@ -54,7 +62,7 @@ export function TopToolbar({ state, dispatch, onRenameDocument }: Props) {
           <span className="avatar avatar-three">A</span>
           <span className="avatar-more">+2</span>
         </div>
-        <button className="preview-button"><Icon name="play" /> 预览</button>
+        <button className="preview-button" onClick={onPreview}><Icon name="play" /> 预览</button>
         <button className="share-button">分享 <Icon name="external" /></button>
         <span className="top-zoom">{zoom}%</span>
       </div>

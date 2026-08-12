@@ -67,6 +67,7 @@ export interface EditorState {
   pan: { x: number; y: number }
   leftPanelTab: LeftPanelTab
   inspectorTab: InspectorTab
+  history: HistoryState
 }
 
 export type EditorAction =
@@ -86,6 +87,7 @@ export type EditorAction =
   | { type: 'TOGGLE_LAYER_LOCK'; ids: string[] }
   | { type: 'TOGGLE_LAYER_EXPANDED'; id: string }
   | { type: 'RENAME_LAYER'; id: string; name: string }
+  | { type: 'BEGIN_MOVE'; ids: string[] }
   | { type: 'MOVE_LAYERS'; ids: string[]; dx: number; dy: number }
   | { type: 'UNDO' }
   | { type: 'REDO' }
