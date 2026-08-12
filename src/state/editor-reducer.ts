@@ -79,6 +79,14 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case 'RENAME_DOCUMENT':
       return { ...state, document: { ...state.document, name: action.name, updatedAt: Date.now() } }
 
+    case 'CREATE_PAGE': {
+      const doc = cloneDocument(state.document)
+      const pageId = `page-${Date.now().toString(36)}`
+      doc.pages.push({ id: pageId, name: action.name, children: [] })
+      doc.activePageId = pageId
+      return { ...state, document: { ...doc, updatedAt: Date.now() }, selectedIds: [] }
+    }
+
     case 'CREATE_LAYER': {
       const page = state.document.pages.find((p) => p.id === action.pageId)
       if (!page) return state
@@ -158,6 +166,24 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const doc = mapAllLayers(state.document, (node) =>
         node.id === action.id ? { ...node, expanded: !node.expanded } : node,
       )
+      return { ...state, document: { ...doc, updatedAt: Date.now() } }
+    }
+
+    case 'RENAME_LAYER': {
+      const name = action.name.trim() || action.name
+      const doc = mapAllLayers(state.document, (node) =>
+        node.id === action.id ? { ...node, name } : node,
+      )
+      return { ...state, document: { ...doc, updatedAt: Date.now() } }
+    }
+
+    case 'MOVE_LAYERS': {
+      const ids = new Set(action.ids)
+      const doc = mapLayers(state.document, ids, (node) => ({
+        ...node,
+        x: node.x + action.dx,
+        y: node.y + action.dy,
+      }))
       return { ...state, document: { ...doc, updatedAt: Date.now() } }
     }
 

@@ -77,6 +77,7 @@ export type EditorAction =
   | { type: 'SET_ZOOM'; zoom: number }
   | { type: 'SET_PAN'; pan: { x: number; y: number } }
   | { type: 'RENAME_DOCUMENT'; name: string }
+  | { type: 'CREATE_PAGE'; name: string }
   | { type: 'CREATE_LAYER'; pageId: string; parentId: string | null; layer: LayerNode }
   | { type: 'DELETE_LAYERS'; ids: string[] }
   | { type: 'DUPLICATE_LAYERS'; ids: string[] }
@@ -84,5 +85,7 @@ export type EditorAction =
   | { type: 'TOGGLE_LAYER_VISIBILITY'; ids: string[] }
   | { type: 'TOGGLE_LAYER_LOCK'; ids: string[] }
   | { type: 'TOGGLE_LAYER_EXPANDED'; id: string }
+  | { type: 'RENAME_LAYER'; id: string; name: string }
+  | { type: 'MOVE_LAYERS'; ids: string[]; dx: number; dy: number }
   | { type: 'UNDO' }
   | { type: 'REDO' }
