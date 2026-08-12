@@ -148,7 +148,21 @@ export function LayersPanel({ state, dispatch }: Props) {
       </div>
       <div className="search-field"><Icon name="search" /><span>搜索图层</span><kbd>⌘ F</kbd></div>
       <div className="layers-heading"><span>页面</span><button onClick={createPage} title="新建页面"><Icon name="plus" /></button></div>
-      <div className="page-row"><Icon name="chevron" /><Icon name="folder" className="folder-icon" /><span>{activePage.name}</span><span className="page-menu">•••</span></div>
+      <div className="page-list">
+        {state.document.pages.map((p) => (
+          <div
+            key={p.id}
+            className={`page-row ${p.id === state.document.activePageId ? 'active' : ''}`}
+            onClick={() => dispatch({ type: 'SET_ACTIVE_PAGE', pageId: p.id })}
+            title="点击切换页面"
+          >
+            <Icon name="chevron" className={p.id === state.document.activePageId ? '' : 'chevron-collapsed'} />
+            <Icon name="folder" className="folder-icon" />
+            <span>{p.name}</span>
+            <span className="page-menu">•••</span>
+          </div>
+        ))}
+      </div>
       <div className="layers-heading tree-heading"><span>图层</span><span className="tree-actions"><EyeOpen /> <LockClosed /></span></div>
       <div className="layer-tree">
         {activePage.children.map((node) => (

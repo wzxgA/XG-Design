@@ -30,6 +30,12 @@ function loadPersisted(): Partial<EditorState> | null {
     if (!raw) return null
     const data = JSON.parse(raw) as PersistedState
     if (data.version !== 1 || !data.document) return null
+    // 兼容旧数据：补齐原型连接字段
+    if (!data.document.prototypeLinks) data.document.prototypeLinks = []
+    // 旧结构迁移：早期版本是"单页含多 frame"，与原型跳转（按页面）不兼容，
+    // 检测到该旧结构时放弃缓存，回退到新 fixture（每页一个 frame）。
+    const isLegacyLayout = data.document.pages.length === 1 && data.document.pages[0].children.filter((n) => n.type === 'frame').length > 1
+    if (isLegacyLayout) return null
     return {
       document: data.document,
       zoom: data.zoom ?? 100,

@@ -96,6 +96,16 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case 'RENAME_DOCUMENT':
       return withHistory(state, { ...state.document, name: action.name })
 
+    case 'SET_ACTIVE_PAGE': {
+      const page = state.document.pages.find((p) => p.id === action.pageId)
+      if (!page) return state
+      return {
+        ...state,
+        document: { ...state.document, activePageId: action.pageId },
+        selectedIds: [],
+      }
+    }
+
     case 'CREATE_PAGE': {
       const doc = cloneDocument(state.document)
       const pageId = `page-${Date.now().toString(36)}`
@@ -208,6 +218,16 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       }))
       // 拖拽中间帧不记历史（快照已在 BEGIN_MOVE 时记录）
       return { ...state, document: { ...doc, updatedAt: Date.now() } }
+    }
+
+    case 'ADD_PROTOTYPE_LINK': {
+      const links = [...state.document.prototypeLinks, action.link]
+      return withHistory(state, { ...state.document, prototypeLinks: links })
+    }
+
+    case 'REMOVE_PROTOTYPE_LINK': {
+      const links = state.document.prototypeLinks.filter((l) => l.id !== action.id)
+      return withHistory(state, { ...state.document, prototypeLinks: links })
     }
 
     case 'UNDO': {

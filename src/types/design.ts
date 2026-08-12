@@ -46,11 +46,20 @@ export interface PageNode {
   children: LayerNode[]
 }
 
+export interface PrototypeLink {
+  id: string
+  sourceLayerId: string
+  targetPageId: string
+  trigger: 'click' | 'hover'
+  transition: 'instant' | 'dissolve' | 'slide'
+}
+
 export interface DesignDocument {
   id: string
   name: string
   pages: PageNode[]
   activePageId: string
+  prototypeLinks: PrototypeLink[]
   updatedAt: number
 }
 
@@ -78,6 +87,7 @@ export type EditorAction =
   | { type: 'SET_ZOOM'; zoom: number }
   | { type: 'SET_PAN'; pan: { x: number; y: number } }
   | { type: 'RENAME_DOCUMENT'; name: string }
+  | { type: 'SET_ACTIVE_PAGE'; pageId: string }
   | { type: 'CREATE_PAGE'; name: string }
   | { type: 'CREATE_LAYER'; pageId: string; parentId: string | null; layer: LayerNode }
   | { type: 'DELETE_LAYERS'; ids: string[] }
@@ -89,5 +99,7 @@ export type EditorAction =
   | { type: 'RENAME_LAYER'; id: string; name: string }
   | { type: 'BEGIN_MOVE'; ids: string[] }
   | { type: 'MOVE_LAYERS'; ids: string[]; dx: number; dy: number }
+  | { type: 'ADD_PROTOTYPE_LINK'; link: PrototypeLink }
+  | { type: 'REMOVE_PROTOTYPE_LINK'; id: string }
   | { type: 'UNDO' }
   | { type: 'REDO' }

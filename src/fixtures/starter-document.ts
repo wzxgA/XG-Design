@@ -105,11 +105,38 @@ const dashboardPage = frame('frame-dashboard', '仪表盘', [
   ]),
 ])
 
-const projectsPage = frame('frame-projects', '项目管理页', [])
-const settingsPage = frame('frame-settings', '系统设置页', [])
+const projectsFrame = frame('frame-projects', '项目管理页', [
+  rect('rect-projects-bg', '页面背景', 0, 0, 1440, 900, { fill: '#f8fafb' }),
+  group('grp-projects-header', '页面头部', 0, 0, 1440, 72, [
+    rect('rect-projects-title', '标题栏', 24, 20, 240, 32, { fill: '#ffffff', cornerRadius: 6 }),
+    rect('rect-projects-btn', '按钮占位', 1260, 20, 156, 32, { fill: '#4e8ff4', cornerRadius: 6 }),
+  ]),
+  group('grp-projects-grid', '项目卡片', 24, 96, 1392, 780, [
+    ...Array.from({ length: 6 }, (_, i) => group(`proj-card-${i}`, `项目卡片 ${i + 1}`, (i % 3) * 476, Math.floor(i / 3) * 264, 460, 248, [
+      rect(`proj-card-bg-${i}`, '卡片背景', 0, 0, 460, 248, { fill: '#ffffff', cornerRadius: 8, stroke: '#e8edef', strokeWidth: 1 }),
+      rect(`proj-card-thumb-${i}`, '封面占位', 16, 16, 428, 130, { fill: '#eef2f4', cornerRadius: 6 }),
+      text(`proj-card-title-${i}`, '项目名', 16, 156, 300, 20, `项目名称 ${i + 1}`, { fontSize: 15, color: '#364249', fontWeight: 700 }),
+      text(`proj-card-status-${i}`, '状态', 16, 184, 300, 14, '最近更新于 1 小时前', { fontSize: 11, color: '#9aa5aa', fontWeight: 400 }),
+    ])),
+  ]),
+])
+
+const settingsFrame = frame('frame-settings', '系统设置页', [
+  rect('rect-settings-bg', '页面背景', 0, 0, 1440, 900, { fill: '#f8fafb' }),
+  group('grp-settings-form', '设置表单', 120, 100, 1200, 700, [
+    text('txt-settings-title', '表单标题', 0, 0, 300, 30, '系统设置', { fontSize: 24, color: '#364249', fontWeight: 700 }),
+    ...Array.from({ length: 5 }, (_, i) => group(`set-row-${i}`, `设置项 ${i + 1}`, 0, 60 + i * 56, 1200, 44, [
+      rect(`set-row-bg-${i}`, '行背景', 0, 0, 1200, 44, { fill: '#ffffff', cornerRadius: 6, stroke: '#e8edef', strokeWidth: 1 }),
+      text(`set-row-label-${i}`, '标签', 20, 14, 200, 16, `设置项 ${i + 1}`, { fontSize: 13, color: '#59666c', fontWeight: 500 }),
+      rect(`set-row-input-${i}`, '输入框', 400, 8, 760, 28, { fill: '#f7f9fa', cornerRadius: 5, stroke: '#e3e8ea', strokeWidth: 1 }),
+    ])),
+  ]),
+])
 
 const pages: PageNode[] = [
-  { id: 'page-workbench', name: 'PC 端工作台', children: [dashboardPage, projectsPage, settingsPage] },
+  { id: 'page-workbench', name: 'PC 端工作台', children: [dashboardPage] },
+  { id: 'page-projects', name: '项目管理页', children: [projectsFrame] },
+  { id: 'page-settings', name: '系统设置页', children: [settingsFrame] },
 ]
 
 export const starterDocument: DesignDocument = {
@@ -117,5 +144,8 @@ export const starterDocument: DesignDocument = {
   name: '未命名设计稿',
   pages,
   activePageId: 'page-workbench',
+  prototypeLinks: [
+    { id: uid('link'), sourceLayerId: 'rect-new-project', targetPageId: 'page-projects', trigger: 'click', transition: 'instant' },
+  ],
   updatedAt: Date.now(),
 }
