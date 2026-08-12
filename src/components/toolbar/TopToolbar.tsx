@@ -1,0 +1,63 @@
+import type { EditorState, EditorDispatch, ToolType } from '../../state/editor-store'
+import type { DesignDocument } from '../../types/design'
+import { Icon, Watermelon, type IconName } from '../common/brand'
+
+const toolItems: [IconName, string, string, ToolType][] = [
+  ['cursor', '选择', 'V', 'select'],
+  ['frame', '画板', 'F', 'frame'],
+  ['rect', '矩形', 'R', 'rectangle'],
+  ['pen', '钢笔', 'P', 'pen'],
+  ['text', '文字', 'T', 'text'],
+  ['comment', '评论', 'C', 'comment'],
+  ['grid', '组件', '', 'components'],
+]
+
+interface Props {
+  state: EditorState
+  dispatch: EditorDispatch
+  onRenameDocument: (name: string) => void
+}
+
+export function TopToolbar({ state, dispatch, onRenameDocument }: Props) {
+  const doc: DesignDocument = state.document
+  const zoom = state.zoom
+
+  return (
+    <header className="topbar">
+      <div className="brand"><Watermelon /><strong>XG<span>Design</span></strong></div>
+      <div className="file-meta" title="点击重命名">
+        <input
+          className="file-name-input"
+          value={doc.name}
+          onChange={(e) => onRenameDocument(e.target.value)}
+        />
+        <Icon name="chevron" />
+        <span className="save-dot" /> <span className="saved">已保存</span>
+      </div>
+      <div className="toolbar-tools">
+        {toolItems.map(([icon, label, key, tool], index) => (
+          <button
+            key={label}
+            className={`tool-button ${state.activeTool === tool ? 'selected' : ''} ${index === 5 ? 'tool-divider' : ''}`}
+            onClick={() => dispatch({ type: 'SET_ACTIVE_TOOL', tool })}
+            title={`${label} ${key}`}
+          >
+            <Icon name={icon} /><span className="tool-key">{key}</span>
+          </button>
+        ))}
+        <button className="tool-button more">•••</button>
+      </div>
+      <div className="top-actions">
+        <div className="avatars">
+          <span className="avatar avatar-one">M</span>
+          <span className="avatar avatar-two">L</span>
+          <span className="avatar avatar-three">A</span>
+          <span className="avatar-more">+2</span>
+        </div>
+        <button className="preview-button"><Icon name="play" /> 预览</button>
+        <button className="share-button">分享 <Icon name="external" /></button>
+        <span className="top-zoom">{zoom}%</span>
+      </div>
+    </header>
+  )
+}
