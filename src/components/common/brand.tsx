@@ -38,6 +38,27 @@ export function EyeClosed({ className = '' }: { className?: string }) {
   )
 }
 
+/** 上锁图标（图层锁定） */
+export function LockClosed({ className = '' }: { className?: string }) {
+  return (
+    <svg className={`lock-svg ${className}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  )
+}
+
+/** 开锁图标（图层未锁定） */
+export function LockOpen({ className = '' }: { className?: string }) {
+  return (
+    <svg className={`lock-svg ${className}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 7.8-1.4" />
+      <path d="M18 7v4" />
+    </svg>
+  )
+}
+
 export function Watermelon({ className = '' }: { className?: string }) {
   return <span className={`watermelon ${className}`} aria-hidden="true"><i /><b /><em /><small /></span>
 }

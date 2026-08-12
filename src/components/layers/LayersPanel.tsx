@@ -1,6 +1,6 @@
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
-import { Icon, EyeOpen, EyeClosed, type IconName } from '../common/brand'
+import { Icon, EyeOpen, EyeClosed, LockClosed, LockOpen, type IconName } from '../common/brand'
 
 const typeIcon: Record<LayerNode['type'], IconName> = {
   frame: 'frame', group: 'layers', rectangle: 'rect',
@@ -43,8 +43,12 @@ function LayerTreeItem({ node, depth, dispatch, selectedIds }: {
         >
           {node.visible ? <EyeOpen /> : <EyeClosed />}
         </span>
-        <span className="row-lock" title={node.locked ? '解锁' : '锁定'} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_LAYER_LOCK', ids: [node.id] }) }}>
-          <Icon name="lock" />
+        <span
+          className={`row-lock ${node.locked ? 'is-locked' : ''}`}
+          title={node.locked ? '解锁图层' : '锁定图层'}
+          onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_LAYER_LOCK', ids: [node.id] }) }}
+        >
+          {node.locked ? <LockClosed /> : <LockOpen />}
         </span>
       </div>
       {hasChildren && node.expanded && node.children.map((child) => (
@@ -67,7 +71,7 @@ export function LayersPanel({ state, dispatch }: Props) {
       <div className="search-field"><Icon name="search" /><span>搜索图层</span><kbd>⌘ F</kbd></div>
       <div className="layers-heading"><span>页面</span><button><Icon name="plus" /></button></div>
       <div className="page-row"><Icon name="chevron" /><Icon name="folder" className="folder-icon" /><span>{activePage.name}</span><span className="page-menu">•••</span></div>
-      <div className="layers-heading tree-heading"><span>图层</span><span className="tree-actions"><EyeOpen /> <Icon name="lock" /></span></div>
+      <div className="layers-heading tree-heading"><span>图层</span><span className="tree-actions"><EyeOpen /> <LockClosed /></span></div>
       <div className="layer-tree">
         {activePage.children.map((node) => (
           <LayerTreeItem key={node.id} node={node} depth={0} dispatch={dispatch} selectedIds={state.selectedIds} />

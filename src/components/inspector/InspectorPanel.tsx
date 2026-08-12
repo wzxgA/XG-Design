@@ -1,6 +1,8 @@
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
 import { Icon } from '../common/brand'
+import { PropertyInput } from './PropertyInput'
+import { MIN_SIZE } from '../../utils/geometry'
 
 interface Props {
   state: EditorState
@@ -14,20 +16,6 @@ function findLayer(root: LayerNode[], id: string): LayerNode | null {
     if (found) return found
   }
   return null
-}
-
-function NumInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
-  return (
-    <div className="property-row">
-      <label>{label}</label>
-      <input
-        className="property-input"
-        type="number"
-        value={value}
-        onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n)) onChange(n) }}
-      />
-    </div>
-  )
 }
 
 export function InspectorPanel({ state, dispatch }: Props) {
@@ -65,14 +53,14 @@ export function InspectorPanel({ state, dispatch }: Props) {
           <section className="property-section">
             <div className="section-heading">位置与尺寸 <span>↔</span></div>
             <div className="property-grid">
-              <NumInput label="X" value={selected.x} onChange={(v) => patch({ x: v })} />
-              <NumInput label="Y" value={selected.y} onChange={(v) => patch({ y: v })} />
-              <NumInput label="W" value={selected.width} onChange={(v) => patch({ width: Math.max(1, v) })} />
-              <NumInput label="H" value={selected.height} onChange={(v) => patch({ height: Math.max(1, v) })} />
+              <PropertyInput label="X" value={selected.x} onChange={(v) => patch({ x: v })} />
+              <PropertyInput label="Y" value={selected.y} onChange={(v) => patch({ y: v })} />
+              <PropertyInput label="W" value={selected.width} min={MIN_SIZE} onChange={(v) => patch({ width: v })} />
+              <PropertyInput label="H" value={selected.height} min={MIN_SIZE} onChange={(v) => patch({ height: v })} />
             </div>
             <div className="property-grid secondary">
-              <NumInput label="↻" value={selected.rotation} onChange={(v) => patch({ rotation: v })} />
-              <NumInput label="◒" value={selected.style.cornerRadius ?? 0} onChange={(v) => patchStyle({ cornerRadius: v })} />
+              <PropertyInput label="↻" value={selected.rotation} onChange={(v) => patch({ rotation: v })} />
+              <PropertyInput label="◒" value={selected.style.cornerRadius ?? 0} min={0} onChange={(v) => patchStyle({ cornerRadius: v })} />
             </div>
           </section>
 

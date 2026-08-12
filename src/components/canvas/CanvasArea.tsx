@@ -2,10 +2,20 @@ import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
 import { Icon, Watermelon } from '../common/brand'
 import { CanvasObject } from './CanvasObject'
+import { SelectionBox } from './SelectionBox'
 
 interface Props {
   state: EditorState
   dispatch: EditorDispatch
+}
+
+function findLayer(root: LayerNode[], id: string): LayerNode | null {
+  for (const node of root) {
+    if (node.id === id) return node
+    const found = findLayer(node.children, id)
+    if (found) return found
+  }
+  return null
 }
 
 export function CanvasArea({ state, dispatch }: Props) {
@@ -13,6 +23,12 @@ export function CanvasArea({ state, dispatch }: Props) {
   const activePage = state.document.pages.find((p) => p.id === state.document.activePageId)!
   const selectedFrame = activePage.children.find((n) => n.type === 'frame') as LayerNode | undefined
   const selectedId = state.selectedIds[0]
+  const selectedNode = selectedFrame ? findLayer(selectedFrame.children, selectedId ?? '') : undefined
+
+  const fitCanvas = () => {
+    // 适应画布：重置缩放为 100（画板已居中），后续可优化为按可视区域计算
+    dispatch({ type: 'SET_ZOOM', zoom: 100 })
+  }
 
   return (
     <main className="canvas-area" onClick={() => dispatch({ type: 'SELECT_LAYERS', ids: [] })}>
@@ -27,9 +43,9 @@ export function CanvasArea({ state, dispatch }: Props) {
           {selectedFrame && selectedFrame.children.map((child) => (
             <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} />
           ))}
-          <div className="handle h-tl" /><div className="handle h-tm" /><div className="handle h-tr" />
-          <div className="handle h-ml" /><div className="handle h-mr" />
-          <div className="handle h-bl" /><div className="handle h-bm" /><div className="handle h-br" />
+          {selectedNode && !selectedNode.locked && (
+            <SelectionBox node={selectedNode} zoom={zoom} dispatch={dispatch} />
+          )}
         </div>
         <div className="smart-guide vertical"><span>24 px</span></div>
         <div className="smart-guide horizontal" />
@@ -43,11 +59,11 @@ export function CanvasArea({ state, dispatch }: Props) {
         <button onClick={() => dispatch({ type: 'SET_ZOOM', zoom: zoom - 10 })}><Icon name="minus" /></button>
         <span>{zoom}%</span>
         <button onClick={() => dispatch({ type: 'SET_ZOOM', zoom: zoom + 10 })}><Icon name="plus" /></button>
-        <button><Icon name="fit" /></button>
+        <button onClick={fitCanvas} title="适应画布"><Icon name="fit" /></button>
       </div>
 
       <div className="canvas-coordinates">
-        {selectedFrame ? `X ${selectedFrame.x}　Y ${selectedFrame.y}` : `选中 ${selectedId ?? '无'}`}
+        {selectedNode ? `X ${selectedNode.x}　Y ${selectedNode.y}` : `选中 ${selectedId ?? '无'}`}
       </div>
     </main>
   )

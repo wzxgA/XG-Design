@@ -15,6 +15,9 @@ export function CanvasObject({ node, state, dispatch }: Props) {
   if (!node.visible) return null
 
   const selected = state.selectedIds.includes(node.id)
+  // 叶子节点选中且未锁定时由 SelectionBox 显示选中框，自身不再描边避免重叠
+  const useSelectionBox = selected && node.children.length === 0 && !node.locked
+  const outline = selected && !useSelectionBox ? 'canvas-selected' : ''
   const style: React.CSSProperties = {
     position: 'absolute',
     left: node.x,
@@ -28,7 +31,7 @@ export function CanvasObject({ node, state, dispatch }: Props) {
   // 选中态：在对象外描边 + 覆盖整棵树（若该节点有子节点）
   if (node.children.length > 0) {
     return (
-      <div className={`canvas-group ${selected ? 'canvas-selected' : ''}`} style={style} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SELECT_LAYERS', ids: [node.id] }) }}>
+      <div className={`canvas-group ${outline}`} style={style} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SELECT_LAYERS', ids: [node.id] }) }}>
         {node.children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} />)}
       </div>
     )
@@ -38,7 +41,7 @@ export function CanvasObject({ node, state, dispatch }: Props) {
     case 'rectangle':
       return (
         <div
-          className={`canvas-rect ${selected ? 'canvas-selected' : ''}`}
+          className={`canvas-rect ${outline}`}
           style={{
             ...style,
             background: node.style.fill ?? '#e5ebef',
@@ -53,7 +56,7 @@ export function CanvasObject({ node, state, dispatch }: Props) {
     case 'text':
       return (
         <div
-          className={`canvas-text ${selected ? 'canvas-selected' : ''}`}
+          className={`canvas-text ${outline}`}
           style={{
             ...style,
             color: node.style.color ?? '#5c6b72',
@@ -72,7 +75,7 @@ export function CanvasObject({ node, state, dispatch }: Props) {
       const max = Math.max(...bars, 1)
       return (
         <div
-          className={`canvas-chart ${selected ? 'canvas-selected' : ''}`}
+          className={`canvas-chart ${outline}`}
           style={style}
           onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SELECT_LAYERS', ids: [node.id] }) }}
         >
