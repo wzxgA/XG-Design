@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
 
@@ -6,6 +6,7 @@ interface Props {
   node: LayerNode
   state: EditorState
   dispatch: EditorDispatch
+  drawing?: boolean
 }
 
 function findBoard(state: EditorState): LayerNode | undefined {
@@ -18,7 +19,7 @@ function findBoard(state: EditorState): LayerNode | undefined {
  * 将 LayerNode 树按绝对坐标渲染为 HTML，隐藏节点不渲染，选中节点显示边框。
  * 支持拖拽移动对象（锁定节点不可移动）。
  */
-export function CanvasObject({ node, state, dispatch }: Props) {
+export function CanvasObject({ node, state, dispatch, drawing = false }: Props) {
   const startRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null)
   const movedRef = useRef(false)
 
@@ -42,6 +43,7 @@ export function CanvasObject({ node, state, dispatch }: Props) {
 
   const onPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation()
+    if (drawing) return
     dispatch({ type: 'SELECT_LAYERS', ids: [node.id] })
     if (node.locked) return
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -91,7 +93,7 @@ export function CanvasObject({ node, state, dispatch }: Props) {
   if (node.children.length > 0) {
     return (
       <div className={`canvas-group ${outline}`} style={style} {...base}>
-        {node.children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} />)}
+        {node.children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} />)}
       </div>
     )
   }
@@ -113,19 +115,12 @@ export function CanvasObject({ node, state, dispatch }: Props) {
       )
 
     case 'text':
+      return <CanvasText node={node} style={style} outline={outline} base={base} state={state} dispatch={dispatch} />
+
+    case 'comment':
       return (
-        <div
-          className={`canvas-text ${outline}`}
-          style={{
-            ...style,
-            color: node.style.color ?? '#5c6b72',
-            fontSize: node.style.fontSize ?? 14,
-            fontWeight: node.style.fontWeight ?? 400,
-            lineHeight: '1.2',
-          }}
-          {...base}
-        >
-          {node.content ?? node.name}
+        <div className={`canvas-comment ${selected ? 'canvas-selected' : ''}`} style={style} {...base}>
+          <span className="comment-pin">{selected ? '💬' : '●'}</span>
         </div>
       )
 
@@ -148,4 +143,62 @@ export function CanvasObject({ node, state, dispatch }: Props) {
     default:
       return null
   }
+}
+
+interface TextProps {
+  node: LayerNode
+  style: React.CSSProperties
+  outline: string
+  base: Record<string, (e: any) => void>
+  state: EditorState
+  dispatch: EditorDispatch
+}
+
+function CanvasText({ node, style, outline, base, state, dispatch }: TextProps) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(node.content ?? '')
+  const inputRef = useRef<HTMLDivElement>(null)
+
+  if (editing) {
+    return (
+      <div className={`canvas-text ${outline}`} style={style}>
+        <div
+          ref={inputRef}
+          className="text-edit-input"
+          contentEditable
+          suppressContentEditableWarning
+          onBlur={() => {
+            dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { content: draft, name: draft || '文本' } })
+            setEditing(false)
+          }}
+          onInput={(e) => setDraft((e.target as HTMLElement).textContent ?? '')}
+        >
+          {node.content ?? node.name}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`canvas-text ${outline}`}
+      style={{
+        ...style,
+        color: node.style.color ?? '#5c6b72',
+        fontSize: node.style.fontSize ?? 14,
+        fontWeight: node.style.fontWeight ?? 400,
+        lineHeight: '1.2',
+      }}
+      {...base}
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        if (!node.locked) {
+          setDraft(node.content ?? node.name)
+          setEditing(true)
+        }
+      }}
+    >
+      {node.content ?? node.name}
+    </div>
+  )
 }
