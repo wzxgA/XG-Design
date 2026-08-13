@@ -4,7 +4,10 @@ import com.xgdesign.common.ApiResponse;
 import com.xgdesign.project.dto.DocumentDto;
 import com.xgdesign.project.dto.SaveDocumentRequest;
 import com.xgdesign.project.dto.SaveResultDto;
+import com.xgdesign.project.dto.ShareInfoDto;
+import com.xgdesign.project.dto.UpdateShareRequest;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -35,5 +38,19 @@ public class DocumentController {
     public ApiResponse<SaveResultDto> save(@PathVariable UUID id,
                                            @Valid @RequestBody SaveDocumentRequest request) {
         return ApiResponse.ok(documentService.saveDocument(id, request));
+    }
+
+    /** 创建/更新分享链接（已存在则旧链接失效，重新生成 token） */
+    @PutMapping("/{id}/share")
+    public ApiResponse<ShareInfoDto> updateShare(@PathVariable UUID id,
+                                                 @Valid @RequestBody UpdateShareRequest request) {
+        return ApiResponse.ok(documentService.createShare(id, request));
+    }
+
+    /** 撤销分享 */
+    @DeleteMapping("/{id}/share")
+    public ApiResponse<Void> revokeShare(@PathVariable UUID id) {
+        documentService.revokeShare(id);
+        return ApiResponse.ok();
     }
 }

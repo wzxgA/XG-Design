@@ -12,6 +12,7 @@ const typeIcon: Record<LayerNode['type'], IconName> = {
 interface Props {
   state: EditorState
   dispatch: EditorDispatch
+  readOnly?: boolean
 }
 
 interface ContextMenuState {
@@ -20,11 +21,12 @@ interface ContextMenuState {
   y: number
 }
 
-function LayerTreeItem({ node, depth, dispatch, selectedIds, onContextMenu, onRenameRequest, renamingId, draft, onDraftChange, onCommitRename }: {
+function LayerTreeItem({ node, depth, dispatch, selectedIds, readOnly, onContextMenu, onRenameRequest, renamingId, draft, onDraftChange, onCommitRename }: {
   node: LayerNode
   depth: number
   dispatch: EditorDispatch
   selectedIds: string[]
+  readOnly: boolean
   onContextMenu: (e: React.MouseEvent, id: string) => void
   onRenameRequest: (id: string) => void
   renamingId: string | null
@@ -42,8 +44,8 @@ function LayerTreeItem({ node, depth, dispatch, selectedIds, onContextMenu, onRe
         className={`layer-row ${selected ? 'selected' : ''}`}
         style={{ paddingLeft: `${14 + depth * 18}px` }}
         onClick={() => dispatch({ type: 'SELECT_LAYERS', ids: [node.id] })}
-        onContextMenu={(e) => onContextMenu(e, node.id)}
-        onDoubleClick={() => onRenameRequest(node.id)}
+        onContextMenu={(e) => { if (!readOnly) onContextMenu(e, node.id) }}
+        onDoubleClick={() => { if (!readOnly) onRenameRequest(node.id) }}
       >
         <span
           className="row-chevron"
@@ -68,29 +70,33 @@ function LayerTreeItem({ node, depth, dispatch, selectedIds, onContextMenu, onRe
         ) : (
           <span className={`layer-label ${!node.visible ? 'is-hidden' : ''}`}>{node.name}</span>
         )}
-        <span
-          className={`row-visibility ${node.visible ? '' : 'is-hidden'}`}
-          title={node.visible ? '隐藏图层' : '显示图层'}
-          onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_LAYER_VISIBILITY', ids: [node.id] }) }}
-        >
-          {node.visible ? <EyeOpen /> : <EyeClosed />}
-        </span>
-        <span
-          className={`row-lock ${node.locked ? 'is-locked' : ''}`}
-          title={node.locked ? '解锁图层' : '锁定图层'}
-          onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_LAYER_LOCK', ids: [node.id] }) }}
-        >
-          {node.locked ? <LockClosed /> : <LockOpen />}
-        </span>
+        {!readOnly && (
+          <>
+            <span
+              className={`row-visibility ${node.visible ? '' : 'is-hidden'}`}
+              title={node.visible ? '隐藏图层' : '显示图层'}
+              onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_LAYER_VISIBILITY', ids: [node.id] }) }}
+            >
+              {node.visible ? <EyeOpen /> : <EyeClosed />}
+            </span>
+            <span
+              className={`row-lock ${node.locked ? 'is-locked' : ''}`}
+              title={node.locked ? '解锁图层' : '锁定图层'}
+              onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_LAYER_LOCK', ids: [node.id] }) }}
+            >
+              {node.locked ? <LockClosed /> : <LockOpen />}
+            </span>
+          </>
+        )}
       </div>
       {hasChildren && node.expanded && node.children.map((child) => (
-        <LayerTreeItem key={child.id} node={child} depth={depth + 1} dispatch={dispatch} selectedIds={selectedIds} onContextMenu={onContextMenu} onRenameRequest={onRenameRequest} renamingId={renamingId} draft={draft} onDraftChange={onDraftChange} onCommitRename={onCommitRename} />
+        <LayerTreeItem key={child.id} node={child} depth={depth + 1} dispatch={dispatch} selectedIds={selectedIds} readOnly={readOnly} onContextMenu={onContextMenu} onRenameRequest={onRenameRequest} renamingId={renamingId} draft={draft} onDraftChange={onDraftChange} onCommitRename={onCommitRename} />
       ))}
     </>
   )
 }
 
-export function LayersPanel({ state, dispatch }: Props) {
+export function LayersPanel({ state, dispatch, readOnly = false }: Props) {
   const activePage = state.document.pages.find((p) => p.id === state.document.activePageId)!
   const tab = state.leftPanelTab
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
@@ -147,7 +153,7 @@ export function LayersPanel({ state, dispatch }: Props) {
         <button className={tab === 'components' ? 'active' : ''} onClick={() => dispatch({ type: 'SET_LEFT_PANEL_TAB', tab: 'components' })}><Icon name="components" /> 组件</button>
       </div>
       <div className="search-field"><Icon name="search" /><span>搜索图层</span><kbd>⌘ F</kbd></div>
-      <div className="layers-heading"><span>页面</span><button onClick={createPage} title="新建页面"><Icon name="plus" /></button></div>
+      <div className="layers-heading"><span>页面</span>{!readOnly && <button onClick={createPage} title="新建页面"><Icon name="plus" /></button>}</div>
       <div className="page-list">
         {state.document.pages.map((p) => (
           <div
@@ -172,6 +178,7 @@ export function LayersPanel({ state, dispatch }: Props) {
             depth={0}
             dispatch={dispatch}
             selectedIds={state.selectedIds}
+            readOnly={readOnly}
             onContextMenu={openMenu}
             onRenameRequest={openRename}
             renamingId={renamingId}
@@ -181,12 +188,14 @@ export function LayersPanel({ state, dispatch }: Props) {
           />
         ))}
       </div>
-      <div className="layers-footer">
-        <span className="new-layer-trigger" onClick={() => setNewLayerMenuOpen((v) => !v)}>
-          <Icon name="plus" /> 新建图层
-        </span>
-        <span>⌘⌥G</span>
-      </div>
+      {!readOnly && (
+        <div className="layers-footer">
+          <span className="new-layer-trigger" onClick={() => setNewLayerMenuOpen((v) => !v)}>
+            <Icon name="plus" /> 新建图层
+          </span>
+          <span>⌘⌥G</span>
+        </div>
+      )}
 
       {/* 新建图层菜单 */}
       {newLayerMenuOpen && (

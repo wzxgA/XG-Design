@@ -10,6 +10,7 @@ import { toCss, toJson, checkLayer } from '../../utils/inspect'
 interface Props {
   state: EditorState
   dispatch: EditorDispatch
+  readOnly?: boolean
 }
 
 function findLayer(root: LayerNode[], id: string): LayerNode | null {
@@ -27,7 +28,7 @@ function findBoard(state: EditorState): { width: number; height: number } | unde
   return frame ? { width: frame.width, height: frame.height } : undefined
 }
 
-function PrototypePanel({ state, dispatch, selected }: { state: EditorState; dispatch: EditorDispatch; selected: LayerNode }) {
+function PrototypePanel({ state, dispatch, selected, readOnly }: { state: EditorState; dispatch: EditorDispatch; selected: LayerNode; readOnly: boolean }) {
   const links = state.document.prototypeLinks.filter((l) => l.sourceLayerId === selected.id)
   const otherPages = state.document.pages.filter((p) => p.id !== state.document.activePageId)
   const [targetPageId, setTargetPageId] = useState(otherPages[0]?.id ?? '')
@@ -61,6 +62,8 @@ function PrototypePanel({ state, dispatch, selected }: { state: EditorState; dis
         <div className="section-heading">连接 <span>＋</span></div>
         {otherPages.length === 0 ? (
           <div className="inspect-hint">没有其他页面可连接，请先新建页面。</div>
+        ) : readOnly ? (
+          <div className="inspect-hint">只读模式下不可编辑原型连接。</div>
         ) : (
           <>
             <div className="proto-field">
@@ -92,7 +95,7 @@ function PrototypePanel({ state, dispatch, selected }: { state: EditorState; dis
                 <Icon name="external" />
                 <span className="link-name">→ {target?.name ?? '未知页面'}</span>
                 <span className="link-meta">{link.trigger} · {link.transition}</span>
-                <button className="link-remove" onClick={() => removeLink(link.id)} title="删除连接">✕</button>
+                {!readOnly && <button className="link-remove" onClick={() => removeLink(link.id)} title="删除连接">✕</button>}
               </div>
             )
           })}
@@ -167,17 +170,17 @@ function InspectPanel({ state, selected }: { state: EditorState; selected: Layer
   )
 }
 
-export function InspectorPanel({ state, dispatch }: Props) {
+export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
   const tab = state.inspectorTab
   const activePage = state.document.pages.find((p) => p.id === state.document.activePageId)!
   const selected = findLayer(activePage.children, state.selectedIds[0] ?? '')
 
   const patch = (p: Partial<LayerNode>) => {
-    if (!selected) return
+    if (!selected || readOnly) return
     dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [selected.id], patch: p })
   }
   const patchStyle = (style: Partial<LayerNode['style']>) => {
-    if (!selected) return
+    if (!selected || readOnly) return
     dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [selected.id], patch: { style } })
   }
   const [exporting, setExporting] = useState(false)
@@ -207,7 +210,7 @@ export function InspectorPanel({ state, dispatch }: Props) {
       </div>
 
       {tab === 'prototype' && selected ? (
-        <PrototypePanel state={state} dispatch={dispatch} selected={selected} />
+        <PrototypePanel state={state} dispatch={dispatch} selected={selected} readOnly={readOnly} />
       ) : tab === 'inspect' && selected ? (
         <InspectPanel state={state} selected={selected} />
       ) : tab === 'design' && selected ? (
@@ -221,14 +224,14 @@ export function InspectorPanel({ state, dispatch }: Props) {
           <section className="property-section">
             <div className="section-heading">位置与尺寸 <span>↔</span></div>
             <div className="property-grid">
-              <PropertyInput label="X" value={selected.x} onChange={(v) => patch({ x: v })} />
-              <PropertyInput label="Y" value={selected.y} onChange={(v) => patch({ y: v })} />
-              <PropertyInput label="W" value={selected.width} min={MIN_SIZE} onChange={(v) => patch({ width: v })} />
-              <PropertyInput label="H" value={selected.height} min={MIN_SIZE} onChange={(v) => patch({ height: v })} />
+              <PropertyInput label="X" value={selected.x} disabled={readOnly} onChange={(v) => patch({ x: v })} />
+              <PropertyInput label="Y" value={selected.y} disabled={readOnly} onChange={(v) => patch({ y: v })} />
+              <PropertyInput label="W" value={selected.width} min={MIN_SIZE} disabled={readOnly} onChange={(v) => patch({ width: v })} />
+              <PropertyInput label="H" value={selected.height} min={MIN_SIZE} disabled={readOnly} onChange={(v) => patch({ height: v })} />
             </div>
             <div className="property-grid secondary">
-              <PropertyInput label="↻" value={selected.rotation} onChange={(v) => patch({ rotation: v })} />
-              <PropertyInput label="◒" value={selected.style.cornerRadius ?? 0} min={0} onChange={(v) => patchStyle({ cornerRadius: v })} />
+              <PropertyInput label="↻" value={selected.rotation} disabled={readOnly} onChange={(v) => patch({ rotation: v })} />
+              <PropertyInput label="◒" value={selected.style.cornerRadius ?? 0} min={0} disabled={readOnly} onChange={(v) => patchStyle({ cornerRadius: v })} />
             </div>
           </section>
 

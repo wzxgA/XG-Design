@@ -1,5 +1,5 @@
 import type { DesignDocument } from '../types/design'
-import type { ProjectMeta, ShareInfo } from '../types/project'
+import type { ProjectMeta, ShareInfo, Permission } from '../types/project'
 import { starterDocument } from '../fixtures/starter-document'
 
 /**
@@ -25,6 +25,10 @@ export interface DocumentRepository {
   unarchiveDocument(id: string): Promise<void>
   /** 设置/清除分享信息（null 表示关闭分享） */
   setShare(id: string, share: ShareInfo | null): Promise<void>
+  /** 通过分享 token 打开文档，返回 { doc, permission, version } */
+  openShared(token: string): Promise<{ doc: DesignDocument; permission: Permission; version: number }>
+  /** 通过分享 token 保存（仅 permission=edit 可用） */
+  saveShared(token: string, doc: DesignDocument, version: number): Promise<number>
 }
 
 const DOC_PREFIX = 'xgdesign:doc:'
@@ -168,5 +172,16 @@ export const localRepository: DocumentRepository = {
       projects[idx] = { ...projects[idx], share: share ?? undefined }
       writeProjects(projects)
     }
+  },
+
+  async openShared(token) {
+    // 本地语义：token 即文档 id（仅用于本地模式演示分享打开）
+    const doc = readDocument(token)
+    if (!doc) throw new Error('分享链接已失效或不存在')
+    return { doc, permission: 'view' as Permission, version: 1 }
+  },
+
+  async saveShared(_token, _doc, _version) {
+    return 1
   },
 }

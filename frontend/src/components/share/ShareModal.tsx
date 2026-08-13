@@ -8,28 +8,31 @@ interface Props {
   onClose: () => void
 }
 
-/** 分享弹窗：权限选择、复制链接、取消分享 */
+/** 分享弹窗：权限选择、复制链接、取消分享（对接后端 /api/documents/{id}/share） */
 export function ShareModal({ projectId, onClose }: Props) {
   const [permission, setPermission] = useState<Permission>('view')
   const [copied, setCopied] = useState(false)
-  const [active, setActive] = useState(false)
+  const [info, setInfo] = useState<ShareInfo | null>(null)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
-  const link = active ? `${window.location.origin}${window.location.pathname}#/doc/${projectId}` : ''
-
-  const shareFor = (p: Permission): ShareInfo => ({
-    link: `${window.location.origin}${window.location.pathname}#/doc/${projectId}`,
-    permission: p,
-    active: true,
-    createdAt: Date.now(),
-  })
+  const active = !!info
 
   const startShare = async () => {
     if (busy) return
     setBusy(true)
+    setError('')
     try {
-      await repository.setShare(projectId, shareFor(permission))
-      setActive(true)
+      const share: ShareInfo = {
+        link: '',
+        permission,
+        active: true,
+        createdAt: Date.now(),
+      }
+      await repository.setShare(projectId, share)
+      setInfo(share)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '创建分享失败')
     } finally {
       setBusy(false)
     }
@@ -37,10 +40,14 @@ export function ShareModal({ projectId, onClose }: Props) {
 
   const updatePermission = async (p: Permission) => {
     setPermission(p)
-    if (!active || busy) return
+    if (!info || busy) return
     setBusy(true)
+    setError('')
     try {
-      await repository.setShare(projectId, shareFor(p))
+      await repository.setShare(projectId, { ...info, permission: p })
+      setInfo({ ...info, permission: p })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '更新权限失败')
     } finally {
       setBusy(false)
     }
@@ -49,17 +56,21 @@ export function ShareModal({ projectId, onClose }: Props) {
   const revoke = async () => {
     if (busy) return
     setBusy(true)
+    setError('')
     try {
       await repository.setShare(projectId, null)
-      setActive(false)
+      setInfo(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '取消分享失败')
     } finally {
       setBusy(false)
     }
   }
 
   const copy = async () => {
+    if (!info?.link) return
     try {
-      await navigator.clipboard.writeText(link)
+      await navigator.clipboard.writeText(info.link)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch { /* 剪贴板不可用 */ }
@@ -91,8 +102,8 @@ export function ShareModal({ projectId, onClose }: Props) {
               <div className="share-active">
                 <span className="share-status">已分享</span>
                 <div className="share-link-box">
-                  <span className="share-link">{link}</span>
-                  <button className="share-copy" onClick={copy}>{copied ? '已复制 ✓' : '复制'}</button>
+                  <span className="share-link">{info?.link || '生成中…'}</span>
+                  <button className="share-copy" onClick={copy} disabled={!info?.link}>{copied ? '已复制 ✓' : '复制'}</button>
                 </div>
               </div>
               <div className="share-permission-row">
@@ -106,6 +117,7 @@ export function ShareModal({ projectId, onClose }: Props) {
               <div className="share-hint">取消分享后，原链接将失效。</div>
             </>
           )}
+          {error && <div className="export-error">{error}</div>}
         </div>
       </div>
     </div>

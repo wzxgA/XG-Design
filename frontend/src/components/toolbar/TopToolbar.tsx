@@ -21,6 +21,14 @@ interface Props {
   onOpenProjects?: () => void
   onShare?: () => void
   saveStatus?: SaveStatus
+  /** 只读模式（分享仅查看链接） */
+  readOnly?: boolean
+  /** 当前登录用户昵称 */
+  userName?: string
+  /** 登录用户邮箱 */
+  userEmail?: string
+  /** 退出登录按钮节点 */
+  logoutNode?: React.ReactNode
 }
 
 const SAVE_LABEL: Record<SaveStatus, string> = {
@@ -30,19 +38,20 @@ const SAVE_LABEL: Record<SaveStatus, string> = {
   error: '保存失败',
 }
 
-export function TopToolbar({ state, dispatch, onRenameDocument, onPreview, onOpenProjects, onShare, saveStatus = 'idle' }: Props) {
+export function TopToolbar({ state, dispatch, onRenameDocument, onPreview, onOpenProjects, onShare, saveStatus = 'idle', readOnly = false, userName, logoutNode }: Props) {
   const doc: DesignDocument = state.document
   const zoom = state.zoom
   const saving = saveStatus === 'saving'
 
   return (
     <header className="topbar">
-      <div className="brand" onClick={onOpenProjects} title="打开项目" style={{ cursor: 'pointer' }}><Watermelon /><strong>XG<span>Design</span></strong></div>
-      <div className="file-meta" title="点击重命名">
+      <div className="brand" onClick={readOnly ? undefined : onOpenProjects} title={readOnly ? '只读分享页' : '打开项目'} style={{ cursor: readOnly ? 'default' : 'pointer' }}><Watermelon /><strong>XG<span>Design</span></strong></div>
+      <div className="file-meta" title={readOnly ? '只读模式' : '点击重命名'}>
         <input
           className="file-name-input"
           value={doc.name}
           maxLength={80}
+          readOnly={readOnly}
           onChange={(e) => {
             const v = e.target.value
             if (v.trim().length > 0) onRenameDocument(v)
@@ -54,6 +63,7 @@ export function TopToolbar({ state, dispatch, onRenameDocument, onPreview, onOpe
         <Icon name="chevron" />
         <span className={`save-dot ${saveStatus}`} />
         <span className="saved">{SAVE_LABEL[saveStatus]}</span>
+        {readOnly && <span className="readonly-badge"><Icon name="eye" /> 只读</span>}
       </div>
       <div className="toolbar-tools">
         {toolItems.map(([icon, label, key, tool], index) => (
@@ -69,14 +79,22 @@ export function TopToolbar({ state, dispatch, onRenameDocument, onPreview, onOpe
         <button className="tool-button more">•••</button>
       </div>
       <div className="top-actions">
-        <div className="avatars">
-          <span className="avatar avatar-one">M</span>
-          <span className="avatar avatar-two">L</span>
-          <span className="avatar avatar-three">A</span>
-          <span className="avatar-more">+2</span>
-        </div>
+        {userName ? (
+          <div className="user-chip" title={state.document.name ? undefined : undefined}>
+            <span className="user-avatar">{userName.slice(0, 1).toUpperCase()}</span>
+            <span className="user-name">{userName}</span>
+            {logoutNode}
+          </div>
+        ) : (
+          <div className="avatars">
+            <span className="avatar avatar-one">M</span>
+            <span className="avatar avatar-two">L</span>
+            <span className="avatar avatar-three">A</span>
+            <span className="avatar-more">+2</span>
+          </div>
+        )}
         <button className="preview-button" onClick={onPreview}><Icon name="play" /> 预览</button>
-        <button className="share-button" onClick={onShare}>分享 <Icon name="external" /></button>
+        {!readOnly && <button className="share-button" onClick={onShare}>分享 <Icon name="external" /></button>}
         <span className="top-zoom">{zoom}%</span>
       </div>
     </header>

@@ -59,8 +59,12 @@ async function loadInitial(
   projectId?: string,
 ): Promise<{ doc: DesignDocument; fromProject: boolean }> {
   if (projectId) {
-    const doc = await repo.getDocument(projectId)
-    if (doc) return { doc, fromProject: true }
+    try {
+      const doc = await repo.getDocument(projectId)
+      if (doc) return { doc, fromProject: true }
+    } catch {
+      // id 非法或文档不存在（如本地旧文档 id 非 UUID）→ 继续兜底
+    }
   }
   const recent = (await repo.listDocuments())[0]
   if (recent) {
@@ -70,6 +74,12 @@ async function loadInitial(
   if (repo.kind === 'local') {
     const legacy = loadLegacy()
     if (legacy?.document) return { doc: legacy.document, fromProject: false }
+  }
+  // 远程模式：兜底创建真实后端项目（获得 UUID），避免用本地非 UUID id 触发保存 500
+  if (repo.kind === 'remote') {
+    const meta = await repo.createDocument()
+    const doc = await repo.getDocument(meta.id)
+    if (doc) return { doc, fromProject: true }
   }
   return { doc: initDocument(), fromProject: false }
 }
@@ -87,36 +97,56 @@ function blankState(): EditorState {
   }
 }
 
-export function useEditorStore(projectId?: string) {
+interface ShareSession {
+  token: string
+  permission: 'view' | 'edit'
+}
+
+export function useEditorStore(projectId?: string, share?: ShareSession) {
   const [state, dispatch] = useReducer(editorReducer, undefined, blankState)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [dirty, setDirty] = useState(false)
   const [loading, setLoading] = useState(true)
   const [conflict, setConflict] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  // 分享链接的实际权限（由后端返回决定只读或可编辑）
+  const [permission, setPermission] = useState<'view' | 'edit'>(share?.permission ?? 'edit')
   const loadedRef = useRef(false)
   const skipSaveRef = useRef(0)
+  const sharedVersionRef = useRef(1)
   const stateRef = useRef(state)
   stateRef.current = state
+  // 只读：非分享页默认可编辑；分享页由后端返回的权限决定
+  const readOnly = !!share && permission === 'view'
 
   // 初始加载（异步）：成功后整文档载入，不触发“变更即保存”
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setLoadError('')
+    setPermission(share?.permission ?? 'edit')
     loadedRef.current = false
-    loadInitial(repository, projectId)
+    const load = share
+      ? repository.openShared(share.token).then((r) => {
+          setPermission(r.permission)
+          sharedVersionRef.current = r.version
+          return { doc: r.doc, fromProject: false }
+        })
+      : loadInitial(repository, projectId)
+
+    load
       .then(({ doc, fromProject }) => {
         if (cancelled) return
         skipSaveRef.current += 1
-        dispatch({ type: 'LOAD_DOCUMENT', doc, selectInitial: !fromProject })
+        dispatch({ type: 'LOAD_DOCUMENT', doc, selectInitial: !fromProject && !share })
         loadedRef.current = true
         setLoading(false)
         setSaveStatus('saved')
         setDirty(false)
       })
-      .catch(() => {
+      .catch((e) => {
         if (cancelled) return
-        skipSaveRef.current += 1
-        dispatch({ type: 'LOAD_DOCUMENT', doc: initDocument(), selectInitial: true })
+        setLoadError(e instanceof Error ? e.message : '加载文档失败')
         loadedRef.current = true
         setLoading(false)
         setSaveStatus('error')
@@ -124,11 +154,13 @@ export function useEditorStore(projectId?: string) {
     return () => {
       cancelled = true
     }
-  }, [projectId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, share?.token, share?.permission])
 
-  // 文档变更 → 防抖保存（409 时进入冲突态）
+  // 文档变更 → 防抖保存（409 时进入冲突态）；只读模式下跳过保存
   useEffect(() => {
     if (!loadedRef.current) return
+    if (readOnly) return
     if (skipSaveRef.current > 0) {
       skipSaveRef.current -= 1
       return
@@ -138,7 +170,11 @@ export function useEditorStore(projectId?: string) {
     const timer = window.setTimeout(async () => {
       try {
         const doc = state.document
-        if (repository.kind === 'local') {
+        if (share) {
+          // 通过分享链接保存（携带乐观锁版本号）
+          const version = await repository.saveShared(share.token, doc, sharedVersionRef.current)
+          sharedVersionRef.current = version
+        } else if (repository.kind === 'local') {
           const projects = await repository.listDocuments()
           if (projects.some((p) => p.id === doc.id)) {
             await repository.updateDocument(doc.id, doc)
@@ -164,6 +200,7 @@ export function useEditorStore(projectId?: string) {
         setSaveStatus('saved')
         setDirty(false)
       } catch (e) {
+        console.error('[editor] 保存失败', e)
         setSaveStatus('error')
         if (isConflictError(e)) setConflict(true)
       }
@@ -209,5 +246,5 @@ export function useEditorStore(projectId?: string) {
     }
   }, [])
 
-  return { state, dispatch, saveStatus, dirty, loading, conflict, createAndOpen, resolveConflict }
+  return { state, dispatch, saveStatus, dirty, loading, conflict, loadError, readOnly, createAndOpen, resolveConflict }
 }

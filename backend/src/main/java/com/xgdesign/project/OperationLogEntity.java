@@ -24,7 +24,7 @@ public class OperationLogEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "document_id", nullable = false, columnDefinition = "uuid")
+    @Column(name = "document_id", columnDefinition = "uuid")
     private UUID documentId;
 
     @Column(name = "user_id", columnDefinition = "uuid")

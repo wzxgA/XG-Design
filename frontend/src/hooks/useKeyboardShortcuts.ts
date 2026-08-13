@@ -8,6 +8,8 @@ interface Options {
   onUndo: () => void
   onRedo: () => void
   onEscape: () => void
+  /** 只读模式：禁用删除/复制/撤销/重做及工具切换（保留 Esc） */
+  readOnly?: boolean
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -18,13 +20,22 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /** 全局快捷键：工具切换、删除、复制、撤销重做、Esc */
-export function useKeyboardShortcuts({ onToolChange, onDelete, onDuplicate, onUndo, onRedo, onEscape }: Options) {
+export function useKeyboardShortcuts({ onToolChange, onDelete, onDuplicate, onUndo, onRedo, onEscape, readOnly = false }: Options) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return
 
       const mod = e.ctrlKey || e.metaKey
       const key = e.key.toLowerCase()
+
+      // Esc（只读时也保留，用于退出预览/弹窗）
+      if (key === 'escape') {
+        onEscape()
+        return
+      }
+
+      // 只读模式：屏蔽一切修改类快捷键
+      if (readOnly) return
 
       // 撤销 / 重做
       if (mod && key === 'z') {
@@ -45,16 +56,11 @@ export function useKeyboardShortcuts({ onToolChange, onDelete, onDuplicate, onUn
         onDelete()
         return
       }
-      // Esc
-      if (key === 'escape') {
-        onEscape()
-        return
-      }
       // 工具切换
       const toolMap: Record<string, ToolType> = { v: 'select', f: 'frame', r: 'rectangle', t: 'text', c: 'comment' }
       if (toolMap[key]) onToolChange(toolMap[key])
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onToolChange, onDelete, onDuplicate, onUndo, onRedo, onEscape])
+  }, [onToolChange, onDelete, onDuplicate, onUndo, onRedo, onEscape, readOnly])
 }

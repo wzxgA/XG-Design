@@ -1,9 +1,18 @@
 package com.xgdesign.project.dto;
 
+import com.xgdesign.project.ShareLinkEntity;
+
 /**
- * 与前端 ShareInfo 对齐。
- * 本期分享仍为本地语义，服务端 share_links 暂无记录，返回 null；
- * S3 接入分享后再从 share_links 查询。
+ * 分享状态摘要：{ token, permission, active, createdAt }。
+ * token 为高熵随机串（32 字节 Base64URL），前端拼完整 URL：{origin}/#/share/{token}。
  */
-public record ShareInfoDto(String link, String permission, boolean active, long createdAt) {
+public record ShareInfoDto(String token, String permission, boolean active, long createdAt) {
+
+    public static ShareInfoDto from(ShareLinkEntity entity) {
+        return new ShareInfoDto(
+                entity.getToken(),
+                entity.getPermission(),
+                entity.isActive(),
+                entity.getCreatedAt().toEpochMilli());
+    }
 }

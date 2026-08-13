@@ -9,6 +9,7 @@ import { createLayer } from '../../utils/layers'
 interface Props {
   state: EditorState
   dispatch: EditorDispatch
+  readOnly?: boolean
 }
 
 function findLayer(root: LayerNode[], id: string): LayerNode | null {
@@ -20,7 +21,7 @@ function findLayer(root: LayerNode[], id: string): LayerNode | null {
   return null
 }
 
-export function CanvasArea({ state, dispatch }: Props) {
+export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
   const { zoom } = state
   const activePage = state.document.pages.find((p) => p.id === state.document.activePageId)!
   const selectedFrame = activePage.children.find((n) => n.type === 'frame') as LayerNode | undefined
@@ -34,8 +35,9 @@ export function CanvasArea({ state, dispatch }: Props) {
 
   const fitCanvas = () => dispatch({ type: 'SET_ZOOM', zoom: 100 })
 
-  const isDrawTool = state.activeTool === 'frame' || state.activeTool === 'rectangle'
-  const isClickTool = state.activeTool === 'text' || state.activeTool === 'comment'
+  // 只读模式下禁止绘制/创建工具
+  const isDrawTool = !readOnly && (state.activeTool === 'frame' || state.activeTool === 'rectangle')
+  const isClickTool = !readOnly && (state.activeTool === 'text' || state.activeTool === 'comment')
 
   const toCanvasCoord = (e: React.PointerEvent) => {
     const el = frameRef.current
@@ -127,7 +129,7 @@ export function CanvasArea({ state, dispatch }: Props) {
             <div className="draw-preview" style={{ left: drawRect.x, top: drawRect.y, width: drawRect.w, height: drawRect.h }} />
           )}
           {selectedNode && !selectedNode.locked && (
-            <SelectionBox node={selectedNode} zoom={zoom} dispatch={dispatch} />
+            <SelectionBox node={selectedNode} zoom={zoom} dispatch={dispatch} readOnly={readOnly} />
           )}
         </div>
         <div className="smart-guide vertical"><span>24 px</span></div>

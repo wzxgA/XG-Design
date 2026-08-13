@@ -7,6 +7,7 @@ interface Props {
   node: LayerNode
   zoom: number
   dispatch: EditorDispatch
+  readOnly?: boolean
 }
 
 const HANDLES: { name: ResizeHandle; cls: string }[] = [
@@ -20,8 +21,19 @@ const HANDLES: { name: ResizeHandle; cls: string }[] = [
   { name: 'se', cls: 'h-br' },
 ]
 
-export function SelectionBox({ node, zoom, dispatch }: Props) {
+export function SelectionBox({ node, zoom, dispatch, readOnly = false }: Props) {
   const startRef = useRef<{ rect: Rect; pointerX: number; pointerY: number } | null>(null)
+
+  // 只读模式：不渲染缩放手柄，仅显示选中框
+  if (readOnly) {
+    return (
+      <div
+        className="selection-box readonly"
+        style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+        onPointerDown={(e) => e.stopPropagation()}
+      />
+    )
+  }
 
   const beginResize = (handle: ResizeHandle) => (e: React.PointerEvent) => {
     e.stopPropagation()

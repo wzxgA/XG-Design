@@ -15,3 +15,8 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:xgdesign-dev-secret-key-change-me-in-production-0123456789abcdef}
+    ttl-hours: ${JWT_TTL_HOURS:24}
