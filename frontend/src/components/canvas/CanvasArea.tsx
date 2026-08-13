@@ -578,10 +578,6 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
         )}
       </div>
 
-      <div className="ghost-artboard" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SELECT_LAYERS', ids: [] }) }}>
-        <span>项目管理页</span><div />
-      </div>
-
       <div className="canvas-controls" onClick={(e) => e.stopPropagation()}>
         <button onClick={() => dispatch({ type: 'SET_ZOOM', zoom: zoom - 10 })}><Icon name="minus" /></button>
         <span>{zoom}%</span>
