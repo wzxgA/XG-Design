@@ -2,6 +2,7 @@ package com.xgdesign.project;
 
 import com.xgdesign.common.ApiResponse;
 import com.xgdesign.project.dto.DocumentDto;
+import com.xgdesign.project.dto.HistoryEntryDto;
 import com.xgdesign.project.dto.SaveDocumentRequest;
 import com.xgdesign.project.dto.SaveResultDto;
 import com.xgdesign.project.dto.ShareInfoDto;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -52,5 +54,11 @@ public class DocumentController {
     public ApiResponse<Void> revokeShare(@PathVariable UUID id) {
         documentService.revokeShare(id);
         return ApiResponse.ok();
+    }
+
+    /** 操作日志历史（按时间倒序） */
+    @GetMapping("/{id}/history")
+    public ApiResponse<List<HistoryEntryDto>> history(@PathVariable UUID id) {
+        return ApiResponse.ok(documentService.history(id));
     }
 }

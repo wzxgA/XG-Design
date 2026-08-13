@@ -165,3 +165,44 @@ button { font: inherit; border: 0; background: none; color: inherit; cursor: poi
 .page-rename-input { flex: 1; border: 1px solid #4e8ff4; border-radius: 4px; padding: 2px 6px; font-size: 11px; color: #445159; font-family: inherit; min-width: 0; }
 .page-rename-input:focus { outline: none; }
 
+/* ===== P4 协作者管理 ===== */
+.members-section { margin-top: 18px; padding-top: 14px; border-top: 1px dashed #e6ebed; }
+.members-title { font-size: 12px; font-weight: 600; color: #445159; margin-bottom: 10px; }
+.members-empty { color: #9aa5aa; font-size: 11px; padding: 10px 0; }
+.member-list { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; }
+.member-row { display: flex; align-items: center; gap: 9px; padding: 6px 4px; border-radius: 6px; }
+.member-row:hover { background: #f7f9fa; }
+.member-avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+.member-info { flex: 1; min-width: 0; }
+.member-name { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #364249; font-weight: 600; }
+.member-me { background: #e8f2ff; color: #4e8ff4; border-radius: 7px; padding: 0 6px; font-size: 9px; font-weight: 500; }
+.member-tag { background: #fdf0e2; color: #d98a3d; border-radius: 7px; padding: 0 6px; font-size: 9px; font-weight: 500; }
+.member-email { font-size: 9px; color: #9aa5aa; margin-top: 2px; word-break: break-all; }
+.member-role-badge { font-size: 9px; color: #7f8b90; background: #f1f4f6; border-radius: 7px; padding: 2px 8px; flex-shrink: 0; }
+.member-controls { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.member-role-select { height: 24px !important; padding: 0 20px 0 8px !important; font-size: 10px !important; }
+.member-remove { width: 20px; height: 20px; border: none; background: none; color: #b0babf; font-size: 11px; cursor: pointer; border-radius: 4px; }
+.member-remove:hover { color: #e0536a; background: #fdeef1; }
+.member-invite-row { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.member-invite-input { flex: 1; min-width: 0; height: 28px; border: 1px solid #e2e7e9; border-radius: 5px; padding: 0 9px; font-size: 11px; color: #445159; font-family: inherit; outline: none; }
+.member-invite-input:focus { border-color: #4e8ff4; }
+.member-invite-role { flex-shrink: 0; }
+.member-invite-btn { height: 28px; padding: 0 12px; border: none; border-radius: 5px; background: #4e8ff4; color: #fff; font-size: 11px; cursor: pointer; flex-shrink: 0; }
+.member-invite-btn:disabled { opacity: .5; cursor: default; }
+
+/* ===== P4 历史版本 ===== */
+.history-modal { width: 480px !important; }
+.history-loading, .history-empty { color: #9aa5aa; font-size: 11px; padding: 20px 0; text-align: center; }
+.history-list { display: flex; flex-direction: column; gap: 4px; max-height: 380px; overflow-y: auto; }
+.history-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; border-radius: 6px; }
+.history-row:hover { background: #f7f9fa; }
+.history-badge { flex-shrink: 0; min-width: 64px; text-align: center; padding: 2px 8px; border-radius: 10px; font-size: 9px; background: #f1f4f6; color: #7f8b90; margin-top: 1px; }
+.history-badge.action-create { background: #e8f7f0; color: #2ba371; }
+.history-badge.action-update, .history-badge.action-shared { background: #e8f2ff; color: #4283e9; }
+.history-badge.action-archive { background: #fdf0e2; color: #d98a3d; }
+.history-badge.action-delete, .history-badge.action-member { background: #fdeef1; color: #e0536a; }
+.history-info { flex: 1; min-width: 0; }
+.history-detail { font-size: 11px; color: #445159; word-break: break-word; }
+.history-time { font-size: 9px; color: #9aa5aa; margin-top: 3px; }
+.history-hint { margin-top: 12px; color: #a5afb3; font-size: 9px; text-align: center; }
+

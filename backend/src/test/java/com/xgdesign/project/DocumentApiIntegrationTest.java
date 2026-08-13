@@ -351,4 +351,116 @@ class DocumentApiIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(404));
     }
+
+    // ---------------------------------------------------------------- S4 成员与历史
+
+    @Test
+    void member_inviteRoleRemove_fullFlow() throws Exception {
+        String id = createProject("{\"name\":\"协作项目\"}");
+
+        // 创建文档时自动写入 owner 成员
+        Integer ownerRows = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM document_members WHERE document_id = CAST(? AS uuid) AND role = 'owner'",
+                Integer.class, id);
+        assertThat(ownerRows).isEqualTo(1);
+
+        // 注册协作者
+        String email2 = "member-" + System.nanoTime() + "@xgdesign.local";
+        MvcResult reg = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email2 + "\",\"password\":\"password123\",\"displayName\":\"协作者\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode data2 = objectMapper.readTree(body(reg)).path("data");
+        String token2 = data2.path("token").asText();
+        String uid2 = data2.path("user").path("id").asText();
+
+        // 非成员访问成员列表 → 403
+        mockMvc.perform(get("/api/documents/{id}/members", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token2))
+                .andExpect(status().isForbidden());
+
+        // 邀请为 editor
+        mockMvc.perform(post("/api/documents/{id}/members", id)
+                        .header(HttpHeaders.AUTHORIZATION, auth())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email2 + "\",\"role\":\"editor\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.role").value("editor"));
+
+        // 成员列表返回 2 人
+        mockMvc.perform(get("/api/documents/{id}/members", id)
+                        .header(HttpHeaders.AUTHORIZATION, auth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2));
+
+        // editor 可保存
+        String saveBody = "{\"name\":\"协作项目\",\"content\":" + objectMapper.writeValueAsString(MIN_CONTENT) + ",\"version\":1}";
+        mockMvc.perform(put("/api/documents/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token2)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(saveBody))
+                .andExpect(status().isOk());
+
+        // 改角色 viewer → 保存 403、读取 200
+        mockMvc.perform(put("/api/documents/{id}/members/{userId}", id, uid2)
+                        .header(HttpHeaders.AUTHORIZATION, auth())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"viewer\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/api/documents/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token2)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(saveBody))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/documents/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token2))
+                .andExpect(status().isOk());
+
+        // 历史接口：含 member.invite 与 member.role 日志
+        String hist = body(mockMvc.perform(get("/api/documents/{id}/history", id)
+                        .header(HttpHeaders.AUTHORIZATION, auth()))
+                .andExpect(status().isOk())
+                .andReturn());
+        var actions = objectMapper.readTree(hist).path("data").findValuesAsText("action");
+        assertThat(actions).contains("create", "member.invite", "member.role");
+
+        // 移除成员 → 协作者失去访问权
+        mockMvc.perform(delete("/api/documents/{id}/members/{userId}", id, uid2)
+                        .header(HttpHeaders.AUTHORIZATION, auth()))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/documents/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token2))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void member_ownerCannotBeRemovedOrDowngraded() throws Exception {
+        String id = createProject("{\"name\":\"owner 保护\"}");
+
+        // 尝试移除 owner（即当前用户）→ 403
+        String ownerId = jdbcTemplate.queryForObject(
+                "SELECT user_id FROM document_members WHERE document_id = CAST(? AS uuid) AND role = 'owner'",
+                String.class, id);
+        mockMvc.perform(delete("/api/documents/{id}/members/{userId}", id, ownerId)
+                        .header(HttpHeaders.AUTHORIZATION, auth()))
+                .andExpect(status().isForbidden());
+
+        // 尝试把 owner 改为 viewer → 403
+        mockMvc.perform(put("/api/documents/{id}/members/{userId}", id, ownerId)
+                        .header(HttpHeaders.AUTHORIZATION, auth())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"viewer\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void member_inviteUnknownEmail_returns404() throws Exception {
+        String id = createProject("{\"name\":\"邀请失败\"}");
+        mockMvc.perform(post("/api/documents/{id}/members", id)
+                        .header(HttpHeaders.AUTHORIZATION, auth())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"nobody@xgdesign.local\",\"role\":\"viewer\"}"))
+                .andExpect(status().isNotFound());
+    }
 }

@@ -1,6 +1,6 @@
 import { api } from './http'
 import type { DesignDocument } from '../types/design'
-import type { ProjectMeta, Permission, ShareInfo } from '../types/project'
+import type { ProjectMeta, Permission, ShareInfo, MemberRole, ProjectMember, HistoryEntry } from '../types/project'
 import type { DocumentRepository } from './documentRepository'
 
 /** 后端 ProjectMetaDto */
@@ -180,5 +180,31 @@ export const remoteRepository: DocumentRepository = {
       version,
     })
     return res.version
+  },
+
+  async listMembers(id) {
+    const backendId = resolveBackendId(id, '协作者')
+    const list = await api.get<ProjectMember[]>(`/api/documents/${backendId}/members`)
+    return list.map((m) => ({ ...m, role: m.role as MemberRole }))
+  },
+
+  async inviteMember(id, email, role) {
+    const backendId = resolveBackendId(id, '邀请')
+    return api.post<ProjectMember>(`/api/documents/${backendId}/members`, { email, role })
+  },
+
+  async updateMemberRole(id, userId, role) {
+    const backendId = resolveBackendId(id, '权限')
+    await api.put(`/api/documents/${backendId}/members/${userId}`, { role })
+  },
+
+  async removeMember(id, userId) {
+    const backendId = resolveBackendId(id, '移除')
+    await api.del(`/api/documents/${backendId}/members/${userId}`)
+  },
+
+  async listHistory(id) {
+    const backendId = resolveBackendId(id, '历史')
+    return api.get<HistoryEntry[]>(`/api/documents/${backendId}/history`)
   },
 }

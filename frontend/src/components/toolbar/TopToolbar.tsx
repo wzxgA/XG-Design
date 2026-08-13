@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { EditorState, EditorDispatch, ToolType } from '../../state/editor-store'
 import type { DesignDocument, LayerNode } from '../../types/design'
-import type { SaveStatus } from '../../types/project'
+import type { ProjectMember, SaveStatus } from '../../types/project'
+import { repository } from '../../services'
 import { Icon, Watermelon, type IconName } from '../common/brand'
 import { exportNodeAsPng } from '../../utils/export'
+import { HistoryModal } from '../history/HistoryModal'
 
 const toolItems: [IconName, string, string, ToolType][] = [
   ['cursor', '选择', 'V', 'select'],
@@ -72,6 +74,18 @@ export function TopToolbar({
   const canRedo = state.history.future.length > 0 && !readOnly
   const [moreOpen, setMoreOpen] = useState(false)
   const [exporting, setExporting] = useState<1 | 2 | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [members, setMembers] = useState<ProjectMember[]>([])
+
+  // 协作头像读取真实成员（仅远程模式；只读分享页不展示）
+  useEffect(() => {
+    if (readOnly || repository.kind !== 'remote') return
+    let alive = true
+    repository.listMembers(doc.id)
+      .then((list) => { if (alive) setMembers(list) })
+      .catch(() => { /* 成员加载失败静默 */ })
+    return () => { alive = false }
+  }, [doc.id, readOnly])
 
   const exportSelected = async (scale: 1 | 2) => {
     const selected = findLayerInDoc(doc, state.selectedIds[0] ?? '')
@@ -148,6 +162,11 @@ export function TopToolbar({
               <button onClick={() => { dispatch({ type: 'SET_INSPECTOR_TAB', tab: 'inspect' }); setMoreOpen(false) }}>
                 设计检查
               </button>
+              {!readOnly && (
+                <button onClick={() => { setHistoryOpen(true); setMoreOpen(false) }}>
+                  历史版本
+                </button>
+              )}
               {onHome && <button onClick={() => { setMoreOpen(false); onHome() }}>返回项目列表</button>}
             </div>
           )}
@@ -155,24 +174,40 @@ export function TopToolbar({
       </div>
 
       <div className="top-actions">
-        {userName ? (
-          <div className="user-chip">
-            <span className="user-avatar">{userName.slice(0, 1).toUpperCase()}</span>
-            <span className="user-name">{userName}</span>
-            {logoutNode}
-          </div>
-        ) : (
-          <div className="avatars">
-            <span className="avatar avatar-one">M</span>
-            <span className="avatar avatar-two">L</span>
-            <span className="avatar avatar-three">A</span>
-            <span className="avatar-more">+2</span>
-          </div>
+        {!readOnly && (
+          <>
+            {userName && (
+              <div className="user-chip">
+                <span className="user-avatar">{userName.slice(0, 1).toUpperCase()}</span>
+                <span className="user-name">{userName}</span>
+                {logoutNode}
+              </div>
+            )}
+            {members.length > 0 && (
+              <div className="avatars" title={`协作者 ${members.length} 人`}>
+                {members.slice(0, 4).map((m) => (
+                  <span key={m.userId} className="avatar" style={{ background: avatarColor(m.userId) }} title={m.displayName}>
+                    {m.displayName.slice(0, 1).toUpperCase()}
+                  </span>
+                ))}
+                {members.length > 4 && <span className="avatar-more">+{members.length - 4}</span>}
+              </div>
+            )}
+          </>
         )}
         <button className="preview-button" onClick={onPreview}><Icon name="play" /> 预览</button>
         {!readOnly && <button className="share-button" onClick={onShare}>分享 <Icon name="external" /></button>}
         <span className="top-zoom">{zoom}%</span>
       </div>
+      {historyOpen && <HistoryModal projectId={doc.id} onClose={() => setHistoryOpen(false)} />}
     </header>
   )
+}
+
+const AVATAR_COLORS = ['#f1a46d', '#8ba4dc', '#70c69b', '#e07b9c', '#a78bdc', '#6dc5d6']
+
+function avatarColor(seed: string): string {
+  let hash = 0
+  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
 }

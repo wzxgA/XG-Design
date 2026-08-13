@@ -9,6 +9,7 @@ import com.xgdesign.common.PayloadTooLargeException;
 import com.xgdesign.common.VersionConflictException;
 import com.xgdesign.project.dto.CreateProjectRequest;
 import com.xgdesign.project.dto.DocumentDto;
+import com.xgdesign.project.dto.HistoryEntryDto;
 import com.xgdesign.project.dto.ProjectMetaDto;
 import com.xgdesign.project.dto.SaveDocumentRequest;
 import com.xgdesign.project.dto.SaveResultDto;
@@ -42,6 +43,7 @@ public class DocumentService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final DocumentRepository documentRepository;
+    private final DocumentMemberRepository memberRepository;
     private final OperationLogRepository operationLogRepository;
     private final ShareLinkRepository shareLinkRepository;
     private final AccessService accessService;
@@ -49,11 +51,13 @@ public class DocumentService {
     private final String starterDocumentJson;
 
     public DocumentService(DocumentRepository documentRepository,
+                           DocumentMemberRepository memberRepository,
                            OperationLogRepository operationLogRepository,
                            ShareLinkRepository shareLinkRepository,
                            AccessService accessService,
                            ObjectMapper objectMapper) {
         this.documentRepository = documentRepository;
+        this.memberRepository = memberRepository;
         this.operationLogRepository = operationLogRepository;
         this.shareLinkRepository = shareLinkRepository;
         this.accessService = accessService;
@@ -110,6 +114,7 @@ public class DocumentService {
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
         documentRepository.save(entity);
+        addOwnerMember(entity.getId(), ownerId);
         logOperation(entity.getId(), "create");
         return toMetaDto(entity);
     }
@@ -148,6 +153,7 @@ public class DocumentService {
         copy.setCreatedAt(now);
         copy.setUpdatedAt(now);
         documentRepository.save(copy);
+        addOwnerMember(copy.getId(), copy.getOwnerId());
         logOperation(copy.getId(), "duplicate");
         return toMetaDto(copy);
     }
@@ -241,6 +247,28 @@ public class DocumentService {
     }
 
     // ---------------------------------------------------------------- 内部
+
+    /** 文档创建时写入 owner 成员记录（幂等：已存在则跳过） */
+    private void addOwnerMember(UUID documentId, UUID ownerId) {
+        if (memberRepository.existsByDocumentIdAndUserId(documentId, ownerId)) {
+            return;
+        }
+        DocumentMemberEntity owner = new DocumentMemberEntity();
+        owner.setDocumentId(documentId);
+        owner.setUserId(ownerId);
+        owner.setRole("owner");
+        memberRepository.save(owner);
+    }
+
+    /** 操作日志流水（历史版本）：按时间倒序，供前端 HistoryModal 展示 */
+    @Transactional(readOnly = true)
+    public List<HistoryEntryDto> history(UUID id) {
+        accessService.check(id, CurrentUserProvider.requireUserId(), false);
+        return operationLogRepository.findByDocumentIdOrderByCreatedAtDesc(id)
+                .stream()
+                .map(HistoryEntryDto::from)
+                .toList();
+    }
 
     /** 32 字节 SecureRandom → Base64URL（43 字符），不可枚举 */
     private static String generateToken() {

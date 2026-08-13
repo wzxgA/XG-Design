@@ -1,5 +1,5 @@
 import type { DesignDocument } from '../types/design'
-import type { ProjectMeta, ShareInfo, Permission } from '../types/project'
+import type { ProjectMeta, ShareInfo, Permission, MemberRole, ProjectMember, HistoryEntry } from '../types/project'
 import { starterDocument } from '../fixtures/starter-document'
 
 /**
@@ -31,6 +31,16 @@ export interface DocumentRepository {
   openShared(token: string): Promise<{ doc: DesignDocument; permission: Permission; version: number }>
   /** 通过分享 token 保存（仅 permission=edit 可用） */
   saveShared(token: string, doc: DesignDocument, version: number): Promise<number>
+  /** 成员列表（本地模式返回空数组） */
+  listMembers(id: string): Promise<ProjectMember[]>
+  /** 邀请协作者（邮箱 → userId，角色 editor/viewer） */
+  inviteMember(id: string, email: string, role: 'editor' | 'viewer'): Promise<ProjectMember>
+  /** 修改成员角色（owner 不可改） */
+  updateMemberRole(id: string, userId: string, role: 'editor' | 'viewer'): Promise<void>
+  /** 移除成员（owner 不可移除） */
+  removeMember(id: string, userId: string): Promise<void>
+  /** 操作日志历史（按时间倒序） */
+  listHistory(id: string): Promise<HistoryEntry[]>
 }
 
 const DOC_PREFIX = 'xgdesign:doc:'
@@ -234,5 +244,26 @@ export const localRepository: DocumentRepository = {
 
   async saveShared(_token, _doc, _version) {
     return 1
+  },
+
+  // 本地模式不引入成员概念：列表恒为空，写操作直接报错提示
+  async listMembers() {
+    return []
+  },
+
+  async inviteMember() {
+    throw new Error('本地模式不支持协作者，请切换到远程模式')
+  },
+
+  async updateMemberRole() {
+    throw new Error('本地模式不支持协作者，请切换到远程模式')
+  },
+
+  async removeMember() {
+    throw new Error('本地模式不支持协作者，请切换到远程模式')
+  },
+
+  async listHistory() {
+    return []
   },
 }
