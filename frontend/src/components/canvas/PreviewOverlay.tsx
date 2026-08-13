@@ -42,6 +42,47 @@ function HotspotLayer({ node, offsetX, offsetY, state, onNavigate }: {
   )
 }
 
+/** 递归渲染所有评论 pin（按累积偏移定位），悬停显示只读气泡 */
+function CommentPins({ node, offsetX, offsetY }: { node: LayerNode; offsetX: number; offsetY: number }) {
+  const absX = offsetX + node.x
+  const absY = offsetY + node.y
+  const isComment = node.type === 'comment'
+  const [hover, setHover] = useState(false)
+  return (
+    <>
+      {isComment && (
+        <div
+          className="preview-comment-pin"
+          style={{ left: absX, top: absY, width: node.width, height: node.height }}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+        >
+          <span className="comment-pin">💬</span>
+          {hover && (
+            <div className="comment-bubble read-only">
+              <div className="comment-bubble-head"><strong>评论</strong></div>
+              <div className="comment-read-text">{node.content || '(空评论)'}</div>
+              {(node.replies ?? []).length > 0 && (
+                <div className="comment-replies">
+                  {(node.replies ?? []).map((r) => (
+                    <div className="comment-reply" key={r.id}>
+                      <span className="comment-reply-author">{r.author}</span>
+                      <span className="comment-reply-text">{r.content}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {node.children.map((child) => (
+        <CommentPins key={child.id} node={child} offsetX={absX} offsetY={absY} />
+      ))}
+    </>
+  )
+}
+
 /** 只读预览层：支持原型连接跳转与返回；一页多画板平铺渲染 */
 export function PreviewOverlay({ state, onClose }: Props) {
   const [pageId, setPageId] = useState(state.document.activePageId)
@@ -88,10 +129,11 @@ export function PreviewOverlay({ state, onClose }: Props) {
           <div className="preview-boards" style={{ width: cursorX - 48 }}>
             {placed.map(({ frame, left }) => (
               <div key={frame.id} className="preview-board" style={{ left, width: frame.width, height: frame.height }}>
-                <CanvasObject node={{ ...frame, x: 0, y: 0 }} state={{ ...state, selectedIds: [], activeTool: 'select' }} dispatch={noop} drawing />
+                <CanvasObject node={{ ...frame, x: 0, y: 0 }} state={{ ...state, selectedIds: [], activeTool: 'select' }} dispatch={noop} drawing readOnly />
                 {frame.children.map((child) => (
                   <HotspotLayer key={child.id} node={child} offsetX={0} offsetY={0} state={state} onNavigate={navigate} />
                 ))}
+                <CommentPins node={frame} offsetX={0} offsetY={0} />
               </div>
             ))}
           </div>

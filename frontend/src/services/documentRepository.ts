@@ -9,8 +9,8 @@ import { starterDocument } from '../fixtures/starter-document'
 export interface DocumentRepository {
   /** 数据源类型 */
   readonly kind: 'local' | 'remote'
-  /** 项目列表（按更新时间倒序） */
-  listDocuments(): Promise<ProjectMeta[]>
+  /** 项目列表（按更新时间倒序）；archived=true 查归档视图 */
+  listDocuments(archived?: boolean): Promise<ProjectMeta[]>
   /** 按 id 打开文档；不存在时返回 null */
   getDocument(id: string): Promise<DesignDocument | null>
   /** 创建项目；可携带初始内容（如 409 后“另存为新文件”） */
@@ -23,6 +23,8 @@ export interface DocumentRepository {
   archiveDocument(id: string): Promise<void>
   /** 取消归档 */
   unarchiveDocument(id: string): Promise<void>
+  /** 物理删除项目（仅归档视图操作） */
+  deleteDocument(id: string): Promise<void>
   /** 设置/清除分享信息（null 表示关闭分享） */
   setShare(id: string, share: ShareInfo | null): Promise<void>
   /** 通过分享 token 打开文档，返回 { doc, permission, version } */
@@ -33,6 +35,8 @@ export interface DocumentRepository {
 
 const DOC_PREFIX = 'xgdesign:doc:'
 const PROJECTS_KEY = 'xgdesign:projects:v1'
+/** 本地分享 token → 文档 id 映射 */
+const SHARE_PREFIX = 'xgdesign:share:'
 
 function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
@@ -43,6 +47,14 @@ function readProjects(): ProjectMeta[] {
     return JSON.parse(localStorage.getItem(PROJECTS_KEY) ?? '[]') as ProjectMeta[]
   } catch {
     return []
+  }
+}
+
+function readLocalStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
   }
 }
 
@@ -96,8 +108,10 @@ export function listLocalDocuments(): DesignDocument[] {
 export const localRepository: DocumentRepository = {
   kind: 'local',
 
-  async listDocuments() {
-    return readProjects().sort((a, b) => b.updatedAt - a.updatedAt)
+  async listDocuments(archived = false) {
+    return readProjects()
+      .filter((p) => !!p.archived === archived)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
   },
 
   async getDocument(id) {
@@ -165,20 +179,57 @@ export const localRepository: DocumentRepository = {
     }
   },
 
-  async setShare(id, share) {
+  async deleteDocument(id) {
     const projects = readProjects()
-    const idx = projects.findIndex((p) => p.id === id)
-    if (idx >= 0) {
-      projects[idx] = { ...projects[idx], share: share ?? undefined }
-      writeProjects(projects)
+    writeProjects(projects.filter((p) => p.id !== id))
+    try {
+      localStorage.removeItem(DOC_PREFIX + id)
+    } catch {
+      /* ignore */
     }
   },
 
+  async setShare(id, share) {
+    const projects = readProjects()
+    const idx = projects.findIndex((p) => p.id === id)
+    if (idx < 0) return
+    if (share) {
+      // 复用已有本地 token，否则生成新 token，并写入 token→docId 映射
+      let token = readLocalStorage('xgdesign:share-token:' + id)
+      if (!token) {
+        token = uid('sh')
+        try {
+          localStorage.setItem('xgdesign:share-token:' + id, token)
+          localStorage.setItem(SHARE_PREFIX + token, id)
+        } catch {
+          /* ignore */
+        }
+      }
+      share.link = `${window.location.origin}${window.location.pathname}#/share/${token}`
+      share.active = true
+      projects[idx] = { ...projects[idx], share: { ...share } }
+    } else {
+      const token = readLocalStorage('xgdesign:share-token:' + id)
+      if (token) {
+        try {
+          localStorage.removeItem(SHARE_PREFIX + token)
+          localStorage.removeItem('xgdesign:share-token:' + id)
+        } catch {
+          /* ignore */
+        }
+      }
+      projects[idx] = { ...projects[idx], share: undefined }
+    }
+    writeProjects(projects)
+  },
+
   async openShared(token) {
-    // 本地语义：token 即文档 id（仅用于本地模式演示分享打开）
-    const doc = readDocument(token)
+    // 按 token→docId 映射解析；兜底兼容旧格式（token 即文档 id）
+    const docId = readLocalStorage(SHARE_PREFIX + token) ?? token
+    const doc = readDocument(docId)
     if (!doc) throw new Error('分享链接已失效或不存在')
-    return { doc, permission: 'view' as Permission, version: 1 }
+    const meta = readProjects().find((p) => p.id === docId)
+    return { doc, permission: meta?.share?.permission ?? 'view', version: 1 }
   },
 
   async saveShared(_token, _doc, _version) {

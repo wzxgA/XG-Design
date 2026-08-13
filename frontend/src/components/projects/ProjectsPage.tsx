@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { repository } from '../../services'
 import { clearAuth } from '../../services/auth'
 import { Icon, Watermelon } from '../common/brand'
-import { openProject, createProject, duplicateProject, archiveProject, importLocalProject } from '../../services/projectsActions'
+import { openProject, createProject, duplicateProject, archiveProject, unarchiveProject, deleteProject, importLocalProject } from '../../services/projectsActions'
 import type { ProjectMeta } from '../../types/project'
 
 interface Props {
@@ -11,8 +11,11 @@ interface Props {
   onUserChange: (u: null) => void
 }
 
+type View = 'active' | 'archived'
+
 /** 项目列表首页（EH1）：登录后默认落地页，展示当前用户的全部项目 */
 export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
+  const [view, setView] = useState<View>('active')
   const [projects, setProjects] = useState<ProjectMeta[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -20,21 +23,28 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState('')
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (v: View = view) => {
     setLoading(true)
     setError('')
     try {
-      setProjects(await repository.listDocuments())
+      setProjects(await repository.listDocuments(v === 'archived'))
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载项目失败，请稍后重试')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [view])
 
   useEffect(() => {
     load()
-  }, [load])
+  }, [load, view])
+
+  const switchView = (v: View) => {
+    if (v !== view) {
+      setView(v)
+      load(v)
+    }
+  }
 
   const onLogout = useCallback(() => {
     clearAuth()
@@ -63,7 +73,34 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
   }
 
   const archive = async (id: string) => {
-    setProjects(await archiveProject(id))
+    if (busy) return
+    setBusy(true)
+    try {
+      setProjects(await archiveProject(id))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const restore = async (id: string) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      setProjects(await unarchiveProject(id))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const remove = async (id: string) => {
+    if (busy) return
+    if (!window.confirm('确定永久删除该项目吗？此操作不可恢复。')) return
+    setBusy(true)
+    try {
+      setProjects(await deleteProject(id))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const importLocal = async () => {
@@ -97,15 +134,23 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
       <main className="projects-main">
         <div className="projects-head">
           <div>
-            <h1>我的项目</h1>
-            <p className="projects-sub">继续你的设计，或创建一个新项目。</p>
+            <h1>{view === 'active' ? '我的项目' : '归档项目'}</h1>
+            <p className="projects-sub">{view === 'active' ? '继续你的设计，或创建一个新项目。' : '已归档的项目可恢复或永久删除。'}</p>
           </div>
-          <button className="projects-new-btn" onClick={create} disabled={busy}>
-            <Icon name="plus" /> 新建项目
-          </button>
+          <div className="projects-head-right">
+            <div className="projects-tabs">
+              <button className={`projects-tab ${view === 'active' ? 'active' : ''}`} onClick={() => switchView('active')}>我的项目</button>
+              <button className={`projects-tab ${view === 'archived' ? 'active' : ''}`} onClick={() => switchView('archived')}>已归档</button>
+            </div>
+            {view === 'active' && (
+              <button className="projects-new-btn" onClick={create} disabled={busy}>
+                <Icon name="plus" /> 新建项目
+              </button>
+            )}
+          </div>
         </div>
 
-        {repository.kind === 'remote' && (
+        {view === 'active' && repository.kind === 'remote' && (
           <div className="projects-import-row">
             <button className="import-local-btn" onClick={importLocal} disabled={importing}>
               {importing ? '导入中…' : '导入本地项目'}
@@ -122,19 +167,28 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
         ) : error ? (
           <div className="projects-state">
             <span className="projects-state-error">{error}</span>
-            <button className="btn" onClick={load}>重试</button>
+            <button className="btn" onClick={() => load()}>重试</button>
           </div>
         ) : projects.length === 0 ? (
           <div className="projects-state">
             <span className="projects-empty-icon"><Icon name="frame" /></span>
-            <strong>还没有项目</strong>
-            <p>创建一个新项目，开始你的设计。</p>
-            <button className="btn btn-primary" onClick={create}>新建项目</button>
+            {view === 'active' ? (
+              <>
+                <strong>还没有项目</strong>
+                <p>创建一个新项目，开始你的设计。</p>
+                <button className="btn btn-primary" onClick={create}>新建项目</button>
+              </>
+            ) : (
+              <>
+                <strong>暂无归档项目</strong>
+                <p>归档的项目会显示在这里。</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="project-grid">
             {projects.map((p) => (
-              <div className="project-grid-card" key={p.id} onClick={() => openProject(p.id)}>
+              <div className="project-grid-card" key={p.id} onClick={() => view === 'active' && openProject(p.id)}>
                 <div className="project-grid-thumb"><Icon name="frame" /></div>
                 <div className="project-grid-info">
                   <div className="project-name">{p.name}</div>
@@ -144,9 +198,18 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
                   </div>
                 </div>
                 <div className="project-actions" onClick={(e) => e.stopPropagation()}>
-                  <button title="打开项目" onClick={() => openProject(p.id)}>打开</button>
-                  <button title="复制项目" onClick={() => duplicate(p.id)} disabled={busy}>复制</button>
-                  <button title="归档项目" onClick={() => archive(p.id)}>归档</button>
+                  {view === 'active' ? (
+                    <>
+                      <button title="打开项目" onClick={() => openProject(p.id)}>打开</button>
+                      <button title="复制项目" onClick={() => duplicate(p.id)} disabled={busy}>复制</button>
+                      <button title="归档项目" onClick={() => archive(p.id)} disabled={busy}>归档</button>
+                    </>
+                  ) : (
+                    <>
+                      <button title="恢复项目" onClick={() => restore(p.id)} disabled={busy}>恢复</button>
+                      <button title="永久删除项目" className="danger" onClick={() => remove(p.id)} disabled={busy}>删除</button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

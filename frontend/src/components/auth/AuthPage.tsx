@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import { login, register } from '../../services/auth'
+import { login, register, getCurrentUser } from '../../services/auth'
+import type { UserDto } from '../../services/auth'
 import { Watermelon } from '../common/brand'
 
 interface Props {
   /** 登录/注册成功后跳转地址（通常是原目标页） */
   redirectTo?: string
+  /** 登录/注册成功后同步最新用户信息到应用状态 */
+  onUserChange: (u: UserDto | null) => void
 }
 
 type Mode = 'login' | 'register'
@@ -14,7 +17,7 @@ function go(redirectTo?: string): void {
 }
 
 /** 登录 / 注册页（F1） */
-export function AuthPage({ redirectTo }: Props) {
+export function AuthPage({ redirectTo, onUserChange }: Props) {
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -38,6 +41,7 @@ export function AuthPage({ redirectTo }: Props) {
       } else {
         await register(email, password, displayName)
       }
+      onUserChange(getCurrentUser())
       go(redirectTo)
     } catch (err) {
       setError(err instanceof Error ? err.message : '操作失败，请重试')

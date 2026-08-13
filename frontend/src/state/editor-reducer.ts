@@ -370,6 +370,25 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       }
     }
 
+    case 'CLEAR_HISTORY':
+      return { ...state, history: { past: [], future: [] } }
+
+    case 'ADD_COMMENT_REPLY': {
+      const doc = mapLayers(state.document, new Set([action.commentId]), (node) => ({
+        ...node,
+        replies: [...(node.replies ?? []), action.reply],
+      }))
+      return withHistory(state, doc)
+    }
+
+    case 'DELETE_COMMENT_REPLY': {
+      const doc = mapLayers(state.document, new Set([action.commentId]), (node) => ({
+        ...node,
+        replies: (node.replies ?? []).filter((r) => r.id !== action.replyId),
+      }))
+      return withHistory(state, doc)
+    }
+
     default:
       return state
   }

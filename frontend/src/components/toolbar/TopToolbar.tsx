@@ -140,6 +140,14 @@ export function TopToolbar({
                 {exporting === 2 ? '导出中…' : 'PNG @2x'}
               </button>
               <div className="more-menu-divider" />
+              {!readOnly && (
+                <button onClick={() => { dispatch({ type: 'CLEAR_HISTORY' }); setMoreOpen(false) }} disabled={state.history.past.length === 0 && state.history.future.length === 0}>
+                  清除历史
+                </button>
+              )}
+              <button onClick={() => { dispatch({ type: 'SET_INSPECTOR_TAB', tab: 'inspect' }); setMoreOpen(false) }}>
+                设计检查
+              </button>
               {onHome && <button onClick={() => { setMoreOpen(false); onHome() }}>返回项目列表</button>}
             </div>
           )}

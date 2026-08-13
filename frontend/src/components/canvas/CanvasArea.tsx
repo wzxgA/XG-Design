@@ -511,6 +511,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
             </div>
             <div
               className={`selection-frame ${isDrawTool || isClickTool || isPenTool ? 'drawing' : ''}`}
+              style={{ background: frame.style.backgroundColor ?? frame.style.fill }}
               onPointerDown={(e) => onFramePointerDown(e, frame.id)}
               onPointerMove={onFramePointerMove}
               onPointerUp={onFramePointerUp}
@@ -518,7 +519,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
               onDoubleClick={(e) => { if (isPenTool) { e.stopPropagation(); commitPen() } }}
             >
               {frame.children.map((child) => (
-                <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={isDrawTool || isClickTool || isPenTool} />
+                <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={isDrawTool || isClickTool || isPenTool} readOnly={readOnly} />
               ))}
               {selectedFrameId === frame.id && selectedNode && !selectedNode.locked && selectedNode.type !== 'frame' && (
                 <SelectionBox node={selectedNode} zoom={zoom} dispatch={dispatch} readOnly={readOnly} />

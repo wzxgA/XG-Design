@@ -4,11 +4,13 @@ import com.xgdesign.common.ApiResponse;
 import com.xgdesign.project.dto.CreateProjectRequest;
 import com.xgdesign.project.dto.ProjectMetaDto;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -24,10 +26,11 @@ public class ProjectController {
         this.documentService = documentService;
     }
 
-    /** 项目列表（未归档） */
+    /** 项目列表（archived=false 默认普通视图，true 归档视图） */
     @GetMapping
-    public ApiResponse<List<ProjectMetaDto>> list() {
-        return ApiResponse.ok(documentService.listProjects());
+    public ApiResponse<List<ProjectMetaDto>> list(
+            @RequestParam(defaultValue = "false") boolean archived) {
+        return ApiResponse.ok(documentService.listProjects(archived));
     }
 
     /** 新建项目（使用 starter 模板） */
@@ -52,5 +55,12 @@ public class ProjectController {
     @PostMapping("/{id}/unarchive")
     public ApiResponse<ProjectMetaDto> unarchive(@PathVariable UUID id) {
         return ApiResponse.ok(documentService.setArchived(id, false));
+    }
+
+    /** 物理删除项目（仅归档视图操作） */
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable UUID id) {
+        documentService.delete(id);
+        return ApiResponse.ok(null);
     }
 }

@@ -33,6 +33,18 @@ export async function archiveProject(id: string): Promise<ProjectMeta[]> {
   return repository.listDocuments()
 }
 
+/** 恢复已归档项目并返回最新归档列表 */
+export async function unarchiveProject(id: string): Promise<ProjectMeta[]> {
+  await repository.unarchiveDocument(id)
+  return repository.listDocuments(true)
+}
+
+/** 物理删除已归档项目并返回最新归档列表 */
+export async function deleteProject(id: string): Promise<ProjectMeta[]> {
+  await repository.deleteDocument(id)
+  return repository.listDocuments(true)
+}
+
 /** 导入本地项目（仅远程模式有意义），返回最新项目列表 */
 export async function importLocalProject(): Promise<{ list: ProjectMeta[]; outcome: ImportOutcome }> {
   if (repository.kind === 'local') {

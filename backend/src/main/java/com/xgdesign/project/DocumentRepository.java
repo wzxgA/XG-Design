@@ -14,6 +14,8 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> 
 
     List<DocumentEntity> findByOwnerIdAndArchivedFalseOrderByUpdatedAtDesc(UUID ownerId);
 
+    List<DocumentEntity> findByOwnerIdAndArchivedOrderByUpdatedAtDesc(UUID ownerId, boolean archived);
+
     Optional<DocumentEntity> findByIdAndOwnerId(UUID id, UUID ownerId);
 
     /**

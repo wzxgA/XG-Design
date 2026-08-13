@@ -93,8 +93,8 @@ function mapMeta(m: RemoteProjectMeta): ProjectMeta {
 export const remoteRepository: DocumentRepository = {
   kind: 'remote',
 
-  async listDocuments() {
-    const list = await api.get<RemoteProjectMeta[]>('/api/projects')
+  async listDocuments(archived = false) {
+    const list = await api.get<RemoteProjectMeta[]>(`/api/projects?archived=${archived}`)
     return list.map(mapMeta).sort((a, b) => b.updatedAt - a.updatedAt)
   },
 
@@ -147,6 +147,11 @@ export const remoteRepository: DocumentRepository = {
   async unarchiveDocument(id) {
     const backendId = resolveBackendId(id, '恢复')
     await api.post(`/api/projects/${backendId}/unarchive`)
+  },
+
+  async deleteDocument(id) {
+    const backendId = resolveBackendId(id, '删除')
+    await api.del(`/api/projects/${backendId}`)
   },
 
   async setShare(id, share) {

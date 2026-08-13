@@ -11,7 +11,7 @@ import { ProjectsPage } from './components/projects/ProjectsPage'
 import { ShareModal } from './components/share/ShareModal'
 import { AuthPage } from './components/auth/AuthPage'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
-import { isAuthenticated, clearAuth, getCurrentUser } from './services/auth'
+import { isAuthenticated, clearAuth, getCurrentUser, fetchMe } from './services/auth'
 import type { UserDto } from './services/auth'
 import { Watermelon } from './components/common/brand'
 
@@ -83,6 +83,9 @@ const WRITE_ACTIONS = new Set<EditorAction['type']>([
   'RENAME_PAGE',
   'DELETE_PAGE',
   'DUPLICATE_PAGE',
+  'ADD_COMMENT_REPLY',
+  'DELETE_COMMENT_REPLY',
+  'CLEAR_HISTORY',
   'UNDO',
   'REDO',
 ])
@@ -90,6 +93,15 @@ const WRITE_ACTIONS = new Set<EditorAction['type']>([
 export default function App() {
   const [route, setRoute] = useState(() => readRoute())
   const [user, setUser] = useState<UserDto | null>(() => getCurrentUser())
+
+  // 挂载时用 token 向后端校验并刷新用户信息（失败自动登出）
+  useEffect(() => {
+    let alive = true
+    fetchMe().then((u) => {
+      if (alive) setUser(u)
+    })
+    return () => { alive = false }
+  }, [])
 
   // 监听 hash 变化，驱动路由重渲染（替代全页 reload，避免闪烁）
   useEffect(() => {
@@ -118,7 +130,7 @@ export default function App() {
   }, [route.name])
 
   if (route.name === 'login') {
-    return <AuthPage redirectTo={route.redirectTo} />
+    return <AuthPage redirectTo={route.redirectTo} onUserChange={setUser} />
   }
 
   if (route.name === 'projects') {

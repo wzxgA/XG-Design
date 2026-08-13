@@ -95,4 +95,73 @@ button { font: inherit; border: 0; background: none; color: inherit; cursor: poi
 .project-grid-info { min-width: 0; }
 .project-grid-card .project-name { font-size: 14px; }
 .project-grid-card .project-actions { margin-left: auto; }
+.projects-head-right { display: flex; align-items: center; gap: 14px; }
+.projects-tabs { display: flex; align-items: center; gap: 4px; padding: 3px; background: #f1f4f6; border-radius: 9px; }
+.projects-tab { height: 32px; padding: 0 14px; border: none; border-radius: 7px; background: transparent; color: #7d878f; font-size: 12px; font-weight: 600; cursor: pointer; transition: .15s; }
+.projects-tab:hover { color: #445159; }
+.projects-tab.active { background: #fff; color: #1c252c; box-shadow: 0 2px 6px rgba(39,60,70,.12); }
+.project-actions button.danger { color: #e0536a; }
+.project-actions button.danger:hover { background: #fdeef1; border-color: #f2b6c2; }
 @media (max-width: 1350px) { .projects-main { padding: 32px 28px; } }
+
+/* ===== P2 样式编辑器 ===== */
+.style-line { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.style-line .style-label { width: 48px; color: #7f8b90; font-size: 10px; flex-shrink: 0; }
+.style-line .style-value { color: #445159; font-size: 10px; margin-left: auto; }
+.opacity-line input[type=range] { flex: 1; height: 4px; accent-color: #4e8ff4; }
+
+.color-field { position: relative; display: flex; align-items: center; gap: 6px; flex: 1; }
+.color-swatch-btn { width: 18px; height: 18px; border-radius: 4px; border: 1px solid #e2e7e9; cursor: pointer; flex-shrink: 0; padding: 0; }
+.hex-input { flex: 1; border: 1px solid #e2e7e9; border-radius: 4px; padding: 3px 6px; font-size: 10px; color: #445159; font-family: inherit; min-width: 0; }
+.hex-input:focus { outline: none; border-color: #4e8ff4; }
+.color-clear { background: none; border: none; color: #9aa5aa; cursor: pointer; font-size: 11px; padding: 0 2px; }
+.color-popover { position: absolute; top: 100%; left: 0; z-index: 30; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 8px; background: #fff; border: 1px solid #e2e7e9; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); margin-top: 4px; }
+.swatch-cell { width: 16px; height: 16px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.08); cursor: pointer; padding: 0; }
+
+.expandable { }
+.expandable .fill-row { width: 100%; display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 6px 0; cursor: pointer; color: #445159; font-size: 11px; }
+.expandable .fill-row .effect-icon { color: #7f8b90; }
+.expandable .fill-row .effect-value { margin-left: auto; color: #9aa5aa; font-size: 10px; }
+.expand-body { padding: 8px 0 4px; border-top: 1px dashed #edf0f1; margin-top: 4px; }
+
+.chart-editor { display: flex; flex-direction: column; gap: 6px; }
+.chart-bar-row { display: flex; align-items: center; gap: 8px; }
+.chart-bar-label { width: 36px; color: #7f8b90; font-size: 10px; flex-shrink: 0; }
+.chart-bar-row input[type=range] { flex: 1; height: 4px; accent-color: #4e8ff4; }
+.chart-bar-value { width: 24px; text-align: right; color: #445159; font-size: 10px; }
+
+.comment-textarea { width: 100%; border: 1px solid #e2e7e9; border-radius: 5px; padding: 6px 8px; font-size: 11px; color: #445159; font-family: inherit; resize: vertical; }
+.comment-textarea:focus { outline: none; border-color: #4e8ff4; }
+.reply-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.reply-item { display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; background: #f6f8f9; border-radius: 4px; font-size: 10px; }
+.reply-author { color: #4e8ff4; font-weight: 600; flex-shrink: 0; }
+.reply-content { flex: 1; color: #445159; word-break: break-word; }
+.reply-remove { background: none; border: none; color: #9aa5aa; cursor: pointer; font-size: 10px; padding: 0; }
+
+/* 评论气泡（画布编辑态） */
+.canvas-comment .comment-pin { font-size: 14px; line-height: 1; }
+.comment-bubble { position: absolute; left: calc(100% + 8px); top: 0; z-index: 50; width: 220px; background: #fff; border: 1px solid #e2e7e9; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); padding: 8px; transform-origin: top left; }
+.comment-bubble-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.comment-bubble-head strong { font-size: 11px; color: #445159; }
+.comment-close { background: none; border: none; color: #9aa5aa; cursor: pointer; font-size: 12px; padding: 0; }
+.comment-edit-input { width: 100%; border: 1px solid #e2e7e9; border-radius: 4px; padding: 4px 6px; font-size: 11px; color: #445159; font-family: inherit; resize: vertical; }
+.comment-edit-input:focus { outline: none; border-color: #4e8ff4; }
+.comment-replies { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; max-height: 96px; overflow-y: auto; }
+.comment-reply { display: flex; align-items: flex-start; gap: 6px; padding: 3px 4px; background: #f6f8f9; border-radius: 3px; font-size: 10px; }
+.comment-reply-author { color: #4e8ff4; font-weight: 600; flex-shrink: 0; }
+.comment-reply-text { flex: 1; color: #445159; word-break: break-word; }
+.comment-reply-del { background: none; border: none; color: #9aa5aa; cursor: pointer; font-size: 10px; padding: 0; }
+.comment-reply-input-row { display: flex; gap: 4px; margin-top: 6px; }
+.comment-reply-input { flex: 1; border: 1px solid #e2e7e9; border-radius: 4px; padding: 4px 6px; font-size: 10px; color: #445159; font-family: inherit; }
+.comment-reply-input:focus { outline: none; border-color: #4e8ff4; }
+.comment-reply-add { background: #4e8ff4; color: #fff; border: none; border-radius: 4px; padding: 0 8px; font-size: 10px; cursor: pointer; }
+.comment-bubble.read-only .comment-read-text { font-size: 11px; color: #445159; padding: 2px 0; word-break: break-word; }
+
+/* 预览态评论 pin */
+.preview-comment-pin { position: absolute; display: flex; align-items: center; justify-content: center; cursor: default; z-index: 5; }
+.preview-comment-pin .comment-pin { font-size: 16px; }
+
+/* 页面行内重命名 */
+.page-rename-input { flex: 1; border: 1px solid #4e8ff4; border-radius: 4px; padding: 2px 6px; font-size: 11px; color: #445159; font-family: inherit; min-width: 0; }
+.page-rename-input:focus { outline: none; }
+

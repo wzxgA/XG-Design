@@ -170,6 +170,101 @@ function InspectPanel({ state, selected }: { state: EditorState; selected: Layer
   )
 }
 
+const SWATCHES = [
+  '#000000', '#ffffff', '#f4b400', '#4e8ff4', '#34a853', '#ea4335',
+  '#9c27b0', '#5c6b72', '#e5ebef', '#1a73e8', '#dadce0', '#188038',
+  '#ff7043', '#7e57c2', '#26a69a', '#78909c',
+]
+
+function ColorField({ value, onChange, allowEmpty }: { value: string | undefined; onChange: (v: string) => void; allowEmpty?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const v = value ?? ''
+  return (
+    <div className="color-field">
+      <button
+        className="color-swatch-btn"
+        style={v ? { background: v } : { background: 'linear-gradient(135deg,#fff 0,#fff 45%,#ea4335 45%,#ea4335 55%,#fff 55%)' }}
+        onClick={() => setOpen((o) => !o)}
+        title={v || '无填充'}
+      />
+      <input className="hex-input" value={v} placeholder="无" onChange={(e) => onChange(e.target.value)} />
+      {allowEmpty && v && <button className="color-clear" onClick={() => onChange('')} title="清除">✕</button>}
+      {open && (
+        <div className="color-popover">
+          {SWATCHES.map((c) => (
+            <button key={c} className="swatch-cell" style={{ background: c }} onClick={() => { onChange(c); setOpen(false) }} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function parseShadow(s?: string) {
+  const def = { x: 0, y: 2, blur: 8, color: 'rgba(0,0,0,0.15)' }
+  if (!s) return def
+  const m = s.match(/(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px\s+(.+)/)
+  if (!m) return def
+  return { x: Number(m[1]), y: Number(m[2]), blur: Number(m[3]), color: m[4].trim() }
+}
+function buildShadow(p: { x: number; y: number; blur: number; color: string }) {
+  return `${p.x}px ${p.y}px ${p.blur}px ${p.color}`
+}
+
+function ShadowEditor({ value, onChange, readOnly }: { value: string | undefined; onChange: (v: string) => void; readOnly: boolean }) {
+  const [open, setOpen] = useState(false)
+  const p = parseShadow(value)
+  const set = (k: 'x' | 'y' | 'blur' | 'color', val: number | string) => onChange(buildShadow({ ...p, [k]: val }))
+  return (
+    <div className="expandable">
+      <button className="fill-row" onClick={() => setOpen((o) => !o)} disabled={readOnly}>
+        <span className="effect-icon">◒</span>
+        <span>阴影</span>
+        <span className="effect-value">{value ? `${p.x}/${p.y}/${p.blur}` : '无'}</span>
+        <Icon name={open ? 'chevron' : 'chevron'} />
+      </button>
+      {open && !readOnly && (
+        <div className="expand-body">
+          <div className="property-grid">
+            <PropertyInput label="X" value={p.x} onChange={(v) => set('x', v)} />
+            <PropertyInput label="Y" value={p.y} onChange={(v) => set('y', v)} />
+            <PropertyInput label="模糊" value={p.blur} min={0} onChange={(v) => set('blur', v)} />
+          </div>
+          <div className="style-line">
+            <span className="style-label">颜色</span>
+            <ColorField value={p.color} onChange={(v) => set('color', v)} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ChartEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: EditorDispatch; readOnly: boolean }) {
+  const bars = node.chartBars ?? []
+  const setBars = (next: number[]) => dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { chartBars: next } })
+  const setCount = (n: number) => {
+    const count = Math.max(1, Math.min(12, n))
+    const next = Array.from({ length: count }, (_, i) => bars[i] ?? 50)
+    setBars(next)
+  }
+  return (
+    <div className="chart-editor">
+      <div className="style-line">
+        <span className="style-label">柱数</span>
+        <PropertyInput label="" value={bars.length} min={1} max={12} disabled={readOnly} onChange={setCount} />
+      </div>
+      {!readOnly && bars.map((h, i) => (
+        <div className="chart-bar-row" key={i}>
+          <span className="chart-bar-label">柱{i + 1}</span>
+          <input type="range" min={0} max={100} value={h} onChange={(e) => { const next = [...bars]; next[i] = +e.target.value; setBars(next) }} />
+          <span className="chart-bar-value">{h}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
   const tab = state.inspectorTab
   const activePage = state.document.pages.find((p) => p.id === state.document.activePageId)!
@@ -237,23 +332,98 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
 
           <section className="property-section">
             <div className="section-heading">填充 <span>＋</span></div>
-            <div className="fill-row">
-              <span className="color-swatch" style={{ background: selected.style.fill ?? '#ffffff' }} />
-              <span>{selected.style.fill ?? '无'}</span>
-              <span className="opacity">{Math.round((selected.style.opacity ?? 1) * 100)}%</span>
-              <Icon name="chevron" />
+            {selected.type === 'frame' ? (
+              <div className="style-line">
+                <span className="style-label">背景</span>
+                <ColorField value={selected.style.backgroundColor ?? selected.style.fill} allowEmpty onChange={(v) => patchStyle({ backgroundColor: v, fill: v })} />
+              </div>
+            ) : selected.type === 'text' ? (
+              <div className="style-line">
+                <span className="style-label">字体色</span>
+                <ColorField value={selected.style.fontColor ?? selected.style.color} onChange={(v) => patchStyle({ fontColor: v, color: v })} />
+              </div>
+            ) : (
+              <div className="style-line">
+                <span className="style-label">填充</span>
+                <ColorField value={selected.style.fill} allowEmpty onChange={(v) => patchStyle({ fill: v })} />
+              </div>
+            )}
+            <div className="style-line opacity-line">
+              <span className="style-label">透明度</span>
+              <input type="range" min={0} max={100} value={Math.round((selected.style.opacity ?? 1) * 100)} disabled={readOnly}
+                onChange={(e) => patchStyle({ opacity: +e.target.value / 100 })} />
+              <span className="style-value">{Math.round((selected.style.opacity ?? 1) * 100)}%</span>
             </div>
           </section>
 
-          <section className="property-section">
-            <div className="section-heading">描边 <span>＋</span></div>
-            <div className="fill-row muted"><span>—</span><span>{selected.style.stroke ?? '无'}</span></div>
-          </section>
+          {selected.type !== 'text' && (
+            <section className="property-section">
+              <div className="section-heading">描边 <span>＋</span></div>
+              <div className="style-line">
+                <span className="style-label">颜色</span>
+                <ColorField value={selected.style.stroke} allowEmpty onChange={(v) => patchStyle({ stroke: v })} />
+              </div>
+              {selected.style.stroke && (
+                <div className="style-line">
+                  <span className="style-label">宽度</span>
+                  <PropertyInput label="" value={selected.style.strokeWidth ?? 1} min={0} disabled={readOnly} onChange={(v) => patchStyle({ strokeWidth: v })} />
+                </div>
+              )}
+            </section>
+          )}
 
           <section className="property-section">
             <div className="section-heading">效果 <span>＋</span></div>
-            <div className="effect-row"><span className="effect-icon">◒</span><span>阴影</span><span className="effect-value">{selected.style.shadow ?? '0 2 8 8%'}</span><Icon name="eye" /></div>
+            <ShadowEditor value={selected.style.shadow} onChange={(v) => patchStyle({ shadow: v })} readOnly={readOnly} />
           </section>
+
+          {selected.type === 'text' && (
+            <section className="property-section">
+              <div className="section-heading">文本 <span>＋</span></div>
+              <div className="style-line">
+                <span className="style-label">字号</span>
+                <PropertyInput label="" value={selected.style.fontSize ?? 14} min={8} disabled={readOnly} onChange={(v) => patchStyle({ fontSize: v })} />
+              </div>
+              <div className="style-line">
+                <span className="style-label">字重</span>
+                <select className="proto-select" value={selected.style.fontWeight ?? 400} disabled={readOnly}
+                  onChange={(e) => patchStyle({ fontWeight: +e.target.value })}>
+                  <option value={300}>细体 300</option>
+                  <option value={400}>常规 400</option>
+                  <option value={500}>中等 500</option>
+                  <option value={600}>半粗 600</option>
+                  <option value={700}>粗体 700</option>
+                </select>
+              </div>
+            </section>
+          )}
+
+          {selected.type === 'chart' && (
+            <section className="property-section">
+              <div className="section-heading">图表数据 <span>＋</span></div>
+              <ChartEditor node={selected} dispatch={dispatch} readOnly={readOnly} />
+            </section>
+          )}
+
+          {selected.type === 'comment' && (
+            <section className="property-section">
+              <div className="section-heading">评论 <span>＋</span></div>
+              <textarea className="comment-textarea" value={selected.content ?? ''} rows={3} placeholder="输入评论内容…"
+                onChange={(e) => patch({ content: e.target.value, name: e.target.value ? e.target.value.slice(0, 12) : '评论' })} />
+              {(selected.replies ?? []).length > 0 && (
+                <div className="reply-list">
+                  {(selected.replies ?? []).map((r) => (
+                    <div className="reply-item" key={r.id}>
+                      <span className="reply-author">{r.author}</span>
+                      <span className="reply-content">{r.content}</span>
+                      {!readOnly && <button className="reply-remove" onClick={() => dispatch({ type: 'DELETE_COMMENT_REPLY', commentId: selected.id, replyId: r.id })}>✕</button>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
 
           <section className="property-section export-section">
             <div className="section-heading">导出 <span>＋</span></div>

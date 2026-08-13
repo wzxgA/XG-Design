@@ -72,9 +72,9 @@ public class DocumentService {
     // ---------------------------------------------------------------- 查询
 
     @Transactional(readOnly = true)
-    public List<ProjectMetaDto> listProjects() {
+    public List<ProjectMetaDto> listProjects(boolean archived) {
         UUID ownerId = CurrentUserProvider.requireUserId();
-        return documentRepository.findByOwnerIdAndArchivedFalseOrderByUpdatedAtDesc(ownerId)
+        return documentRepository.findByOwnerIdAndArchivedOrderByUpdatedAtDesc(ownerId, archived)
                 .stream()
                 .map(this::toMetaDto)
                 .toList();
@@ -160,6 +160,14 @@ public class DocumentService {
         documentRepository.save(entity);
         logOperation(id, archived ? "archive" : "unarchive");
         return toMetaDto(entity);
+    }
+
+    /** 物理删除项目（归档视图内操作；分享链接随外键级联删除） */
+    @Transactional
+    public void delete(UUID id) {
+        DocumentEntity entity = accessService.check(id, CurrentUserProvider.requireUserId(), true);
+        documentRepository.delete(entity);
+        logOperation(id, "delete");
     }
 
     // ---------------------------------------------------------------- 分享

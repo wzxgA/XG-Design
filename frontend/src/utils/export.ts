@@ -19,7 +19,7 @@ function renderNode(node: LayerNode): HTMLElement {
       if (node.style.shadow) el.style.boxShadow = node.style.shadow
       break
     case 'text':
-      el.style.color = node.style.color ?? '#5c6b72'
+      el.style.color = node.style.fontColor ?? node.style.color ?? '#5c6b72'
       el.style.fontSize = `${node.style.fontSize ?? 14}px`
       el.style.fontWeight = String(node.style.fontWeight ?? 400)
       el.style.fontFamily = "'DM Sans', 'Microsoft YaHei', sans-serif"

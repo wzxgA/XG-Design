@@ -165,6 +165,8 @@ export function LayersPanel({ state, dispatch, readOnly = false, onSearchFocusRe
   const [newLayerMenuOpen, setNewLayerMenuOpen] = useState(false)
   const [pageMenuOpen, setPageMenuOpen] = useState(false)
   const [pageMenuPageId, setPageMenuPageId] = useState<string | null>(null)
+  const [pageRenamingId, setPageRenamingId] = useState<string | null>(null)
+  const [pageDraft, setPageDraft] = useState('')
   const [search, setSearch] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLElement>(null)
@@ -196,6 +198,13 @@ export function LayersPanel({ state, dispatch, readOnly = false, onSearchFocusRe
       dispatch({ type: 'RENAME_LAYER', id: renamingId, name: draft.trim() })
     }
     setRenamingId(null)
+  }
+
+  const commitPageRename = () => {
+    if (pageRenamingId && pageDraft.trim()) {
+      dispatch({ type: 'RENAME_PAGE', pageId: pageRenamingId, name: pageDraft.trim() })
+    }
+    setPageRenamingId(null)
   }
 
   const openMenu = (e: React.MouseEvent, id: string) => {
@@ -287,7 +296,22 @@ export function LayersPanel({ state, dispatch, readOnly = false, onSearchFocusRe
               >
                 <Icon name="chevron" className={p.id === state.document.activePageId ? '' : 'chevron-collapsed'} />
                 <Icon name="folder" className="folder-icon" />
-                <span>{p.name}</span>
+                {pageRenamingId === p.id ? (
+                  <input
+                    className="page-rename-input"
+                    autoFocus
+                    value={pageDraft}
+                    onChange={(e) => setPageDraft(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={commitPageRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitPageRename()
+                      if (e.key === 'Escape') setPageRenamingId(null)
+                    }}
+                  />
+                ) : (
+                  <span onDoubleClick={(e) => { e.stopPropagation(); if (!readOnly) { setPageRenamingId(p.id); setPageDraft(p.name) } }}>{p.name}</span>
+                )}
                 {!readOnly && (
                   <span
                     className="page-menu"
@@ -303,14 +327,9 @@ export function LayersPanel({ state, dispatch, readOnly = false, onSearchFocusRe
               <button onClick={() => {
                 const page = state.document.pages.find((p) => p.id === pageMenuPageId)
                 if (!page) return
-                setRenamingId(null)
-                setDraft(page.name)
                 setPageMenuOpen(false)
-                // 页面重命名：复用行内编辑（简单实现：直接弹 prompt 替代，保留菜单体验）
-                const next = window.prompt('重命名页面', page.name)
-                if (next && next.trim()) {
-                  dispatch({ type: 'RENAME_PAGE', pageId: page.id, name: next.trim() })
-                }
+                setPageRenamingId(page.id)
+                setPageDraft(page.name)
               }}>重命名</button>
               <button onClick={() => {
                 dispatch({ type: 'DUPLICATE_PAGE', pageId: pageMenuPageId })

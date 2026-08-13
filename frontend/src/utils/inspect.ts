@@ -12,12 +12,13 @@ export function toCss(node: LayerNode): string {
   if (node.style.opacity !== undefined) lines.push(`  opacity: ${node.style.opacity};`)
   if (node.style.cornerRadius) lines.push(`  border-radius: ${node.style.cornerRadius}px;`)
   if (node.type === 'rectangle' || node.type === 'frame') {
-    if (node.style.fill) lines.push(`  background-color: ${node.style.fill};`)
+    const bg = node.type === 'frame' ? (node.style.backgroundColor ?? node.style.fill) : node.style.fill
+    if (bg) lines.push(`  background-color: ${bg};`)
     if (node.style.stroke) lines.push(`  border: ${node.style.strokeWidth ?? 1}px solid ${node.style.stroke};`)
     if (node.style.shadow) lines.push(`  box-shadow: ${node.style.shadow};`)
   }
   if (node.type === 'text') {
-    lines.push(`  color: ${node.style.color ?? '#5c6b72'};`)
+    lines.push(`  color: ${node.style.fontColor ?? node.style.color ?? '#5c6b72'};`)
     lines.push(`  font-size: ${node.style.fontSize ?? 14}px;`)
     lines.push(`  font-weight: ${node.style.fontWeight ?? 400};`)
     lines.push(`  content: "${node.content ?? node.name}";`)

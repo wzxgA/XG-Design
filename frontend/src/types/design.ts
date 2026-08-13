@@ -18,6 +18,17 @@ export interface LayerStyle {
   fontSize?: number
   fontWeight?: number
   color?: string
+  /** 文本节点字体色（优先于 color） */
+  fontColor?: string
+  /** 画板背景色（优先于 fill） */
+  backgroundColor?: string
+}
+
+export interface CommentReply {
+  id: string
+  author: string
+  content: string
+  createdAt: number
 }
 
 export interface LayerNode {
@@ -38,6 +49,8 @@ export interface LayerNode {
   chartBars?: number[]
   /** 钢笔路径锚点（相对图层左上角的画布坐标） */
   points?: { x: number; y: number }[]
+  /** 评论节点回复列表 */
+  replies?: CommentReply[]
   style: LayerStyle
   children: LayerNode[]
 }
@@ -110,5 +123,8 @@ export type EditorAction =
   | { type: 'RENAME_PAGE'; pageId: string; name: string }
   | { type: 'DELETE_PAGE'; pageId: string }
   | { type: 'DUPLICATE_PAGE'; pageId: string }
+  | { type: 'ADD_COMMENT_REPLY'; commentId: string; reply: CommentReply }
+  | { type: 'DELETE_COMMENT_REPLY'; commentId: string; replyId: string }
+  | { type: 'CLEAR_HISTORY' }
   | { type: 'UNDO' }
   | { type: 'REDO' }

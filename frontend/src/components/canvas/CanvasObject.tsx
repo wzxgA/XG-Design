@@ -7,6 +7,8 @@ interface Props {
   state: EditorState
   dispatch: EditorDispatch
   drawing?: boolean
+  /** 只读模式：禁用文本双击编辑、评论编辑（预览 / 分享只读场景） */
+  readOnly?: boolean
 }
 
 function findBoard(state: EditorState): LayerNode | undefined {
@@ -19,7 +21,7 @@ function findBoard(state: EditorState): LayerNode | undefined {
  * 将 LayerNode 树按绝对坐标渲染为 HTML，隐藏节点不渲染，选中节点显示边框。
  * 支持拖拽移动对象（锁定节点不可移动）、Shift 多选、多选整体拖拽。
  */
-export function CanvasObject({ node, state, dispatch, drawing = false }: Props) {
+export function CanvasObject({ node, state, dispatch, drawing = false, readOnly = false }: Props) {
   const startRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null)
   const movedRef = useRef(false)
 
@@ -108,7 +110,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
   if (node.children.length > 0) {
     return (
       <div className={`canvas-group ${outline}`} style={style} {...base}>
-        {node.children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} />)}
+        {node.children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} />)}
       </div>
     )
   }
@@ -122,7 +124,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
             ...style,
             background: node.style.fill ?? '#e5ebef',
             borderRadius: node.style.cornerRadius ?? 0,
-            border: node.style.stroke ? `1px solid ${node.style.stroke}` : undefined,
+            border: node.style.stroke ? `${node.style.strokeWidth ?? 1}px solid ${node.style.stroke}` : undefined,
             boxShadow: node.style.shadow,
           }}
           {...base}
@@ -133,14 +135,12 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
       return <CanvasPath node={node} style={style} outline={outline} base={base} />
 
     case 'text':
-      return <CanvasText node={node} style={style} outline={outline} base={base} state={state} dispatch={dispatch} />
+      return <CanvasText node={node} style={style} outline={outline} base={base} state={state} dispatch={dispatch} readOnly={readOnly} />
 
     case 'comment':
-      return (
-        <div className={`canvas-comment ${selected ? 'canvas-selected' : ''}`} style={style} {...base}>
-          <span className="comment-pin">{selected ? '💬' : '●'}</span>
-        </div>
-      )
+      // 预览模式由 CommentPins 接管，避免重复
+      if (drawing) return null
+      return <CanvasComment node={node} style={style} outline={outline} base={base} state={state} dispatch={dispatch} readOnly={readOnly} />
 
     case 'chart': {
       const bars = node.chartBars ?? []
@@ -195,9 +195,10 @@ interface TextProps {
   base: Record<string, (e: any) => void>
   state: EditorState
   dispatch: EditorDispatch
+  readOnly?: boolean
 }
 
-function CanvasText({ node, style, outline, base, state, dispatch }: TextProps) {
+function CanvasText({ node, style, outline, base, state, dispatch, readOnly = false }: TextProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(node.content ?? '')
   const inputRef = useRef<HTMLDivElement>(null)
@@ -227,7 +228,7 @@ function CanvasText({ node, style, outline, base, state, dispatch }: TextProps) 
       className={`canvas-text ${outline}`}
       style={{
         ...style,
-        color: node.style.color ?? '#5c6b72',
+        color: node.style.fontColor ?? node.style.color ?? '#5c6b72',
         fontSize: node.style.fontSize ?? 14,
         fontWeight: node.style.fontWeight ?? 400,
         lineHeight: '1.2',
@@ -235,13 +236,107 @@ function CanvasText({ node, style, outline, base, state, dispatch }: TextProps) 
       {...base}
       onDoubleClick={(e) => {
         e.stopPropagation()
-        if (!node.locked) {
+        if (!node.locked && !readOnly) {
           setDraft(node.content ?? node.name)
           setEditing(true)
         }
       }}
     >
       {node.content ?? node.name}
+    </div>
+  )
+}
+
+interface CommentProps {
+  node: LayerNode
+  style: React.CSSProperties
+  outline: string
+  base: Record<string, (e: any) => void>
+  state: EditorState
+  dispatch: EditorDispatch
+  readOnly?: boolean
+}
+
+function CanvasComment({ node, style, outline, base, state, dispatch, readOnly = false }: CommentProps) {
+  const [draft, setDraft] = useState(node.content ?? '')
+  const [replyDraft, setReplyDraft] = useState('')
+  const scale = state.zoom / 100
+  const selected = state.selectedIds.includes(node.id)
+
+  // 选中时展示气泡（只读模式仅展示内容与回复，不可编辑）
+  const showBubble = selected
+
+  const commitContent = () => {
+    if (readOnly) return
+    if (draft !== (node.content ?? '')) {
+      dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { content: draft, name: draft || '评论' } })
+    }
+  }
+
+  const addReply = () => {
+    const text = replyDraft.trim()
+    if (!text) return
+    dispatch({
+      type: 'ADD_COMMENT_REPLY',
+      commentId: node.id,
+      reply: { id: `r-${Date.now().toString(36)}`, author: '我', content: text, createdAt: Date.now() },
+    })
+    setReplyDraft('')
+  }
+
+  return (
+    <div className={`canvas-comment ${outline}`} style={style} {...base}>
+      <span className="comment-pin">{selected ? '💬' : '●'}</span>
+      {showBubble && (
+        <div className="comment-bubble" style={{ transform: `scale(${1 / scale})` }}>
+          <div className="comment-bubble-head">
+            <strong>评论</strong>
+            <button className="comment-close" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SELECT_LAYERS', ids: [] }) }}>✕</button>
+          </div>
+          {readOnly ? (
+            <div className="comment-read-text">{node.content || '(空评论)'}</div>
+          ) : (
+            <textarea
+              className="comment-edit-input"
+              value={draft}
+              rows={2}
+              placeholder="输入评论…"
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitContent}
+              onPointerDown={(e) => e.stopPropagation()}
+            />
+          )}
+          {(node.replies ?? []).length > 0 && (
+            <div className="comment-replies">
+              {(node.replies ?? []).map((r) => (
+                <div className="comment-reply" key={r.id}>
+                  <span className="comment-reply-author">{r.author}</span>
+                  <span className="comment-reply-text">{r.content}</span>
+                  {!readOnly && (
+                    <button
+                      className="comment-reply-del"
+                      onClick={(e) => { e.stopPropagation(); dispatch({ type: 'DELETE_COMMENT_REPLY', commentId: node.id, replyId: r.id }) }}
+                    >✕</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {!readOnly && (
+            <div className="comment-reply-input-row">
+              <input
+                className="comment-reply-input"
+                value={replyDraft}
+                placeholder="回复…"
+                onChange={(e) => setReplyDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addReply() } }}
+                onPointerDown={(e) => e.stopPropagation()}
+              />
+              <button className="comment-reply-add" onClick={(e) => { e.stopPropagation(); addReply() }}>发送</button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
