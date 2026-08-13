@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { repository } from '../../services'
-import { importLocalDocuments } from '../../services/importLocal'
 import { Icon, Watermelon } from '../common/brand'
+import { openProject, createProject, duplicateProject, archiveProject, importLocalProject } from '../../services/projectsActions'
 import type { ProjectMeta } from '../../types/project'
 
 interface Props {
@@ -28,17 +28,11 @@ export function ProjectsModal({ onClose }: Props) {
     return () => { alive = false }
   }, [])
 
-  const open = (id: string) => {
-    window.location.hash = `#/doc/${id}`
-    window.location.reload()
-  }
-
   const create = async () => {
     if (busy) return
     setBusy(true)
     try {
-      const meta = await repository.createDocument(name.trim() || undefined)
-      open(meta.id)
+      await createProject(name)
     } finally {
       setBusy(false)
     }
@@ -48,16 +42,14 @@ export function ProjectsModal({ onClose }: Props) {
     if (busy) return
     setBusy(true)
     try {
-      const meta = await repository.duplicateDocument(id)
-      open(meta.id)
+      await duplicateProject(id)
     } finally {
       setBusy(false)
     }
   }
 
   const archive = async (id: string) => {
-    await repository.archiveDocument(id)
-    setProjects(await repository.listDocuments())
+    setProjects(await archiveProject(id))
   }
 
   const importLocal = async () => {
@@ -65,19 +57,9 @@ export function ProjectsModal({ onClose }: Props) {
     setImporting(true)
     setImportResult('')
     try {
-      const res = await importLocalDocuments()
-      if (res.imported === 0 && res.failed === 0 && res.skipped === 0) {
-        setImportResult('没有可导入的本地项目')
-      } else {
-        setImportResult(
-          res.failed > 0
-            ? `导入完成：成功 ${res.imported} 个，跳过 ${res.skipped} 个，失败 ${res.failed} 个`
-            : `已导入 ${res.imported} 个项目${res.skipped > 0 ? `，跳过 ${res.skipped} 个同名项目` : ''}`,
-        )
-      }
-      setProjects(await repository.listDocuments())
-    } catch {
-      setImportResult('导入失败，请稍后重试')
+      const { list, outcome } = await importLocalProject()
+      setProjects(list)
+      setImportResult(outcome.message)
     } finally {
       setImporting(false)
     }
@@ -119,7 +101,7 @@ export function ProjectsModal({ onClose }: Props) {
           ) : (
             <div className="project-list">
               {projects.map((p) => (
-                <div className="project-card" key={p.id} onClick={() => open(p.id)}>
+                <div className="project-card" key={p.id} onClick={() => openProject(p.id)}>
                   <span className="project-thumb"><Icon name="frame" /></span>
                   <div className="project-info">
                     <div className="project-name">{p.name}</div>

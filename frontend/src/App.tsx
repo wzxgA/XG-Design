@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useEditorStore, type EditorDispatch, type EditorAction, type ToolType } from './state/editor-store'
 import { TopToolbar } from './components/toolbar/TopToolbar'
 import { LayersPanel } from './components/layers/LayersPanel'
@@ -6,6 +6,7 @@ import { CanvasArea } from './components/canvas/CanvasArea'
 import { InspectorPanel } from './components/inspector/InspectorPanel'
 import { PreviewOverlay } from './components/canvas/PreviewOverlay'
 import { ProjectsModal } from './components/projects/ProjectsModal'
+import { ProjectsPage } from './components/projects/ProjectsPage'
 import { ShareModal } from './components/share/ShareModal'
 import { AuthPage } from './components/auth/AuthPage'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -15,9 +16,10 @@ import { Watermelon } from './components/common/brand'
 
 type Route =
   | { name: 'login'; redirectTo?: string }
+  | { name: 'projects' }
   | { name: 'editor'; projectId?: string; share?: { token: string; permission: 'view' | 'edit' } }
 
-/** 解析当前 hash 路由：/#/login / #/editor / #/doc/:id / #/share/:token */
+/** 解析当前 hash 路由：/#/login / #/projects / #/editor / #/doc/:id / #/share/:token */
 function readRoute(): Route {
   const hash = window.location.hash
   if (/^#\/login/.test(hash)) {
@@ -33,6 +35,10 @@ function readRoute(): Route {
   const doc = hash.match(/#\/doc\/([^/]+)/)
   if (doc) {
     return { name: 'editor', projectId: doc[1] }
+  }
+  // #/ 与 #/projects 均进入项目列表首页（登录后默认落地页）
+  if (hash === '' || hash === '#' || hash === '#/' || /^#\/projects/.test(hash)) {
+    return { name: 'projects' }
   }
   return { name: 'editor' }
 }
@@ -57,31 +63,41 @@ const WRITE_ACTIONS = new Set<EditorAction['type']>([
 ])
 
 export default function App() {
-  const route = readRoute()
+  const [route, setRoute] = useState(() => readRoute())
   const [user, setUser] = useState<UserDto | null>(() => getCurrentUser())
 
-  // 路由守卫：编辑器页需登录；分享链接页匿名可访问
-  const needsLogin = route.name === 'editor' && !route.share && !isAuthenticated()
+  // 监听 hash 变化，驱动路由重渲染（替代全页 reload，避免闪烁）
   useEffect(() => {
-    if (needsLogin) {
-      const current = window.location.hash
-      const redirect = current && current !== '#/' ? current.slice(1) : '/editor'
-      window.location.hash = `#/login?redirect=${encodeURIComponent(redirect)}`
-      window.location.reload()
-    }
-  }, [needsLogin])
+    const onHash = () => setRoute(readRoute())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
-  // 已登录时访问登录页 → 跳转回编辑器
-  const loginRedirect = route.name === 'login' ? route.redirectTo : undefined
+  // 路由守卫：项目列表页 / 编辑器页需登录；登录页自身与分享链接页匿名可访问。
+  // 重定向目标由 effect 内 readRoute() 解析的路由构造（r），杜绝把 login 的 redirect 参数带进去造成嵌套死循环。
   useEffect(() => {
-    if (loginRedirect !== undefined && isAuthenticated()) {
-      window.location.hash = loginRedirect && loginRedirect.startsWith('/') ? `#${loginRedirect}` : '#/editor'
-      window.location.reload()
+    const r = readRoute()
+    if (r.name === 'login') return
+    const requiresLogin = r.name === 'projects' || (r.name === 'editor' && !r.share)
+    if (requiresLogin && !isAuthenticated()) {
+      const target = r.name === 'projects' ? '/projects' : `/${r.name}${r.projectId ? '/' + r.projectId : ''}`
+      window.location.hash = `#/login?redirect=${encodeURIComponent(target)}`
     }
-  }, [loginRedirect])
+  }, [route.name])
+
+  // 已登录时访问登录页 → 跳转回项目列表首页（或原目标页）
+  useEffect(() => {
+    if (route.name === 'login' && route.redirectTo && isAuthenticated()) {
+      window.location.hash = route.redirectTo.startsWith('/') ? `#${route.redirectTo}` : '#/projects'
+    }
+  }, [route.name])
 
   if (route.name === 'login') {
     return <AuthPage redirectTo={route.redirectTo} />
+  }
+
+  if (route.name === 'projects') {
+    return <ProjectsPage userName={user?.displayName} userEmail={user?.email} onUserChange={setUser} />
   }
 
   return <Editor route={route} user={user} onUserChange={setUser} />
@@ -135,8 +151,11 @@ function Editor({ route, user, onUserChange }: {
     clearAuth()
     onUserChange(null)
     window.location.hash = '#/login'
-    window.location.reload()
   }, [onUserChange])
+
+  const goHome = useCallback(() => {
+    window.location.hash = '#/projects'
+  }, [])
 
   const logoutButton = useMemo(() => (
     <button className="logout-button" onClick={onLogout} title="退出登录">退出</button>
@@ -148,6 +167,7 @@ function Editor({ route, user, onUserChange }: {
         state={state}
         dispatch={guardedDispatch}
         onRenameDocument={(name) => guardedDispatch({ type: 'RENAME_DOCUMENT', name })}
+        onHome={readOnly ? undefined : goHome}
         onPreview={() => setPreviewing(true)}
         onOpenProjects={() => setProjectsOpen(true)}
         onShare={() => setShareOpen(true)}

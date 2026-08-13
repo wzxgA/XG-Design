@@ -17,6 +17,8 @@ interface Props {
   state: EditorState
   dispatch: EditorDispatch
   onRenameDocument: (name: string) => void
+  /** 返回项目列表首页 */
+  onHome?: () => void
   onPreview?: () => void
   onOpenProjects?: () => void
   onShare?: () => void
@@ -38,13 +40,14 @@ const SAVE_LABEL: Record<SaveStatus, string> = {
   error: '保存失败',
 }
 
-export function TopToolbar({ state, dispatch, onRenameDocument, onPreview, onOpenProjects, onShare, saveStatus = 'idle', readOnly = false, userName, logoutNode }: Props) {
+export function TopToolbar({ state, dispatch, onRenameDocument, onHome, onPreview, onOpenProjects, onShare, saveStatus = 'idle', readOnly = false, userName, logoutNode }: Props) {
   const doc: DesignDocument = state.document
   const zoom = state.zoom
   const saving = saveStatus === 'saving'
 
   return (
     <header className="topbar">
+      {onHome && <button className="home-button" onClick={onHome} title="返回项目列表">项目列表</button>}
       <div className="brand" onClick={readOnly ? undefined : onOpenProjects} title={readOnly ? '只读分享页' : '打开项目'} style={{ cursor: readOnly ? 'default' : 'pointer' }}><Watermelon /><strong>XG<span>Design</span></strong></div>
       <div className="file-meta" title={readOnly ? '只读模式' : '点击重命名'}>
         <input

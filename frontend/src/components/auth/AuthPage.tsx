@@ -10,8 +10,7 @@ interface Props {
 type Mode = 'login' | 'register'
 
 function go(redirectTo?: string): void {
-  window.location.hash = redirectTo && redirectTo.startsWith('/') ? `#${redirectTo}` : '#/editor'
-  window.location.reload()
+  window.location.hash = redirectTo && redirectTo.startsWith('/') ? `#${redirectTo}` : '#/projects'
 }
 
 /** 登录 / 注册页（F1） */
