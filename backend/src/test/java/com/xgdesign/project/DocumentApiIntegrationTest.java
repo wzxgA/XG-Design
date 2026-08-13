@@ -71,6 +71,12 @@ class DocumentApiIntegrationTest {
         // 创建项目
         String id = createProject("{\"name\":\"测试项目\"}");
 
+        // 创建后 operation_logs 应有 create 记录
+        Integer createLogs = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM operation_logs WHERE document_id = CAST(? AS uuid) AND action = 'create'",
+                Integer.class, id);
+        assertThat(createLogs).isEqualTo(1);
+
         // 打开文档：version 初始为 1，content 为模板结构
         MvcResult open = mockMvc.perform(get("/api/documents/{id}", id))
                 .andExpect(status().isOk())

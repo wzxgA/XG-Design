@@ -34,11 +34,15 @@ public class DocumentService {
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
     private final DocumentRepository documentRepository;
+    private final OperationLogRepository operationLogRepository;
     private final ObjectMapper objectMapper;
     private final String starterDocumentJson;
 
-    public DocumentService(DocumentRepository documentRepository, ObjectMapper objectMapper) {
+    public DocumentService(DocumentRepository documentRepository,
+                           OperationLogRepository operationLogRepository,
+                           ObjectMapper objectMapper) {
         this.documentRepository = documentRepository;
+        this.operationLogRepository = operationLogRepository;
         this.objectMapper = objectMapper;
         this.starterDocumentJson = loadStarterDocument();
     }
@@ -201,6 +205,12 @@ public class DocumentService {
     }
 
     private void logOperation(UUID documentId, String action) {
-        log.info("[operation] doc={} action={} user={}", documentId, action, CurrentUserProvider.currentUserId());
+        UUID userId = CurrentUserProvider.currentUserId();
+        OperationLogEntity operation = new OperationLogEntity();
+        operation.setDocumentId(documentId);
+        operation.setUserId(userId);
+        operation.setAction(action);
+        operationLogRepository.save(operation);
+        log.info("[operation] doc={} action={} user={}", documentId, action, userId);
     }
 }
