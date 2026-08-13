@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { LayerNode } from './types/design'
 import { useEditorStore, type EditorDispatch, type EditorAction, type ToolType } from './state/editor-store'
 import { TopToolbar } from './components/toolbar/TopToolbar'
 import { LayersPanel } from './components/layers/LayersPanel'
@@ -43,6 +44,24 @@ function readRoute(): Route {
   return { name: 'editor' }
 }
 
+/** 在文档全部页面中查找图层（跨页面） */
+function findLayerInDoc(doc: { pages: { children: LayerNode[] }[] }, id: string): LayerNode | null {
+  for (const page of doc.pages) {
+    const found = findLayerInTree(page.children, id)
+    if (found) return found
+  }
+  return null
+}
+
+function findLayerInTree(nodes: LayerNode[], id: string): LayerNode | null {
+  for (const node of nodes) {
+    if (node.id === id) return node
+    const found = findLayerInTree(node.children, id)
+    if (found) return found
+  }
+  return null
+}
+
 /** 只读模式下应拦截的写操作（不允许修改文档内容 / 结构 / 原型链接） */
 const WRITE_ACTIONS = new Set<EditorAction['type']>([
   'RENAME_DOCUMENT',
@@ -58,6 +77,12 @@ const WRITE_ACTIONS = new Set<EditorAction['type']>([
   'MOVE_LAYERS',
   'ADD_PROTOTYPE_LINK',
   'REMOVE_PROTOTYPE_LINK',
+  'GROUP_LAYERS',
+  'UNGROUP_LAYERS',
+  'REORDER_LAYER',
+  'RENAME_PAGE',
+  'DELETE_PAGE',
+  'DUPLICATE_PAGE',
   'UNDO',
   'REDO',
 ])
@@ -142,9 +167,32 @@ function Editor({ route, user, onUserChange }: {
     if (state.activeTool !== 'select') guardedDispatch({ type: 'SET_ACTIVE_TOOL', tool: 'select' })
   }, [guardedDispatch, state.activeTool, previewing, projectsOpen, shareOpen])
 
+  const onGroup = useCallback(() => {
+    if (state.selectedIds.length >= 2) guardedDispatch({ type: 'GROUP_LAYERS', ids: state.selectedIds })
+  }, [guardedDispatch, state.selectedIds])
+  const onUngroup = useCallback(() => {
+    const g = state.selectedIds
+      .map((id) => findLayerInDoc(state.document, id))
+      .find((n) => n && n.type === 'group')
+    if (g) guardedDispatch({ type: 'UNGROUP_LAYERS', id: g.id })
+  }, [guardedDispatch, state.selectedIds])
+  const onReorder = useCallback((direction: 'forward' | 'backward') => {
+    const id = state.selectedIds[0]
+    if (id) guardedDispatch({ type: 'REORDER_LAYER', id, direction })
+  }, [guardedDispatch, state.selectedIds])
+  const onZoomIn = useCallback(() => guardedDispatch({ type: 'SET_ZOOM', zoom: state.zoom + 10 }), [guardedDispatch, state.zoom])
+  const onZoomOut = useCallback(() => guardedDispatch({ type: 'SET_ZOOM', zoom: state.zoom - 10 }), [guardedDispatch, state.zoom])
+  const onZoomFit = useCallback(() => guardedDispatch({ type: 'SET_ZOOM', zoom: 100 }), [guardedDispatch])
+  const onZoom100 = useCallback(() => guardedDispatch({ type: 'SET_ZOOM', zoom: 100 }), [guardedDispatch])
+  const searchFocusRef = useRef<(() => void) | null>(null)
+  const onSearch = useCallback(() => {
+    guardedDispatch({ type: 'SET_LEFT_PANEL_TAB', tab: 'layers' })
+    searchFocusRef.current?.()
+  }, [guardedDispatch])
+
   useKeyboardShortcuts({
     onToolChange, onDelete, onDuplicate, onUndo, onRedo, onEscape,
-    readOnly,
+    readOnly, onGroup, onUngroup, onReorder, onZoomIn, onZoomOut, onZoomFit, onZoom100, onSearch,
   })
 
   const onLogout = useCallback(() => {
@@ -171,6 +219,8 @@ function Editor({ route, user, onUserChange }: {
         onPreview={() => setPreviewing(true)}
         onOpenProjects={() => setProjectsOpen(true)}
         onShare={() => setShareOpen(true)}
+        onUndo={onUndo}
+        onRedo={onRedo}
         saveStatus={saveStatus}
         readOnly={readOnly}
         userName={user?.displayName}
@@ -178,7 +228,7 @@ function Editor({ route, user, onUserChange }: {
         logoutNode={logoutButton}
       />
       <div className="workspace">
-        <LayersPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} />
+        <LayersPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} onSearchFocusReady={(fn) => { searchFocusRef.current = fn }} />
         <CanvasArea state={state} dispatch={guardedDispatch} readOnly={readOnly} />
         <InspectorPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} />
       </div>

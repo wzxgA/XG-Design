@@ -3,16 +3,20 @@ import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
 import { Icon, EyeOpen, EyeClosed, LockClosed, LockOpen, type IconName } from '../common/brand'
 import { createLayer } from '../../utils/layers'
+import { COMPONENT_TEMPLATES, buildComponent } from '../../fixtures/component-library'
+import { layerId } from '../../utils/layers'
 
 const typeIcon: Record<LayerNode['type'], IconName> = {
   frame: 'frame', group: 'layers', rectangle: 'rect',
-  text: 'text', chart: 'chart', comment: 'comment',
+  text: 'text', chart: 'chart', comment: 'comment', path: 'pen',
 }
 
 interface Props {
   state: EditorState
   dispatch: EditorDispatch
   readOnly?: boolean
+  /** 把搜索框聚焦函数交给上层（快捷键 ⌘F 触发） */
+  onSearchFocusReady?: (fn: () => void) => void
 }
 
 interface ContextMenuState {
@@ -43,7 +47,14 @@ function LayerTreeItem({ node, depth, dispatch, selectedIds, readOnly, onContext
       <div
         className={`layer-row ${selected ? 'selected' : ''}`}
         style={{ paddingLeft: `${14 + depth * 18}px` }}
-        onClick={() => dispatch({ type: 'SELECT_LAYERS', ids: [node.id] })}
+        onClick={(e) => {
+          const ids = e.shiftKey
+            ? selectedIds.includes(node.id)
+              ? selectedIds.filter((id) => id !== node.id)
+              : [...selectedIds, node.id]
+            : [node.id]
+          dispatch({ type: 'SELECT_LAYERS', ids })
+        }}
         onContextMenu={(e) => { if (!readOnly) onContextMenu(e, node.id) }}
         onDoubleClick={() => { if (!readOnly) onRenameRequest(node.id) }}
       >
@@ -96,13 +107,66 @@ function LayerTreeItem({ node, depth, dispatch, selectedIds, readOnly, onContext
   )
 }
 
-export function LayersPanel({ state, dispatch, readOnly = false }: Props) {
+/** 组件 tab：内置组件库，点击/拖拽插入画布 */
+function ComponentGrid({ dispatch, readOnly, activePage }: {
+  dispatch: EditorDispatch
+  readOnly: boolean
+  activePage: { id: string; children: LayerNode[] }
+}) {
+  const frame = activePage.children.find((n) => n.type === 'frame')
+  const [dragging, setDragging] = useState<string | null>(null)
+
+  const insert = (name: string) => {
+    if (readOnly) return
+    const c = buildComponent(name, 40, 40)
+    if (!frame) {
+      // 无画板：先创建默认画板再插入
+      const f = createLayer('frame', 0, 0)
+      f.width = 1440; f.height = 900
+      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: null, layer: f })
+      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: f.id, layer: c })
+      dispatch({ type: 'SELECT_LAYERS', ids: [c.id] })
+      return
+    }
+    dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: frame.id, layer: c })
+    dispatch({ type: 'SELECT_LAYERS', ids: [c.id] })
+  }
+
+  return (
+    <div className="component-grid">
+      {COMPONENT_TEMPLATES.map((tpl) => (
+        <button
+          key={tpl.name}
+          className="component-tile"
+          draggable={!readOnly}
+          onDragStart={(e) => {
+            setDragging(tpl.name)
+            e.dataTransfer.setData('application/xg-component', tpl.name)
+            e.dataTransfer.effectAllowed = 'copy'
+          }}
+          onDragEnd={() => setDragging(null)}
+          onClick={() => insert(tpl.name)}
+          title={`插入「${tpl.name}」到当前画板`}
+        >
+          <span className={`component-tile-icon ${dragging === tpl.name ? 'dragging' : ''}`}>{tpl.short.slice(0, 1)}</span>
+          <span className="component-tile-name">{tpl.short}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function LayersPanel({ state, dispatch, readOnly = false, onSearchFocusReady }: Props) {
   const activePage = state.document.pages.find((p) => p.id === state.document.activePageId)!
   const tab = state.leftPanelTab
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [newLayerMenuOpen, setNewLayerMenuOpen] = useState(false)
+  const [pageMenuOpen, setPageMenuOpen] = useState(false)
+  const [pageMenuPageId, setPageMenuPageId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -111,6 +175,13 @@ export function LayersPanel({ state, dispatch, readOnly = false }: Props) {
     window.addEventListener('click', close)
     return () => window.removeEventListener('click', close)
   }, [menu])
+
+  useEffect(() => {
+    if (!pageMenuOpen) return
+    const close = () => { setPageMenuOpen(false); setPageMenuPageId(null) }
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [pageMenuOpen])
 
   const openRename = (id: string) => {
     const target = findLayer(activePage.children, id)
@@ -135,9 +206,25 @@ export function LayersPanel({ state, dispatch, readOnly = false }: Props) {
     setMenu({ id, x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) })
   }
 
+  /** 新建图层：放入当前选中 frame 或页内第一个 frame；无 frame 时先建 frame */
   const createNew = (kind: 'rectangle' | 'text' | 'frame' | 'group') => {
+    const selectedFrame = state.selectedIds
+      .map((id) => findLayer(activePage.children, id))
+      .find((n) => n && n.type === 'frame')
+    const frame = selectedFrame ?? activePage.children.find((n) => n.type === 'frame')
     const layer = createLayer(kind, 60, 60)
-    dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: null, layer })
+    if (kind === 'frame') {
+      // 新画板放到页面顶层
+      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: null, layer })
+    } else if (frame) {
+      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: frame.id, layer })
+    } else {
+      // 无画板：先创建画板，再放图层进去
+      const f = createLayer('frame', 0, 0)
+      f.width = 1440; f.height = 900
+      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: null, layer: f })
+      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: f.id, layer })
+    }
     dispatch({ type: 'SELECT_LAYERS', ids: [layer.id] })
     setNewLayerMenuOpen(false)
   }
@@ -146,54 +233,155 @@ export function LayersPanel({ state, dispatch, readOnly = false }: Props) {
     dispatch({ type: 'CREATE_PAGE', name: `页面 ${state.document.pages.length + 1}` })
   }
 
+  const focusSearch = () => {
+    dispatch({ type: 'SET_LEFT_PANEL_TAB', tab: 'layers' })
+    searchRef.current?.focus()
+  }
+
+  useEffect(() => {
+    onSearchFocusReady?.(focusSearch)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 搜索过滤（递归匹配名称）
+  const filtered = useRef<LayerNode[]>([])
+  filtered.current = search.trim()
+    ? filterByName(activePage.children, search.trim())
+    : activePage.children
+
+  const collectAll = (nodes: LayerNode[]): LayerNode[] =>
+    nodes.flatMap((n) => [n, ...collectAll(n.children)])
+
   return (
     <aside className="layers-panel panel" ref={panelRef}>
       <div className="panel-tabs">
         <button className={tab === 'layers' ? 'active' : ''} onClick={() => dispatch({ type: 'SET_LEFT_PANEL_TAB', tab: 'layers' })}><Icon name="layers" /> 图层</button>
         <button className={tab === 'components' ? 'active' : ''} onClick={() => dispatch({ type: 'SET_LEFT_PANEL_TAB', tab: 'components' })}><Icon name="components" /> 组件</button>
       </div>
-      <div className="search-field"><Icon name="search" /><span>搜索图层</span><kbd>⌘ F</kbd></div>
-      <div className="layers-heading"><span>页面</span>{!readOnly && <button onClick={createPage} title="新建页面"><Icon name="plus" /></button>}</div>
-      <div className="page-list">
-        {state.document.pages.map((p) => (
-          <div
-            key={p.id}
-            className={`page-row ${p.id === state.document.activePageId ? 'active' : ''}`}
-            onClick={() => dispatch({ type: 'SET_ACTIVE_PAGE', pageId: p.id })}
-            title="点击切换页面"
-          >
-            <Icon name="chevron" className={p.id === state.document.activePageId ? '' : 'chevron-collapsed'} />
-            <Icon name="folder" className="folder-icon" />
-            <span>{p.name}</span>
-            <span className="page-menu">•••</span>
+
+      {tab === 'components' ? (
+        <ComponentGrid dispatch={dispatch} readOnly={readOnly} activePage={activePage} />
+      ) : (
+        <>
+          <div className="search-field">
+            <Icon name="search" />
+            <input
+              ref={searchRef}
+              className="search-input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="搜索图层"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <kbd>⌘ F</kbd>
           </div>
-        ))}
-      </div>
-      <div className="layers-heading tree-heading"><span>图层</span><span className="tree-actions"><EyeOpen /> <LockClosed /></span></div>
-      <div className="layer-tree">
-        {activePage.children.map((node) => (
-          <LayerTreeItem
-            key={node.id}
-            node={node}
-            depth={0}
-            dispatch={dispatch}
-            selectedIds={state.selectedIds}
-            readOnly={readOnly}
-            onContextMenu={openMenu}
-            onRenameRequest={openRename}
-            renamingId={renamingId}
-            draft={draft}
-            onDraftChange={setDraft}
-            onCommitRename={commitRename}
-          />
-        ))}
-      </div>
+
+          <div className="layers-heading"><span>页面</span>{!readOnly && <button onClick={createPage} title="新建页面"><Icon name="plus" /></button>}</div>
+          <div className="page-list">
+            {state.document.pages.map((p) => (
+              <div
+                key={p.id}
+                className={`page-row ${p.id === state.document.activePageId ? 'active' : ''}`}
+                onClick={() => dispatch({ type: 'SET_ACTIVE_PAGE', pageId: p.id })}
+                title="点击切换页面"
+              >
+                <Icon name="chevron" className={p.id === state.document.activePageId ? '' : 'chevron-collapsed'} />
+                <Icon name="folder" className="folder-icon" />
+                <span>{p.name}</span>
+                {!readOnly && (
+                  <span
+                    className="page-menu"
+                    onClick={(e) => { e.stopPropagation(); setPageMenuPageId(p.id); setPageMenuOpen((v) => !(v && pageMenuPageId === p.id)) }}
+                  >•••</span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {pageMenuOpen && pageMenuPageId && (
+            <div className="layer-popover popover-page-menu">
+              <button onClick={() => {
+                const page = state.document.pages.find((p) => p.id === pageMenuPageId)
+                if (!page) return
+                setRenamingId(null)
+                setDraft(page.name)
+                setPageMenuOpen(false)
+                // 页面重命名：复用行内编辑（简单实现：直接弹 prompt 替代，保留菜单体验）
+                const next = window.prompt('重命名页面', page.name)
+                if (next && next.trim()) {
+                  dispatch({ type: 'RENAME_PAGE', pageId: page.id, name: next.trim() })
+                }
+              }}>重命名</button>
+              <button onClick={() => {
+                dispatch({ type: 'DUPLICATE_PAGE', pageId: pageMenuPageId })
+                setPageMenuOpen(false)
+              }}>复制</button>
+              <button className="danger" onClick={() => {
+                if (state.document.pages.length <= 1) {
+                  setPageMenuOpen(false)
+                  return
+                }
+                dispatch({ type: 'DELETE_PAGE', pageId: pageMenuPageId })
+                setPageMenuOpen(false)
+              }}>删除</button>
+            </div>
+          )}
+
+          <div className="layers-heading tree-heading">
+            <span>图层</span>
+            <span className="tree-actions">
+              <span className="tree-action" title={activePage.children.every((n) => !n.visible) ? '全部显示' : '全部隐藏'}
+                onClick={() => {
+                  if (readOnly) return
+                  const all = collectAll(activePage.children)
+                  const allHidden = all.length > 0 && all.every((n) => !n.visible)
+                  // TOGGLE 翻转：全部隐藏 → toggle 所有当前可见的；全部显示 → toggle 所有当前隐藏的
+                  const targets = allHidden ? all.filter((n) => !n.visible) : all.filter((n) => n.visible)
+                  if (targets.length > 0) dispatch({ type: 'TOGGLE_LAYER_VISIBILITY', ids: targets.map((n) => n.id) })
+                }}>
+                {activePage.children.every((n) => !n.visible) ? <EyeClosed /> : <EyeOpen />}
+              </span>
+              <span className="tree-action" title="全部锁定"
+                onClick={() => {
+                  if (readOnly) return
+                  const all = collectAll(activePage.children)
+                  const allLocked = all.length > 0 && all.every((n) => n.locked)
+                  // TOGGLE 翻转：全部锁定 → toggle 所有当前未锁的；全部解锁 → toggle 所有当前已锁的
+                  const targets = allLocked ? all.filter((n) => n.locked) : all.filter((n) => !n.locked)
+                  if (targets.length > 0) dispatch({ type: 'TOGGLE_LAYER_LOCK', ids: targets.map((n) => n.id) })
+                }}>
+                <LockClosed />
+              </span>
+            </span>
+          </div>
+          <div className="layer-tree">
+            {filtered.current.map((node) => (
+              <LayerTreeItem
+                key={node.id}
+                node={node}
+                depth={0}
+                dispatch={dispatch}
+                selectedIds={state.selectedIds}
+                readOnly={readOnly}
+                onContextMenu={openMenu}
+                onRenameRequest={openRename}
+                renamingId={renamingId}
+                draft={draft}
+                onDraftChange={setDraft}
+                onCommitRename={commitRename}
+              />
+            ))}
+            {filtered.current.length === 0 && <div className="layer-tree-empty">{search ? '无匹配图层' : '暂无图层'}</div>}
+          </div>
+        </>
+      )}
+
       {!readOnly && (
         <div className="layers-footer">
           <span className="new-layer-trigger" onClick={() => setNewLayerMenuOpen((v) => !v)}>
             <Icon name="plus" /> 新建图层
           </span>
-          <span>⌘⌥G</span>
+          <span title="⌘⌥G 分组 / ⌘⇧G 取消分组">⌘⌥G 分组</span>
         </div>
       )}
 
@@ -211,6 +399,12 @@ export function LayersPanel({ state, dispatch, readOnly = false }: Props) {
         <div className="layer-popover popover-menu" style={{ left: menu.x, top: menu.y }}>
           <button onClick={() => openRename(menu.id)}>重命名</button>
           <button onClick={() => { dispatch({ type: 'DUPLICATE_LAYERS', ids: [menu.id] }); setMenu(null) }}>复制</button>
+          <button onClick={() => { dispatch({ type: 'GROUP_LAYERS', ids: state.selectedIds.includes(menu.id) ? state.selectedIds : [menu.id] }); setMenu(null) }}>编组</button>
+          {findLayer(activePage.children, menu.id)?.type === 'group' && (
+            <button onClick={() => { dispatch({ type: 'UNGROUP_LAYERS', id: menu.id }); setMenu(null) }}>取消编组</button>
+          )}
+          <button onClick={() => { dispatch({ type: 'REORDER_LAYER', id: menu.id, direction: 'backward' }); setMenu(null) }}>后移一层</button>
+          <button onClick={() => { dispatch({ type: 'REORDER_LAYER', id: menu.id, direction: 'forward' }); setMenu(null) }}>前移一层</button>
           <button className="danger" onClick={() => { dispatch({ type: 'DELETE_LAYERS', ids: [menu.id] }); setMenu(null) }}>删除</button>
         </div>
       )}
@@ -226,6 +420,20 @@ function findLayer(root: LayerNode[], id: string): LayerNode | null {
     if (found) return found
   }
   return null
+}
+
+function filterByName(root: LayerNode[], keyword: string): LayerNode[] {
+  const k = keyword.toLowerCase()
+  const out: LayerNode[] = []
+  for (const node of root) {
+    if (node.name.toLowerCase().includes(k)) {
+      out.push(node)
+    } else {
+      const children = filterByName(node.children, k)
+      if (children.length > 0) out.push({ ...node, children })
+    }
+  }
+  return out
 }
 
 function kindName(kind: LayerNode['type']): string {

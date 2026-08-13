@@ -59,6 +59,25 @@ function renderNode(node: LayerNode): HTMLElement {
       }
       break
     }
+    case 'path': {
+      const pts = node.points ?? []
+      if (pts.length >= 2) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        svg.setAttribute('width', String(node.width))
+        svg.setAttribute('height', String(node.height))
+        svg.setAttribute('viewBox', `0 0 ${node.width} ${node.height}`)
+        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline')
+        poly.setAttribute('points', pts.map((p) => `${p.x},${p.y}`).join(' '))
+        poly.setAttribute('fill', 'none')
+        poly.setAttribute('stroke', node.style.stroke ?? '#4e8ff4')
+        poly.setAttribute('stroke-width', String(node.style.strokeWidth ?? 2))
+        poly.setAttribute('stroke-linejoin', 'round')
+        poly.setAttribute('stroke-linecap', 'round')
+        svg.appendChild(poly)
+        el.appendChild(svg)
+      }
+      break
+    }
     case 'group':
     case 'frame':
       node.children.forEach((child) => {

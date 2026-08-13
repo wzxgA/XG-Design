@@ -1,4 +1,5 @@
-import type { EditorAction, EditorState, LayerNode, DesignDocument, LayerStyle, HistoryState } from '../types/design'
+import type { EditorAction, EditorState, LayerNode, DesignDocument, LayerStyle, HistoryState, PageNode } from '../types/design'
+import { layerId } from '../utils/layers'
 
 export const ZOOM_MIN = 25
 export const ZOOM_MAX = 200
@@ -52,6 +53,11 @@ function deleteIds(root: LayerNode[], ids: Set<string>): LayerNode[] {
     result.push({ ...node, children: deleteIds(node.children, ids) })
   }
   return result
+}
+
+/** 生成深拷贝节点并重新生成全部子节点 id（用于页面复制） */
+function regenerateIds(node: LayerNode): LayerNode {
+  return { ...node, id: layerId(node.type), children: node.children.map(regenerateIds) }
 }
 
 // ---- 历史记录辅助 ----
@@ -117,7 +123,13 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case 'CREATE_PAGE': {
       const doc = cloneDocument(state.document)
       const pageId = `page-${Date.now().toString(36)}`
-      doc.pages.push({ id: pageId, name: action.name, children: [] })
+      // 新页面自动附带一个默认画板（1440×900），保证新建页面可直接绘制
+      const defaultFrame: LayerNode = {
+        id: layerId('frame'), type: 'frame', name: '画板 1', x: 0, y: 0,
+        width: 1440, height: 900, rotation: 0, visible: true, locked: false,
+        expanded: true, style: { opacity: 1, fill: '#ffffff' }, children: [],
+      }
+      doc.pages.push({ id: pageId, name: action.name, children: [defaultFrame] })
       doc.activePageId = pageId
       return withHistory(state, doc, { selectedIds: [] })
     }
@@ -236,6 +248,98 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case 'REMOVE_PROTOTYPE_LINK': {
       const links = state.document.prototypeLinks.filter((l) => l.id !== action.id)
       return withHistory(state, { ...state.document, prototypeLinks: links })
+    }
+
+    case 'GROUP_LAYERS': {
+      if (action.ids.length < 2) return state
+      const doc = cloneDocument(state.document)
+      const page = doc.pages.find((p) => p.id === state.document.activePageId)
+      if (!page) return state
+      const idSet = new Set(action.ids)
+      const first = action.ids[0]
+      const loc = findParentAndIndex(page.children, first)
+      if (!loc) return state
+      const { parent } = loc
+      const targets = parent.filter((n) => idSet.has(n.id))
+      if (targets.length < 2) return state
+      const minX = Math.min(...targets.map((t) => t.x))
+      const minY = Math.min(...targets.map((t) => t.y))
+      const maxX = Math.max(...targets.map((t) => t.x + t.width))
+      const maxY = Math.max(...targets.map((t) => t.y + t.height))
+      const groupNode: LayerNode = {
+        id: layerId('group'), type: 'group', name: '分组',
+        x: minX, y: minY, width: maxX - minX, height: maxY - minY,
+        rotation: 0, visible: true, locked: false, expanded: true,
+        style: { opacity: 1 },
+        children: targets.map((t) => ({ ...t, x: t.x - minX, y: t.y - minY })),
+      }
+      const firstTargetIdx = parent.findIndex((n) => n.id === first)
+      const remaining = parent.filter((n) => !idSet.has(n.id))
+      parent.splice(0, parent.length, ...remaining.slice(0, firstTargetIdx), groupNode, ...remaining.slice(firstTargetIdx))
+      return withHistory(state, doc, { selectedIds: [groupNode.id] })
+    }
+
+    case 'UNGROUP_LAYERS': {
+      const doc = cloneDocument(state.document)
+      const page = doc.pages.find((p) => p.id === state.document.activePageId)
+      if (!page) return state
+      const loc = findParentAndIndex(page.children, action.id)
+      if (!loc) return state
+      const { parent, index } = loc
+      const groupNode = parent[index]
+      if (!groupNode || groupNode.type !== 'group') return state
+      const lifted = groupNode.children.map((c) => ({ ...c, x: c.x + groupNode.x, y: c.y + groupNode.y }))
+      parent.splice(index, 1, ...lifted)
+      return withHistory(state, doc, { selectedIds: lifted.map((c) => c.id) })
+    }
+
+    case 'REORDER_LAYER': {
+      const doc = cloneDocument(state.document)
+      const page = doc.pages.find((p) => p.id === state.document.activePageId)
+      if (!page) return state
+      const loc = findParentAndIndex(page.children, action.id)
+      if (!loc) return state
+      const { parent, index } = loc
+      const target = action.direction === 'forward' ? index + 1 : index - 1
+      if (target < 0 || target >= parent.length) return state
+      const [item] = parent.splice(index, 1)
+      parent.splice(target, 0, item)
+      return withHistory(state, doc)
+    }
+
+    case 'RENAME_PAGE': {
+      const doc = cloneDocument(state.document)
+      doc.pages = doc.pages.map((p) => (p.id === action.pageId ? { ...p, name: action.name } : p))
+      return withHistory(state, doc)
+    }
+
+    case 'DELETE_PAGE': {
+      if (state.document.pages.length <= 1) return state
+      const doc = cloneDocument(state.document)
+      const idx = doc.pages.findIndex((p) => p.id === action.pageId)
+      if (idx < 0) return state
+      doc.pages.splice(idx, 1)
+      if (doc.activePageId === action.pageId) {
+        doc.activePageId = doc.pages[Math.max(0, idx - 1)].id
+      }
+      doc.prototypeLinks = doc.prototypeLinks.filter((l) => l.targetPageId !== action.pageId)
+      return withHistory(state, doc, { selectedIds: [] })
+    }
+
+    case 'DUPLICATE_PAGE': {
+      const doc = cloneDocument(state.document)
+      const idx = doc.pages.findIndex((p) => p.id === action.pageId)
+      if (idx < 0) return state
+      const orig = doc.pages[idx]
+      const copy: PageNode = {
+        ...JSON.parse(JSON.stringify(orig)) as PageNode,
+        id: layerId('page'),
+        name: `${orig.name} 副本`,
+        children: orig.children.map(regenerateIds),
+      }
+      doc.pages.splice(idx + 1, 0, copy)
+      doc.activePageId = copy.id
+      return withHistory(state, doc, { selectedIds: [] })
     }
 
     case 'UNDO': {

@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import type { EditorState, EditorDispatch, ToolType } from '../../state/editor-store'
-import type { DesignDocument } from '../../types/design'
+import type { DesignDocument, LayerNode } from '../../types/design'
 import type { SaveStatus } from '../../types/project'
 import { Icon, Watermelon, type IconName } from '../common/brand'
+import { exportNodeAsPng } from '../../utils/export'
 
 const toolItems: [IconName, string, string, ToolType][] = [
   ['cursor', '选择', 'V', 'select'],
@@ -22,6 +24,8 @@ interface Props {
   onPreview?: () => void
   onOpenProjects?: () => void
   onShare?: () => void
+  onUndo?: () => void
+  onRedo?: () => void
   saveStatus?: SaveStatus
   /** 只读模式（分享仅查看链接） */
   readOnly?: boolean
@@ -40,10 +44,48 @@ const SAVE_LABEL: Record<SaveStatus, string> = {
   error: '保存失败',
 }
 
-export function TopToolbar({ state, dispatch, onRenameDocument, onHome, onPreview, onOpenProjects, onShare, saveStatus = 'idle', readOnly = false, userName, logoutNode }: Props) {
+function findLayerInDoc(doc: DesignDocument, id: string): LayerNode | null {
+  for (const page of doc.pages) {
+    const found = findInTree(page.children, id)
+    if (found) return found
+  }
+  return null
+}
+
+function findInTree(nodes: LayerNode[], id: string): LayerNode | null {
+  for (const node of nodes) {
+    if (node.id === id) return node
+    const found = findInTree(node.children, id)
+    if (found) return found
+  }
+  return null
+}
+
+export function TopToolbar({
+  state, dispatch, onRenameDocument, onHome, onPreview, onOpenProjects, onShare,
+  onUndo, onRedo, saveStatus = 'idle', readOnly = false, userName, logoutNode,
+}: Props) {
   const doc: DesignDocument = state.document
   const zoom = state.zoom
   const saving = saveStatus === 'saving'
+  const canUndo = state.history.past.length > 0 && !readOnly
+  const canRedo = state.history.future.length > 0 && !readOnly
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [exporting, setExporting] = useState<1 | 2 | null>(null)
+
+  const exportSelected = async (scale: 1 | 2) => {
+    const selected = findLayerInDoc(doc, state.selectedIds[0] ?? '')
+    if (!selected) return
+    setExporting(scale)
+    try {
+      await exportNodeAsPng(selected, scale)
+    } catch {
+      // 导出失败静默
+    } finally {
+      setExporting(null)
+      setMoreOpen(false)
+    }
+  }
 
   return (
     <header className="topbar">
@@ -68,7 +110,14 @@ export function TopToolbar({ state, dispatch, onRenameDocument, onHome, onPrevie
         <span className="saved">{SAVE_LABEL[saveStatus]}</span>
         {readOnly && <span className="readonly-badge"><Icon name="eye" /> 只读</span>}
       </div>
+
       <div className="toolbar-tools">
+        {onUndo && onRedo && !readOnly && (
+          <>
+            <button className="tool-button" onClick={onUndo} disabled={!canUndo} title="撤销 (⌘Z)"><span className="undo-redo">↶</span></button>
+            <button className="tool-button" onClick={onRedo} disabled={!canRedo} title="重做 (⇧⌘Z)"><span className="undo-redo">↷</span></button>
+          </>
+        )}
         {toolItems.map(([icon, label, key, tool], index) => (
           <button
             key={label}
@@ -79,11 +128,27 @@ export function TopToolbar({ state, dispatch, onRenameDocument, onHome, onPrevie
             <Icon name={icon} /><span className="tool-key">{key}</span>
           </button>
         ))}
-        <button className="tool-button more">•••</button>
+        <div className="more-wrap" onClick={(e) => e.stopPropagation()}>
+          <button className="tool-button more" onClick={() => setMoreOpen((v) => !v)}>•••</button>
+          {moreOpen && (
+            <div className="more-menu">
+              <div className="more-menu-label">导出</div>
+              <button onClick={() => exportSelected(1)} disabled={exporting !== null}>
+                {exporting === 1 ? '导出中…' : 'PNG @1x'}
+              </button>
+              <button onClick={() => exportSelected(2)} disabled={exporting !== null}>
+                {exporting === 2 ? '导出中…' : 'PNG @2x'}
+              </button>
+              <div className="more-menu-divider" />
+              {onHome && <button onClick={() => { setMoreOpen(false); onHome() }}>返回项目列表</button>}
+            </div>
+          )}
+        </div>
       </div>
+
       <div className="top-actions">
         {userName ? (
-          <div className="user-chip" title={state.document.name ? undefined : undefined}>
+          <div className="user-chip">
             <span className="user-avatar">{userName.slice(0, 1).toUpperCase()}</span>
             <span className="user-name">{userName}</span>
             {logoutNode}

@@ -17,7 +17,7 @@ function findBoard(state: EditorState): LayerNode | undefined {
 /**
  * 数据驱动的画布对象渲染器。
  * 将 LayerNode 树按绝对坐标渲染为 HTML，隐藏节点不渲染，选中节点显示边框。
- * 支持拖拽移动对象（锁定节点不可移动）。
+ * 支持拖拽移动对象（锁定节点不可移动）、Shift 多选、多选整体拖拽。
  */
 export function CanvasObject({ node, state, dispatch, drawing = false }: Props) {
   const startRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null)
@@ -26,7 +26,8 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
   if (!node.visible) return null
 
   const selected = state.selectedIds.includes(node.id)
-  const useSelectionBox = selected && node.children.length === 0 && !node.locked
+  const multiSelected = selected && state.selectedIds.length > 1
+  const useSelectionBox = selected && node.children.length === 0 && !node.locked && !multiSelected
   const outline = selected && !useSelectionBox ? 'canvas-selected' : ''
   const scale = state.zoom / 100
 
@@ -42,10 +43,21 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
-    e.stopPropagation()
+    // 绘制/钢笔模式：不拦截，让事件冒泡到画板空白处理（绘制工具需要覆盖在对象上）
     if (drawing) return
-    dispatch({ type: 'SELECT_LAYERS', ids: [node.id] })
-    if (node.locked) return
+    e.stopPropagation()
+    if (node.locked) {
+      dispatch({ type: 'SELECT_LAYERS', ids: [node.id] })
+      return
+    }
+    // Shift 点击：增删选择；否则单选
+    const targetIds = e.shiftKey
+      ? state.selectedIds.includes(node.id)
+        ? state.selectedIds.filter((id) => id !== node.id)
+        : [...state.selectedIds, node.id]
+      : [node.id]
+    dispatch({ type: 'SELECT_LAYERS', ids: targetIds })
+    if (targetIds.length === 0) return
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     startRef.current = { pointerX: e.clientX, pointerY: e.clientY, x: node.x, y: node.y }
     movedRef.current = false
@@ -56,9 +68,10 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
     if (!start) return
     let dx = (e.clientX - start.pointerX) / scale
     let dy = (e.clientY - start.pointerY) / scale
+    // 多选时以当前节点位移驱动整组移动（节点间相对位置保持不变）
+    const ids = state.selectedIds.includes(node.id) && state.selectedIds.length > 1 ? state.selectedIds : [node.id]
     if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-      // 首次产生位移时记录一次快照，供整次移动撤销
-      if (!movedRef.current) dispatch({ type: 'BEGIN_MOVE', ids: [node.id] })
+      if (!movedRef.current) dispatch({ type: 'BEGIN_MOVE', ids })
       movedRef.current = true
     }
     // 基础吸附：吸附到画板边缘与中线
@@ -69,18 +82,16 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
       const SNAP = 6
       const frameW = board.width
       const frameH = board.height
-      // 垂直对齐线：左、中、右
       const alignsX = [board.x, board.x + frameW / 2 - node.width / 2, board.x + frameW - node.width]
       for (const a of alignsX) {
         if (Math.abs(targetX - a) < SNAP) { dx += a - targetX; break }
       }
-      // 水平对齐线：上、中、下
       const alignsY = [board.y, board.y + frameH / 2 - node.height / 2, board.y + frameH - node.height]
       for (const a of alignsY) {
         if (Math.abs(targetY - a) < SNAP) { dy += a - targetY; break }
       }
     }
-    dispatch({ type: 'MOVE_LAYERS', ids: [node.id], dx: dx - (node.x - start.x), dy: dy - (node.y - start.y) })
+    dispatch({ type: 'MOVE_LAYERS', ids, dx: dx - (node.x - start.x), dy: dy - (node.y - start.y) })
   }
 
   const onPointerUp = () => {
@@ -118,6 +129,9 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
         />
       )
 
+    case 'path':
+      return <CanvasPath node={node} style={style} outline={outline} base={base} />
+
     case 'text':
       return <CanvasText node={node} style={style} outline={outline} base={base} state={state} dispatch={dispatch} />
 
@@ -147,6 +161,31 @@ export function CanvasObject({ node, state, dispatch, drawing = false }: Props) 
     default:
       return null
   }
+}
+
+function CanvasPath({ node, style, outline, base }: {
+  node: LayerNode
+  style: React.CSSProperties
+  outline: string
+  base: Record<string, (e: any) => void>
+}) {
+  const pts = node.points ?? []
+  if (pts.length === 0) return null
+  const poly = pts.map((p) => `${p.x},${p.y}`).join(' ')
+  return (
+    <div className={`canvas-path ${outline}`} style={style} {...base}>
+      <svg width={node.width} height={node.height} viewBox={`0 0 ${node.width} ${node.height}`} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+        <polyline
+          points={poly}
+          fill="none"
+          stroke={node.style.stroke ?? '#4e8ff4'}
+          strokeWidth={node.style.strokeWidth ?? 2}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  )
 }
 
 interface TextProps {

@@ -2,7 +2,7 @@
 
 export type ToolType = 'select' | 'frame' | 'rectangle' | 'pen' | 'text' | 'comment' | 'components'
 
-export type LayerType = 'frame' | 'group' | 'rectangle' | 'text' | 'chart' | 'comment'
+export type LayerType = 'frame' | 'group' | 'rectangle' | 'text' | 'chart' | 'comment' | 'path'
 
 export type InspectorTab = 'design' | 'prototype' | 'inspect'
 
@@ -36,6 +36,8 @@ export interface LayerNode {
   content?: string
   /** 图表节点数据：柱状高度百分比数组或迷你趋势 */
   chartBars?: number[]
+  /** 钢笔路径锚点（相对图层左上角的画布坐标） */
+  points?: { x: number; y: number }[]
   style: LayerStyle
   children: LayerNode[]
 }
@@ -102,5 +104,11 @@ export type EditorAction =
   | { type: 'MOVE_LAYERS'; ids: string[]; dx: number; dy: number }
   | { type: 'ADD_PROTOTYPE_LINK'; link: PrototypeLink }
   | { type: 'REMOVE_PROTOTYPE_LINK'; id: string }
+  | { type: 'GROUP_LAYERS'; ids: string[] }
+  | { type: 'UNGROUP_LAYERS'; id: string }
+  | { type: 'REORDER_LAYER'; id: string; direction: 'forward' | 'backward' }
+  | { type: 'RENAME_PAGE'; pageId: string; name: string }
+  | { type: 'DELETE_PAGE'; pageId: string }
+  | { type: 'DUPLICATE_PAGE'; pageId: string }
   | { type: 'UNDO' }
   | { type: 'REDO' }
