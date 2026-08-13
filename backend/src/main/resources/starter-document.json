@@ -1,0 +1,2978 @@
+{
+  "id": "doc-msq82fus-1",
+  "name": "未命名设计稿",
+  "pages": [
+    {
+      "id": "page-workbench",
+      "name": "PC 端工作台",
+      "children": [
+        {
+          "id": "frame-dashboard",
+          "type": "frame",
+          "name": "仪表盘",
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 900,
+          "rotation": 0,
+          "visible": true,
+          "locked": false,
+          "expanded": true,
+          "style": {
+            "opacity": 1,
+            "fill": "#ffffff"
+          },
+          "children": [
+            {
+              "id": "grp-topnav",
+              "type": "group",
+              "name": "顶部导航栏",
+              "x": 0,
+              "y": 0,
+              "width": 1440,
+              "height": 64,
+              "rotation": 0,
+              "visible": true,
+              "locked": false,
+              "expanded": true,
+              "style": {
+                "opacity": 1
+              },
+              "children": [
+                {
+                  "id": "rect-logo-block",
+                  "type": "rectangle",
+                  "name": "Logo 占位",
+                  "x": 24,
+                  "y": 20,
+                  "width": 32,
+                  "height": 24,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "style": {
+                    "opacity": 1,
+                    "fill": "#ff6172",
+                    "cornerRadius": 6
+                  },
+                  "children": []
+                },
+                {
+                  "id": "txt-app-title",
+                  "type": "text",
+                  "name": "应用标题",
+                  "x": 66,
+                  "y": 24,
+                  "width": 120,
+                  "height": 16,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "content": "工作台",
+                  "style": {
+                    "opacity": 1,
+                    "color": "#364249",
+                    "fontSize": 12,
+                    "fontWeight": 700
+                  },
+                  "children": []
+                },
+                {
+                  "id": "rect-nav-search",
+                  "type": "rectangle",
+                  "name": "搜索框",
+                  "x": 1040,
+                  "y": 17,
+                  "width": 240,
+                  "height": 30,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "style": {
+                    "opacity": 1,
+                    "fill": "#f1f4f5",
+                    "cornerRadius": 6,
+                    "stroke": "#e5eaec",
+                    "strokeWidth": 1
+                  },
+                  "children": []
+                },
+                {
+                  "id": "txt-nav-search",
+                  "type": "text",
+                  "name": "搜索提示",
+                  "x": 1052,
+                  "y": 24,
+                  "width": 200,
+                  "height": 14,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "content": "⌕ 搜索项目、成员或文件",
+                  "style": {
+                    "opacity": 1,
+                    "color": "#aab4b8",
+                    "fontSize": 10,
+                    "fontWeight": 400
+                  },
+                  "children": []
+                },
+                {
+                  "id": "txt-nav-avatar",
+                  "type": "text",
+                  "name": "头像",
+                  "x": 1340,
+                  "y": 18,
+                  "width": 28,
+                  "height": 28,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "content": "A",
+                  "style": {
+                    "opacity": 1,
+                    "color": "#ffffff",
+                    "fontSize": 11,
+                    "fontWeight": 700
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "grp-sidebar",
+              "type": "group",
+              "name": "侧边菜单",
+              "x": 0,
+              "y": 64,
+              "width": 232,
+              "height": 836,
+              "rotation": 0,
+              "visible": true,
+              "locked": false,
+              "expanded": true,
+              "style": {
+                "opacity": 1
+              },
+              "children": [
+                {
+                  "id": "txt-side-title",
+                  "type": "text",
+                  "name": "侧边标题",
+                  "x": 24,
+                  "y": 20,
+                  "width": 120,
+                  "height": 14,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "content": "工作台",
+                  "style": {
+                    "opacity": 1,
+                    "color": "#96a1a5",
+                    "fontSize": 11,
+                    "fontWeight": 700
+                  },
+                  "children": []
+                },
+                {
+                  "id": "side-item-0",
+                  "type": "group",
+                  "name": "仪表盘",
+                  "x": 16,
+                  "y": 44,
+                  "width": 200,
+                  "height": 28,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "side-item-bg-0",
+                      "type": "rectangle",
+                      "name": "菜单背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 200,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#eaf3ff",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "side-item-txt-0",
+                      "type": "text",
+                      "name": "菜单文字",
+                      "x": 12,
+                      "y": 7,
+                      "width": 176,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "仪表盘",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#4e8ff4",
+                        "fontSize": 11,
+                        "fontWeight": 700
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "side-item-1",
+                  "type": "group",
+                  "name": "项目管理",
+                  "x": 16,
+                  "y": 78,
+                  "width": 200,
+                  "height": 28,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "side-item-bg-1",
+                      "type": "rectangle",
+                      "name": "菜单背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 200,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#f4f7f8",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "side-item-txt-1",
+                      "type": "text",
+                      "name": "菜单文字",
+                      "x": 12,
+                      "y": 7,
+                      "width": 176,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "项目管理",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#8a969b",
+                        "fontSize": 11,
+                        "fontWeight": 500
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "side-item-2",
+                  "type": "group",
+                  "name": "团队成员",
+                  "x": 16,
+                  "y": 112,
+                  "width": 200,
+                  "height": 28,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "side-item-bg-2",
+                      "type": "rectangle",
+                      "name": "菜单背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 200,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#f4f7f8",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "side-item-txt-2",
+                      "type": "text",
+                      "name": "菜单文字",
+                      "x": 12,
+                      "y": 7,
+                      "width": 176,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "团队成员",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#8a969b",
+                        "fontSize": 11,
+                        "fontWeight": 500
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "side-item-3",
+                  "type": "group",
+                  "name": "数据分析",
+                  "x": 16,
+                  "y": 146,
+                  "width": 200,
+                  "height": 28,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "side-item-bg-3",
+                      "type": "rectangle",
+                      "name": "菜单背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 200,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#f4f7f8",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "side-item-txt-3",
+                      "type": "text",
+                      "name": "菜单文字",
+                      "x": 12,
+                      "y": 7,
+                      "width": 176,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "数据分析",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#8a969b",
+                        "fontSize": 11,
+                        "fontWeight": 500
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "side-item-4",
+                  "type": "group",
+                  "name": "资源中心",
+                  "x": 16,
+                  "y": 180,
+                  "width": 200,
+                  "height": 28,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "side-item-bg-4",
+                      "type": "rectangle",
+                      "name": "菜单背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 200,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#f4f7f8",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "side-item-txt-4",
+                      "type": "text",
+                      "name": "菜单文字",
+                      "x": 12,
+                      "y": 7,
+                      "width": 176,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "资源中心",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#8a969b",
+                        "fontSize": 11,
+                        "fontWeight": 500
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "txt-side-bottom",
+                  "type": "text",
+                  "name": "底部设置",
+                  "x": 24,
+                  "y": 780,
+                  "width": 160,
+                  "height": 14,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "content": "⚙ 系统设置",
+                  "style": {
+                    "opacity": 1,
+                    "color": "#9aa5a9",
+                    "fontSize": 11,
+                    "fontWeight": 400
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "grp-main",
+              "type": "group",
+              "name": "主内容区",
+              "x": 232,
+              "y": 64,
+              "width": 1208,
+              "height": 836,
+              "rotation": 0,
+              "visible": true,
+              "locked": false,
+              "expanded": true,
+              "style": {
+                "opacity": 1
+              },
+              "children": [
+                {
+                  "id": "txt-page-title",
+                  "type": "text",
+                  "name": "页面标题",
+                  "x": 24,
+                  "y": 20,
+                  "width": 320,
+                  "height": 26,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "content": "欢迎回来，Alex ✦",
+                  "style": {
+                    "opacity": 1,
+                    "color": "#364249",
+                    "fontSize": 22,
+                    "fontWeight": 700
+                  },
+                  "children": []
+                },
+                {
+                  "id": "rect-new-project",
+                  "type": "rectangle",
+                  "name": "新建项目按钮",
+                  "x": 1000,
+                  "y": 16,
+                  "width": 168,
+                  "height": 30,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "style": {
+                    "opacity": 1,
+                    "fill": "#4e8ff4",
+                    "cornerRadius": 6,
+                    "shadow": "0 4px 7px rgba(78,143,244,0.16)"
+                  },
+                  "children": []
+                },
+                {
+                  "id": "txt-new-project",
+                  "type": "text",
+                  "name": "按钮文本",
+                  "x": 1036,
+                  "y": 22,
+                  "width": 100,
+                  "height": 16,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "content": "+ 新建项目",
+                  "style": {
+                    "opacity": 1,
+                    "color": "#ffffff",
+                    "fontSize": 11,
+                    "fontWeight": 600
+                  },
+                  "children": []
+                },
+                {
+                  "id": "grp-data-cards",
+                  "type": "group",
+                  "name": "数据卡片组",
+                  "x": 280,
+                  "y": 160,
+                  "width": 1136,
+                  "height": 168,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "card-1",
+                      "type": "group",
+                      "name": "总项目",
+                      "x": 0,
+                      "y": 0,
+                      "width": 274,
+                      "height": 168,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "expanded": true,
+                      "style": {
+                        "opacity": 1
+                      },
+                      "children": [
+                        {
+                          "id": "card-1-bg",
+                          "type": "rectangle",
+                          "name": "卡片背景",
+                          "x": 0,
+                          "y": 0,
+                          "width": 274,
+                          "height": 168,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "style": {
+                            "opacity": 1,
+                            "fill": "#ffffff",
+                            "cornerRadius": 8,
+                            "shadow": "0 3px 10px rgba(39,60,70,0.025)",
+                            "stroke": "#e8edef",
+                            "strokeWidth": 1
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-1-title",
+                          "type": "text",
+                          "name": "指标标题",
+                          "x": 16,
+                          "y": 16,
+                          "width": 120,
+                          "height": 14,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "总项目",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#97a3a8",
+                            "fontSize": 10,
+                            "fontWeight": 500
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-1-value",
+                          "type": "text",
+                          "name": "指标数值",
+                          "x": 16,
+                          "y": 36,
+                          "width": 200,
+                          "height": 30,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "24",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#35434a",
+                            "fontSize": 24,
+                            "fontWeight": 700
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-1-delta",
+                          "type": "text",
+                          "name": "环比",
+                          "x": 16,
+                          "y": 78,
+                          "width": 120,
+                          "height": 12,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "↗ +12.5%",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#3bc78c",
+                            "fontSize": 10,
+                            "fontWeight": 500
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-1-trend",
+                          "type": "chart",
+                          "name": "趋势图表",
+                          "x": 16,
+                          "y": 100,
+                          "width": 200,
+                          "height": 40,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "chartBars": [
+                            30,
+                            45,
+                            40,
+                            60,
+                            55,
+                            75,
+                            90
+                          ],
+                          "style": {
+                            "opacity": 1
+                          },
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "id": "card-2",
+                      "type": "group",
+                      "name": "进行中",
+                      "x": 0,
+                      "y": 0,
+                      "width": 274,
+                      "height": 168,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "expanded": true,
+                      "style": {
+                        "opacity": 1
+                      },
+                      "children": [
+                        {
+                          "id": "card-2-bg",
+                          "type": "rectangle",
+                          "name": "卡片背景",
+                          "x": 0,
+                          "y": 0,
+                          "width": 274,
+                          "height": 168,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "style": {
+                            "opacity": 1,
+                            "fill": "#ffffff",
+                            "cornerRadius": 8,
+                            "shadow": "0 3px 10px rgba(39,60,70,0.025)",
+                            "stroke": "#e8edef",
+                            "strokeWidth": 1
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-2-title",
+                          "type": "text",
+                          "name": "指标标题",
+                          "x": 16,
+                          "y": 16,
+                          "width": 120,
+                          "height": 14,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "进行中",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#97a3a8",
+                            "fontSize": 10,
+                            "fontWeight": 500
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-2-value",
+                          "type": "text",
+                          "name": "指标数值",
+                          "x": 16,
+                          "y": 36,
+                          "width": 200,
+                          "height": 30,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "08",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#35434a",
+                            "fontSize": 24,
+                            "fontWeight": 700
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-2-delta",
+                          "type": "text",
+                          "name": "环比",
+                          "x": 16,
+                          "y": 78,
+                          "width": 120,
+                          "height": 12,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "↗ +4.2%",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#3bc78c",
+                            "fontSize": 10,
+                            "fontWeight": 500
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-2-trend",
+                          "type": "chart",
+                          "name": "趋势图表",
+                          "x": 16,
+                          "y": 100,
+                          "width": 200,
+                          "height": 40,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "chartBars": [
+                            50,
+                            60,
+                            45,
+                            70,
+                            65,
+                            55,
+                            70
+                          ],
+                          "style": {
+                            "opacity": 1
+                          },
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "id": "card-3",
+                      "type": "group",
+                      "name": "团队成员",
+                      "x": 0,
+                      "y": 0,
+                      "width": 274,
+                      "height": 168,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "expanded": true,
+                      "style": {
+                        "opacity": 1
+                      },
+                      "children": [
+                        {
+                          "id": "card-3-bg",
+                          "type": "rectangle",
+                          "name": "卡片背景",
+                          "x": 0,
+                          "y": 0,
+                          "width": 274,
+                          "height": 168,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "style": {
+                            "opacity": 1,
+                            "fill": "#ffffff",
+                            "cornerRadius": 8,
+                            "shadow": "0 3px 10px rgba(39,60,70,0.025)",
+                            "stroke": "#e8edef",
+                            "strokeWidth": 1
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-3-title",
+                          "type": "text",
+                          "name": "指标标题",
+                          "x": 16,
+                          "y": 16,
+                          "width": 120,
+                          "height": 14,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "团队成员",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#97a3a8",
+                            "fontSize": 10,
+                            "fontWeight": 500
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-3-value",
+                          "type": "text",
+                          "name": "指标数值",
+                          "x": 16,
+                          "y": 36,
+                          "width": 200,
+                          "height": 30,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "36",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#35434a",
+                            "fontSize": 24,
+                            "fontWeight": 700
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-3-delta",
+                          "type": "text",
+                          "name": "环比",
+                          "x": 16,
+                          "y": 78,
+                          "width": 120,
+                          "height": 12,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "↗ +8.1%",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#3bc78c",
+                            "fontSize": 10,
+                            "fontWeight": 500
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-3-trend",
+                          "type": "chart",
+                          "name": "趋势图表",
+                          "x": 16,
+                          "y": 100,
+                          "width": 200,
+                          "height": 40,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "chartBars": [
+                            40,
+                            35,
+                            50,
+                            45,
+                            60,
+                            50,
+                            65
+                          ],
+                          "style": {
+                            "opacity": 1
+                          },
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "id": "card-4",
+                      "type": "group",
+                      "name": "本月产出",
+                      "x": 0,
+                      "y": 0,
+                      "width": 274,
+                      "height": 168,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "expanded": true,
+                      "style": {
+                        "opacity": 1
+                      },
+                      "children": [
+                        {
+                          "id": "card-4-bg",
+                          "type": "rectangle",
+                          "name": "卡片背景",
+                          "x": 0,
+                          "y": 0,
+                          "width": 274,
+                          "height": 168,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "style": {
+                            "opacity": 1,
+                            "fill": "#ffffff",
+                            "cornerRadius": 8,
+                            "shadow": "0 3px 10px rgba(39,60,70,0.025)",
+                            "stroke": "#e8edef",
+                            "strokeWidth": 1
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-4-title",
+                          "type": "text",
+                          "name": "指标标题",
+                          "x": 16,
+                          "y": 16,
+                          "width": 120,
+                          "height": 14,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "本月产出",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#97a3a8",
+                            "fontSize": 10,
+                            "fontWeight": 500
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-4-value",
+                          "type": "text",
+                          "name": "指标数值",
+                          "x": 16,
+                          "y": 36,
+                          "width": 200,
+                          "height": 30,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "128",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#35434a",
+                            "fontSize": 24,
+                            "fontWeight": 700
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-4-delta",
+                          "type": "text",
+                          "name": "环比",
+                          "x": 16,
+                          "y": 78,
+                          "width": 120,
+                          "height": 12,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "↗ +18.4%",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#3bc78c",
+                            "fontSize": 10,
+                            "fontWeight": 500
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "card-4-trend",
+                          "type": "chart",
+                          "name": "趋势图表",
+                          "x": 16,
+                          "y": 100,
+                          "width": 200,
+                          "height": 40,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "chartBars": [
+                            25,
+                            40,
+                            55,
+                            45,
+                            70,
+                            80,
+                            95
+                          ],
+                          "style": {
+                            "opacity": 1
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "grp-content-row",
+                  "type": "group",
+                  "name": "内容行",
+                  "x": 0,
+                  "y": 352,
+                  "width": 1136,
+                  "height": 240,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "grp-activity",
+                      "type": "group",
+                      "name": "项目活跃度",
+                      "x": 0,
+                      "y": 0,
+                      "width": 640,
+                      "height": 206,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "expanded": true,
+                      "style": {
+                        "opacity": 1
+                      },
+                      "children": [
+                        {
+                          "id": "rect-activity-bg",
+                          "type": "rectangle",
+                          "name": "图表背景",
+                          "x": 0,
+                          "y": 0,
+                          "width": 640,
+                          "height": 206,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "style": {
+                            "opacity": 1,
+                            "fill": "#ffffff",
+                            "cornerRadius": 8,
+                            "stroke": "#e8edef",
+                            "strokeWidth": 1
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "txt-activity-title",
+                          "type": "text",
+                          "name": "图表标题",
+                          "x": 16,
+                          "y": 14,
+                          "width": 160,
+                          "height": 14,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "项目活跃度",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#58666d",
+                            "fontSize": 12,
+                            "fontWeight": 700
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "txt-activity-period",
+                          "type": "text",
+                          "name": "周期",
+                          "x": 440,
+                          "y": 15,
+                          "width": 180,
+                          "height": 12,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "最近 7 天 ⌄",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#9da8ac",
+                            "fontSize": 10,
+                            "fontWeight": 400
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "chart-activity",
+                          "type": "chart",
+                          "name": "活跃度柱状图",
+                          "x": 16,
+                          "y": 44,
+                          "width": 608,
+                          "height": 148,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "chartBars": [
+                            54,
+                            72,
+                            48,
+                            88,
+                            62,
+                            78,
+                            65
+                          ],
+                          "style": {
+                            "opacity": 1
+                          },
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "id": "grp-recent",
+                      "type": "group",
+                      "name": "最近项目",
+                      "x": 652,
+                      "y": 0,
+                      "width": 432,
+                      "height": 206,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "expanded": true,
+                      "style": {
+                        "opacity": 1
+                      },
+                      "children": [
+                        {
+                          "id": "rect-recent-bg",
+                          "type": "rectangle",
+                          "name": "列表背景",
+                          "x": 0,
+                          "y": 0,
+                          "width": 432,
+                          "height": 206,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "style": {
+                            "opacity": 1,
+                            "fill": "#ffffff",
+                            "cornerRadius": 8,
+                            "stroke": "#e8edef",
+                            "strokeWidth": 1
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "txt-recent-title",
+                          "type": "text",
+                          "name": "列表标题",
+                          "x": 16,
+                          "y": 14,
+                          "width": 120,
+                          "height": 14,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "最近项目",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#58666d",
+                            "fontSize": 12,
+                            "fontWeight": 700
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "txt-recent-more",
+                          "type": "text",
+                          "name": "查看全部",
+                          "x": 320,
+                          "y": 15,
+                          "width": 96,
+                          "height": 12,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "content": "查看全部 ↗",
+                          "style": {
+                            "opacity": 1,
+                            "color": "#9da8ac",
+                            "fontSize": 10,
+                            "fontWeight": 400
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "grp-recent-rows",
+                          "type": "group",
+                          "name": "列表行",
+                          "x": 16,
+                          "y": 40,
+                          "width": 400,
+                          "height": 152,
+                          "rotation": 0,
+                          "visible": true,
+                          "locked": false,
+                          "expanded": true,
+                          "style": {
+                            "opacity": 1
+                          },
+                          "children": [
+                            {
+                              "id": "recent-row-0",
+                              "type": "group",
+                              "name": "品牌视觉升级",
+                              "x": 0,
+                              "y": 0,
+                              "width": 400,
+                              "height": 36,
+                              "rotation": 0,
+                              "visible": true,
+                              "locked": false,
+                              "expanded": true,
+                              "style": {
+                                "opacity": 1
+                              },
+                              "children": [
+                                {
+                                  "id": "recent-row-icon-0",
+                                  "type": "rectangle",
+                                  "name": "图标",
+                                  "x": 0,
+                                  "y": 4,
+                                  "width": 28,
+                                  "height": 28,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "style": {
+                                    "opacity": 1,
+                                    "fill": "#ffc778",
+                                    "cornerRadius": 6
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-name-0",
+                                  "type": "text",
+                                  "name": "项目名",
+                                  "x": 38,
+                                  "y": 0,
+                                  "width": 200,
+                                  "height": 14,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "品牌视觉升级",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#59666c",
+                                    "fontSize": 11,
+                                    "fontWeight": 500
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-time-0",
+                                  "type": "text",
+                                  "name": "时间",
+                                  "x": 38,
+                                  "y": 18,
+                                  "width": 200,
+                                  "height": 11,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "更新于 1 小时前",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#adb6b9",
+                                    "fontSize": 9,
+                                    "fontWeight": 400
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-status-0",
+                                  "type": "rectangle",
+                                  "name": "状态",
+                                  "x": 330,
+                                  "y": 4,
+                                  "width": 64,
+                                  "height": 20,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "style": {
+                                    "opacity": 1,
+                                    "fill": "#e4f7ee",
+                                    "cornerRadius": 10
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-status-txt-0",
+                                  "type": "text",
+                                  "name": "状态文本",
+                                  "x": 338,
+                                  "y": 6,
+                                  "width": 48,
+                                  "height": 12,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "进行中",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#4d9c80",
+                                    "fontSize": 9,
+                                    "fontWeight": 600
+                                  },
+                                  "children": []
+                                }
+                              ]
+                            },
+                            {
+                              "id": "recent-row-1",
+                              "type": "group",
+                              "name": "移动端体验优化",
+                              "x": 0,
+                              "y": 38,
+                              "width": 400,
+                              "height": 36,
+                              "rotation": 0,
+                              "visible": true,
+                              "locked": false,
+                              "expanded": true,
+                              "style": {
+                                "opacity": 1
+                              },
+                              "children": [
+                                {
+                                  "id": "recent-row-icon-1",
+                                  "type": "rectangle",
+                                  "name": "图标",
+                                  "x": 0,
+                                  "y": 4,
+                                  "width": 28,
+                                  "height": 28,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "style": {
+                                    "opacity": 1,
+                                    "fill": "#8eb3f0",
+                                    "cornerRadius": 6
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-name-1",
+                                  "type": "text",
+                                  "name": "项目名",
+                                  "x": 38,
+                                  "y": 0,
+                                  "width": 200,
+                                  "height": 14,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "移动端体验优化",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#59666c",
+                                    "fontSize": 11,
+                                    "fontWeight": 500
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-time-1",
+                                  "type": "text",
+                                  "name": "时间",
+                                  "x": 38,
+                                  "y": 18,
+                                  "width": 200,
+                                  "height": 11,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "更新于 2 小时前",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#adb6b9",
+                                    "fontSize": 9,
+                                    "fontWeight": 400
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-status-1",
+                                  "type": "rectangle",
+                                  "name": "状态",
+                                  "x": 330,
+                                  "y": 4,
+                                  "width": 64,
+                                  "height": 20,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "style": {
+                                    "opacity": 1,
+                                    "fill": "#fff2d9",
+                                    "cornerRadius": 10
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-status-txt-1",
+                                  "type": "text",
+                                  "name": "状态文本",
+                                  "x": 338,
+                                  "y": 6,
+                                  "width": 48,
+                                  "height": 12,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "审核中",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#b08345",
+                                    "fontSize": 9,
+                                    "fontWeight": 600
+                                  },
+                                  "children": []
+                                }
+                              ]
+                            },
+                            {
+                              "id": "recent-row-2",
+                              "type": "group",
+                              "name": "营销活动落地页",
+                              "x": 0,
+                              "y": 76,
+                              "width": 400,
+                              "height": 36,
+                              "rotation": 0,
+                              "visible": true,
+                              "locked": false,
+                              "expanded": true,
+                              "style": {
+                                "opacity": 1
+                              },
+                              "children": [
+                                {
+                                  "id": "recent-row-icon-2",
+                                  "type": "rectangle",
+                                  "name": "图标",
+                                  "x": 0,
+                                  "y": 4,
+                                  "width": 28,
+                                  "height": 28,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "style": {
+                                    "opacity": 1,
+                                    "fill": "#f39492",
+                                    "cornerRadius": 6
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-name-2",
+                                  "type": "text",
+                                  "name": "项目名",
+                                  "x": 38,
+                                  "y": 0,
+                                  "width": 200,
+                                  "height": 14,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "营销活动落地页",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#59666c",
+                                    "fontSize": 11,
+                                    "fontWeight": 500
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-time-2",
+                                  "type": "text",
+                                  "name": "时间",
+                                  "x": 38,
+                                  "y": 18,
+                                  "width": 200,
+                                  "height": 11,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "更新于 3 小时前",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#adb6b9",
+                                    "fontSize": 9,
+                                    "fontWeight": 400
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-status-2",
+                                  "type": "rectangle",
+                                  "name": "状态",
+                                  "x": 330,
+                                  "y": 4,
+                                  "width": 64,
+                                  "height": 20,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "style": {
+                                    "opacity": 1,
+                                    "fill": "#e8f1ff",
+                                    "cornerRadius": 10
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-status-txt-2",
+                                  "type": "text",
+                                  "name": "状态文本",
+                                  "x": 338,
+                                  "y": 6,
+                                  "width": 48,
+                                  "height": 12,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "已完成",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#698cba",
+                                    "fontSize": 9,
+                                    "fontWeight": 600
+                                  },
+                                  "children": []
+                                }
+                              ]
+                            },
+                            {
+                              "id": "recent-row-3",
+                              "type": "group",
+                              "name": "设计系统 2.0",
+                              "x": 0,
+                              "y": 114,
+                              "width": 400,
+                              "height": 36,
+                              "rotation": 0,
+                              "visible": true,
+                              "locked": false,
+                              "expanded": true,
+                              "style": {
+                                "opacity": 1
+                              },
+                              "children": [
+                                {
+                                  "id": "recent-row-icon-3",
+                                  "type": "rectangle",
+                                  "name": "图标",
+                                  "x": 0,
+                                  "y": 4,
+                                  "width": 28,
+                                  "height": 28,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "style": {
+                                    "opacity": 1,
+                                    "fill": "#70c9a8",
+                                    "cornerRadius": 6
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-name-3",
+                                  "type": "text",
+                                  "name": "项目名",
+                                  "x": 38,
+                                  "y": 0,
+                                  "width": 200,
+                                  "height": 14,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "设计系统 2.0",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#59666c",
+                                    "fontSize": 11,
+                                    "fontWeight": 500
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-time-3",
+                                  "type": "text",
+                                  "name": "时间",
+                                  "x": 38,
+                                  "y": 18,
+                                  "width": 200,
+                                  "height": 11,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "更新于 4 小时前",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#adb6b9",
+                                    "fontSize": 9,
+                                    "fontWeight": 400
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-status-3",
+                                  "type": "rectangle",
+                                  "name": "状态",
+                                  "x": 330,
+                                  "y": 4,
+                                  "width": 64,
+                                  "height": 20,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "style": {
+                                    "opacity": 1,
+                                    "fill": "#e4f7ee",
+                                    "cornerRadius": 10
+                                  },
+                                  "children": []
+                                },
+                                {
+                                  "id": "recent-row-status-txt-3",
+                                  "type": "text",
+                                  "name": "状态文本",
+                                  "x": 338,
+                                  "y": 6,
+                                  "width": 48,
+                                  "height": 12,
+                                  "rotation": 0,
+                                  "visible": true,
+                                  "locked": false,
+                                  "content": "进行中",
+                                  "style": {
+                                    "opacity": 1,
+                                    "color": "#4d9c80",
+                                    "fontSize": 9,
+                                    "fontWeight": 600
+                                  },
+                                  "children": []
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "grp-table",
+              "type": "group",
+              "name": "数据表格",
+              "x": 280,
+              "y": 640,
+              "width": 1136,
+              "height": 220,
+              "rotation": 0,
+              "visible": true,
+              "locked": false,
+              "expanded": true,
+              "style": {
+                "opacity": 1
+              },
+              "children": [
+                {
+                  "id": "rect-table",
+                  "type": "rectangle",
+                  "name": "表格区域",
+                  "x": 0,
+                  "y": 0,
+                  "width": 1136,
+                  "height": 220,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "style": {
+                    "opacity": 1,
+                    "fill": "#ffffff",
+                    "cornerRadius": 8,
+                    "stroke": "#e8edef",
+                    "strokeWidth": 1
+                  },
+                  "children": []
+                },
+                {
+                  "id": "txt-table-title",
+                  "type": "text",
+                  "name": "表格标题",
+                  "x": 16,
+                  "y": 14,
+                  "width": 160,
+                  "height": 14,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "content": "数据明细",
+                  "style": {
+                    "opacity": 1,
+                    "color": "#58666d",
+                    "fontSize": 12,
+                    "fontWeight": 700
+                  },
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "page-projects",
+      "name": "项目管理页",
+      "children": [
+        {
+          "id": "frame-projects",
+          "type": "frame",
+          "name": "项目管理页",
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 900,
+          "rotation": 0,
+          "visible": true,
+          "locked": false,
+          "expanded": true,
+          "style": {
+            "opacity": 1,
+            "fill": "#ffffff"
+          },
+          "children": [
+            {
+              "id": "rect-projects-bg",
+              "type": "rectangle",
+              "name": "页面背景",
+              "x": 0,
+              "y": 0,
+              "width": 1440,
+              "height": 900,
+              "rotation": 0,
+              "visible": true,
+              "locked": false,
+              "style": {
+                "opacity": 1,
+                "fill": "#f8fafb"
+              },
+              "children": []
+            },
+            {
+              "id": "grp-projects-header",
+              "type": "group",
+              "name": "页面头部",
+              "x": 0,
+              "y": 0,
+              "width": 1440,
+              "height": 72,
+              "rotation": 0,
+              "visible": true,
+              "locked": false,
+              "expanded": true,
+              "style": {
+                "opacity": 1
+              },
+              "children": [
+                {
+                  "id": "rect-projects-title",
+                  "type": "rectangle",
+                  "name": "标题栏",
+                  "x": 24,
+                  "y": 20,
+                  "width": 240,
+                  "height": 32,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "style": {
+                    "opacity": 1,
+                    "fill": "#ffffff",
+                    "cornerRadius": 6
+                  },
+                  "children": []
+                },
+                {
+                  "id": "rect-projects-btn",
+                  "type": "rectangle",
+                  "name": "按钮占位",
+                  "x": 1260,
+                  "y": 20,
+                  "width": 156,
+                  "height": 32,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "style": {
+                    "opacity": 1,
+                    "fill": "#4e8ff4",
+                    "cornerRadius": 6
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "grp-projects-grid",
+              "type": "group",
+              "name": "项目卡片",
+              "x": 24,
+              "y": 96,
+              "width": 1392,
+              "height": 780,
+              "rotation": 0,
+              "visible": true,
+              "locked": false,
+              "expanded": true,
+              "style": {
+                "opacity": 1
+              },
+              "children": [
+                {
+                  "id": "proj-card-0",
+                  "type": "group",
+                  "name": "项目卡片 1",
+                  "x": 0,
+                  "y": 0,
+                  "width": 460,
+                  "height": 248,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "proj-card-bg-0",
+                      "type": "rectangle",
+                      "name": "卡片背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 460,
+                      "height": 248,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 8,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-thumb-0",
+                      "type": "rectangle",
+                      "name": "封面占位",
+                      "x": 16,
+                      "y": 16,
+                      "width": 428,
+                      "height": 130,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#eef2f4",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-title-0",
+                      "type": "text",
+                      "name": "项目名",
+                      "x": 16,
+                      "y": 156,
+                      "width": 300,
+                      "height": 20,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "项目名称 1",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#364249",
+                        "fontSize": 15,
+                        "fontWeight": 700
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-status-0",
+                      "type": "text",
+                      "name": "状态",
+                      "x": 16,
+                      "y": 184,
+                      "width": 300,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "最近更新于 1 小时前",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#9aa5aa",
+                        "fontSize": 11,
+                        "fontWeight": 400
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "proj-card-1",
+                  "type": "group",
+                  "name": "项目卡片 2",
+                  "x": 476,
+                  "y": 0,
+                  "width": 460,
+                  "height": 248,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "proj-card-bg-1",
+                      "type": "rectangle",
+                      "name": "卡片背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 460,
+                      "height": 248,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 8,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-thumb-1",
+                      "type": "rectangle",
+                      "name": "封面占位",
+                      "x": 16,
+                      "y": 16,
+                      "width": 428,
+                      "height": 130,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#eef2f4",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-title-1",
+                      "type": "text",
+                      "name": "项目名",
+                      "x": 16,
+                      "y": 156,
+                      "width": 300,
+                      "height": 20,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "项目名称 2",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#364249",
+                        "fontSize": 15,
+                        "fontWeight": 700
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-status-1",
+                      "type": "text",
+                      "name": "状态",
+                      "x": 16,
+                      "y": 184,
+                      "width": 300,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "最近更新于 1 小时前",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#9aa5aa",
+                        "fontSize": 11,
+                        "fontWeight": 400
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "proj-card-2",
+                  "type": "group",
+                  "name": "项目卡片 3",
+                  "x": 952,
+                  "y": 0,
+                  "width": 460,
+                  "height": 248,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "proj-card-bg-2",
+                      "type": "rectangle",
+                      "name": "卡片背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 460,
+                      "height": 248,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 8,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-thumb-2",
+                      "type": "rectangle",
+                      "name": "封面占位",
+                      "x": 16,
+                      "y": 16,
+                      "width": 428,
+                      "height": 130,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#eef2f4",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-title-2",
+                      "type": "text",
+                      "name": "项目名",
+                      "x": 16,
+                      "y": 156,
+                      "width": 300,
+                      "height": 20,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "项目名称 3",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#364249",
+                        "fontSize": 15,
+                        "fontWeight": 700
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-status-2",
+                      "type": "text",
+                      "name": "状态",
+                      "x": 16,
+                      "y": 184,
+                      "width": 300,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "最近更新于 1 小时前",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#9aa5aa",
+                        "fontSize": 11,
+                        "fontWeight": 400
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "proj-card-3",
+                  "type": "group",
+                  "name": "项目卡片 4",
+                  "x": 0,
+                  "y": 264,
+                  "width": 460,
+                  "height": 248,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "proj-card-bg-3",
+                      "type": "rectangle",
+                      "name": "卡片背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 460,
+                      "height": 248,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 8,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-thumb-3",
+                      "type": "rectangle",
+                      "name": "封面占位",
+                      "x": 16,
+                      "y": 16,
+                      "width": 428,
+                      "height": 130,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#eef2f4",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-title-3",
+                      "type": "text",
+                      "name": "项目名",
+                      "x": 16,
+                      "y": 156,
+                      "width": 300,
+                      "height": 20,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "项目名称 4",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#364249",
+                        "fontSize": 15,
+                        "fontWeight": 700
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-status-3",
+                      "type": "text",
+                      "name": "状态",
+                      "x": 16,
+                      "y": 184,
+                      "width": 300,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "最近更新于 1 小时前",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#9aa5aa",
+                        "fontSize": 11,
+                        "fontWeight": 400
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "proj-card-4",
+                  "type": "group",
+                  "name": "项目卡片 5",
+                  "x": 476,
+                  "y": 264,
+                  "width": 460,
+                  "height": 248,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "proj-card-bg-4",
+                      "type": "rectangle",
+                      "name": "卡片背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 460,
+                      "height": 248,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 8,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-thumb-4",
+                      "type": "rectangle",
+                      "name": "封面占位",
+                      "x": 16,
+                      "y": 16,
+                      "width": 428,
+                      "height": 130,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#eef2f4",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-title-4",
+                      "type": "text",
+                      "name": "项目名",
+                      "x": 16,
+                      "y": 156,
+                      "width": 300,
+                      "height": 20,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "项目名称 5",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#364249",
+                        "fontSize": 15,
+                        "fontWeight": 700
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-status-4",
+                      "type": "text",
+                      "name": "状态",
+                      "x": 16,
+                      "y": 184,
+                      "width": 300,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "最近更新于 1 小时前",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#9aa5aa",
+                        "fontSize": 11,
+                        "fontWeight": 400
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "proj-card-5",
+                  "type": "group",
+                  "name": "项目卡片 6",
+                  "x": 952,
+                  "y": 264,
+                  "width": 460,
+                  "height": 248,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "proj-card-bg-5",
+                      "type": "rectangle",
+                      "name": "卡片背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 460,
+                      "height": 248,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 8,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-thumb-5",
+                      "type": "rectangle",
+                      "name": "封面占位",
+                      "x": 16,
+                      "y": 16,
+                      "width": 428,
+                      "height": 130,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#eef2f4",
+                        "cornerRadius": 6
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-title-5",
+                      "type": "text",
+                      "name": "项目名",
+                      "x": 16,
+                      "y": 156,
+                      "width": 300,
+                      "height": 20,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "项目名称 6",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#364249",
+                        "fontSize": 15,
+                        "fontWeight": 700
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "proj-card-status-5",
+                      "type": "text",
+                      "name": "状态",
+                      "x": 16,
+                      "y": 184,
+                      "width": 300,
+                      "height": 14,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "最近更新于 1 小时前",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#9aa5aa",
+                        "fontSize": 11,
+                        "fontWeight": 400
+                      },
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "page-settings",
+      "name": "系统设置页",
+      "children": [
+        {
+          "id": "frame-settings",
+          "type": "frame",
+          "name": "系统设置页",
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 900,
+          "rotation": 0,
+          "visible": true,
+          "locked": false,
+          "expanded": true,
+          "style": {
+            "opacity": 1,
+            "fill": "#ffffff"
+          },
+          "children": [
+            {
+              "id": "rect-settings-bg",
+              "type": "rectangle",
+              "name": "页面背景",
+              "x": 0,
+              "y": 0,
+              "width": 1440,
+              "height": 900,
+              "rotation": 0,
+              "visible": true,
+              "locked": false,
+              "style": {
+                "opacity": 1,
+                "fill": "#f8fafb"
+              },
+              "children": []
+            },
+            {
+              "id": "grp-settings-form",
+              "type": "group",
+              "name": "设置表单",
+              "x": 120,
+              "y": 100,
+              "width": 1200,
+              "height": 700,
+              "rotation": 0,
+              "visible": true,
+              "locked": false,
+              "expanded": true,
+              "style": {
+                "opacity": 1
+              },
+              "children": [
+                {
+                  "id": "txt-settings-title",
+                  "type": "text",
+                  "name": "表单标题",
+                  "x": 0,
+                  "y": 0,
+                  "width": 300,
+                  "height": 30,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "content": "系统设置",
+                  "style": {
+                    "opacity": 1,
+                    "color": "#364249",
+                    "fontSize": 24,
+                    "fontWeight": 700
+                  },
+                  "children": []
+                },
+                {
+                  "id": "set-row-0",
+                  "type": "group",
+                  "name": "设置项 1",
+                  "x": 0,
+                  "y": 60,
+                  "width": 1200,
+                  "height": 44,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "set-row-bg-0",
+                      "type": "rectangle",
+                      "name": "行背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 1200,
+                      "height": 44,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 6,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-label-0",
+                      "type": "text",
+                      "name": "标签",
+                      "x": 20,
+                      "y": 14,
+                      "width": 200,
+                      "height": 16,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "设置项 1",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#59666c",
+                        "fontSize": 13,
+                        "fontWeight": 500
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-input-0",
+                      "type": "rectangle",
+                      "name": "输入框",
+                      "x": 400,
+                      "y": 8,
+                      "width": 760,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#f7f9fa",
+                        "cornerRadius": 5,
+                        "stroke": "#e3e8ea",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "set-row-1",
+                  "type": "group",
+                  "name": "设置项 2",
+                  "x": 0,
+                  "y": 116,
+                  "width": 1200,
+                  "height": 44,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "set-row-bg-1",
+                      "type": "rectangle",
+                      "name": "行背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 1200,
+                      "height": 44,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 6,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-label-1",
+                      "type": "text",
+                      "name": "标签",
+                      "x": 20,
+                      "y": 14,
+                      "width": 200,
+                      "height": 16,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "设置项 2",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#59666c",
+                        "fontSize": 13,
+                        "fontWeight": 500
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-input-1",
+                      "type": "rectangle",
+                      "name": "输入框",
+                      "x": 400,
+                      "y": 8,
+                      "width": 760,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#f7f9fa",
+                        "cornerRadius": 5,
+                        "stroke": "#e3e8ea",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "set-row-2",
+                  "type": "group",
+                  "name": "设置项 3",
+                  "x": 0,
+                  "y": 172,
+                  "width": 1200,
+                  "height": 44,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "set-row-bg-2",
+                      "type": "rectangle",
+                      "name": "行背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 1200,
+                      "height": 44,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 6,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-label-2",
+                      "type": "text",
+                      "name": "标签",
+                      "x": 20,
+                      "y": 14,
+                      "width": 200,
+                      "height": 16,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "设置项 3",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#59666c",
+                        "fontSize": 13,
+                        "fontWeight": 500
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-input-2",
+                      "type": "rectangle",
+                      "name": "输入框",
+                      "x": 400,
+                      "y": 8,
+                      "width": 760,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#f7f9fa",
+                        "cornerRadius": 5,
+                        "stroke": "#e3e8ea",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "set-row-3",
+                  "type": "group",
+                  "name": "设置项 4",
+                  "x": 0,
+                  "y": 228,
+                  "width": 1200,
+                  "height": 44,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "set-row-bg-3",
+                      "type": "rectangle",
+                      "name": "行背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 1200,
+                      "height": 44,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 6,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-label-3",
+                      "type": "text",
+                      "name": "标签",
+                      "x": 20,
+                      "y": 14,
+                      "width": 200,
+                      "height": 16,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "设置项 4",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#59666c",
+                        "fontSize": 13,
+                        "fontWeight": 500
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-input-3",
+                      "type": "rectangle",
+                      "name": "输入框",
+                      "x": 400,
+                      "y": 8,
+                      "width": 760,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#f7f9fa",
+                        "cornerRadius": 5,
+                        "stroke": "#e3e8ea",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "set-row-4",
+                  "type": "group",
+                  "name": "设置项 5",
+                  "x": 0,
+                  "y": 284,
+                  "width": 1200,
+                  "height": 44,
+                  "rotation": 0,
+                  "visible": true,
+                  "locked": false,
+                  "expanded": true,
+                  "style": {
+                    "opacity": 1
+                  },
+                  "children": [
+                    {
+                      "id": "set-row-bg-4",
+                      "type": "rectangle",
+                      "name": "行背景",
+                      "x": 0,
+                      "y": 0,
+                      "width": 1200,
+                      "height": 44,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#ffffff",
+                        "cornerRadius": 6,
+                        "stroke": "#e8edef",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-label-4",
+                      "type": "text",
+                      "name": "标签",
+                      "x": 20,
+                      "y": 14,
+                      "width": 200,
+                      "height": 16,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "content": "设置项 5",
+                      "style": {
+                        "opacity": 1,
+                        "color": "#59666c",
+                        "fontSize": 13,
+                        "fontWeight": 500
+                      },
+                      "children": []
+                    },
+                    {
+                      "id": "set-row-input-4",
+                      "type": "rectangle",
+                      "name": "输入框",
+                      "x": 400,
+                      "y": 8,
+                      "width": 760,
+                      "height": 28,
+                      "rotation": 0,
+                      "visible": true,
+                      "locked": false,
+                      "style": {
+                        "opacity": 1,
+                        "fill": "#f7f9fa",
+                        "cornerRadius": 5,
+                        "stroke": "#e3e8ea",
+                        "strokeWidth": 1
+                      },
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "activePageId": "page-workbench",
+  "prototypeLinks": [
+    {
+      "id": "link-msq82fus-2",
+      "sourceLayerId": "rect-new-project",
+      "targetPageId": "page-projects",
+      "trigger": "click",
+      "transition": "instant"
+    }
+  ],
+  "updatedAt": 1786547186884
+}

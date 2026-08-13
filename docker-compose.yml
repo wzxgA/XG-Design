@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-xgdesign}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xgdesign}
+      POSTGRES_DB: ${POSTGRES_DB:-xgdesign}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-xgdesign}
+      POSTGRES_USER: ${POSTGRES_USER:-xgdesign}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xgdesign}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+    ports:
+      - "8090:8090"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:
