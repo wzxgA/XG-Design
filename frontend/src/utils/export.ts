@@ -1,4 +1,4 @@
-import type { LayerNode, PageNode } from '../types/design'
+import type { DesignDocument, LayerNode, PageNode } from '../types/design'
 
 /**
  * 将单个图层节点渲染为 HTML 片段（用于离屏导出）。
@@ -226,12 +226,16 @@ export async function exportNodeAsPng(node: LayerNode, scale = 2): Promise<void>
   triggerDownload(blob, `${node.name}.png`)
 }
 
-/** 将当前活动页面的全部可见顶层节点导出为 PNG（导出整页） */
-export async function exportPageAsPng(page: PageNode, scale: number, docName: string): Promise<void> {
+/**
+ * 离屏渲染页面为 PNG Blob（纯函数：不触发下载，供单页 / 批量导出复用）。
+ * 与编辑器共用 renderNodeToHtml / renderHtmlToPng 渲染管线，保证所见即所得。
+ * 页面无可见内容时抛出「没有可导出的内容」。
+ */
+export async function renderPageOffscreen(page: PageNode, scale: number): Promise<Blob> {
   const visibleNodes = page.children.filter((n) => n.visible)
-  if (visibleNodes.length === 0) throw new Error('当前页面没有可导出的内容')
+  if (visibleNodes.length === 0) throw new Error(`页面「${page.name}」没有可导出的内容`)
   const bounds = computeBounds(visibleNodes)
-  if (!bounds) throw new Error('当前页面没有可导出的内容')
+  if (!bounds) throw new Error(`页面「${page.name}」没有可导出的内容`)
 
   // 背景：有 frame 以 frame 背景色为准，无 frame 时白色
   const firstFrame = visibleNodes.find((n) => n.type === 'frame')
@@ -251,6 +255,44 @@ export async function exportPageAsPng(page: PageNode, scale: number, docName: st
     pageEl.appendChild(el)
   }
 
-  const blob = await renderHtmlToPng(pageEl, bounds.width, bounds.height, scale, background)
-  triggerDownload(blob, `${docName}-${page.name}-@${scale}x.png`)
+  return renderHtmlToPng(pageEl, bounds.width, bounds.height, scale, background)
+}
+
+/** 文件系统安全清洗（与 exportProject.sanitizeFileName 规则一致，避免反向依赖） */
+function safeFileName(name: string): string {
+  const cleaned = name.replace(/[\\/:*?"<>|]/g, '-').trim()
+  return cleaned.length > 0 ? cleaned : 'untitled'
+}
+
+/** 将当前活动页面的全部可见顶层节点导出为 PNG（导出整页） */
+export async function exportPageAsPng(page: PageNode, scale: number, docName: string): Promise<void> {
+  const blob = await renderPageOffscreen(page, scale)
+  triggerDownload(blob, `${safeFileName(docName)}-${safeFileName(page.name)}-@${scale}x.png`)
+}
+
+/**
+ * 批量导出文档全部页面为 PNG（导出项目 → 全部页面）。
+ * 逐页离屏渲染 + 逐张下载；空页面/渲染失败自动跳过；
+ * onProgress 在每页处理后回调，用于界面进度提示（index 从 1 开始）。
+ * @returns 成功导出的页数
+ */
+export async function exportDocumentPagesAsPng(
+  doc: DesignDocument,
+  scale: number,
+  onProgress?: (index: number, total: number, pageName: string) => void,
+): Promise<number> {
+  const total = doc.pages.length
+  let exported = 0
+  for (let i = 0; i < total; i += 1) {
+    const page = doc.pages[i]
+    try {
+      const blob = await renderPageOffscreen(page, scale)
+      triggerDownload(blob, `${safeFileName(doc.name)}-${safeFileName(page.name)}-@${scale}x.png`)
+      exported += 1
+    } catch {
+      // 空页面等渲染失败跳过，通过 onProgress / 返回值提示
+    }
+    onProgress?.(i + 1, total, page.name)
+  }
+  return exported
 }

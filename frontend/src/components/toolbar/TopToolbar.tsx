@@ -4,7 +4,7 @@ import type { DesignDocument, LayerNode } from '../../types/design'
 import type { ProjectMember, SaveStatus } from '../../types/project'
 import { repository } from '../../services'
 import { Icon, Watermelon, type IconName } from '../common/brand'
-import { exportNodeAsPng, exportPageAsPng } from '../../utils/export'
+import { exportNodeAsPng, exportPageAsPng, exportDocumentPagesAsPng } from '../../utils/export'
 import { downloadProjectFile } from '../../services/exportProject'
 import { HistoryModal } from '../history/HistoryModal'
 
@@ -74,7 +74,8 @@ export function TopToolbar({
   const canUndo = state.history.past.length > 0 && !readOnly
   const canRedo = state.history.future.length > 0 && !readOnly
   const [moreOpen, setMoreOpen] = useState(false)
-  const [exporting, setExporting] = useState<'selected-1' | 'selected-2' | 'page-1' | 'page-2' | 'page-3' | 'project' | null>(null)
+  const [exporting, setExporting] = useState<'selected-1' | 'selected-2' | 'page-1' | 'page-2' | 'page-3' | 'project' | 'pages-1' | 'pages-2' | null>(null)
+  const [exportProgress, setExportProgress] = useState<{ index: number; total: number; pageName: string } | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [members, setMembers] = useState<ProjectMember[]>([])
 
@@ -124,6 +125,24 @@ export function TopToolbar({
     } catch {
       // 导出失败静默
     } finally {
+      setExporting(null)
+      setMoreOpen(false)
+    }
+  }
+
+  /** 批量导出全部页面 PNG：逐页渲染 + 下载，实时显示进度 */
+  const exportAllPages = async (scale: 1 | 2) => {
+    if (doc.pages.length === 0) return
+    setExporting(`pages-${scale}`)
+    setExportProgress(null)
+    try {
+      await exportDocumentPagesAsPng(doc, scale, (index, total, pageName) => {
+        setExportProgress({ index, total, pageName })
+      })
+    } catch {
+      // 导出失败静默
+    } finally {
+      setExportProgress(null)
       setExporting(null)
       setMoreOpen(false)
     }
@@ -197,6 +216,17 @@ export function TopToolbar({
               <button onClick={exportProjectFile} disabled={exporting !== null}>
                 {exporting === 'project' ? '导出中…' : '项目文件 .xgproj'}
               </button>
+              <button onClick={() => exportAllPages(1)} disabled={exporting !== null || doc.pages.length === 0}>
+                {exporting === 'pages-1' ? '导出中…' : '全部页面 PNG @1x'}
+              </button>
+              <button onClick={() => exportAllPages(2)} disabled={exporting !== null || doc.pages.length === 0}>
+                {exporting === 'pages-2' ? '导出中…' : '全部页面 PNG @2x'}
+              </button>
+              {exportProgress && (
+                <div className="more-menu-progress">
+                  正在导出第 {exportProgress.index}/{exportProgress.total} 页（{exportProgress.pageName}）…
+                </div>
+              )}
               <div className="more-menu-divider" />
               {!readOnly && (
                 <button onClick={() => { dispatch({ type: 'CLEAR_HISTORY' }); setMoreOpen(false) }} disabled={state.history.past.length === 0 && state.history.future.length === 0}>
