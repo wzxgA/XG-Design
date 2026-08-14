@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { repository } from '../../services'
 import { clearAuth } from '../../services/auth'
 import { Icon, Watermelon } from '../common/brand'
+import { ConfirmDialog } from '../common/ConfirmDialog'
 import { openProject, createProject, duplicateProject, archiveProject, unarchiveProject, deleteProject, importLocalProject } from '../../services/projectsActions'
 import type { ProjectMeta } from '../../types/project'
 
@@ -22,6 +23,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
   const [busy, setBusy] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState('')
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
 
   const load = useCallback(async (v: View = view) => {
     setLoading(true)
@@ -46,11 +48,15 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
     }
   }
 
-  const onLogout = useCallback(() => {
+  const doLogout = useCallback(() => {
     clearAuth()
     onUserChange(null)
     window.location.hash = '#/login'
   }, [onUserChange])
+
+  const onLogout = useCallback(() => {
+    setLogoutConfirmOpen(true)
+  }, [])
 
   const create = async () => {
     if (busy) return
@@ -216,6 +222,20 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
           </div>
         )}
       </main>
+
+      <ConfirmDialog
+        open={logoutConfirmOpen}
+        title="退出登录"
+        message="确定要退出当前账号吗？"
+        confirmText="退出登录"
+        cancelText="取消"
+        danger
+        onConfirm={() => {
+          setLogoutConfirmOpen(false)
+          doLogout()
+        }}
+        onCancel={() => setLogoutConfirmOpen(false)}
+      />
     </div>
   )
 }

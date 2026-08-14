@@ -10,6 +10,7 @@ import { ProjectsModal } from './components/projects/ProjectsModal'
 import { ProjectsPage } from './components/projects/ProjectsPage'
 import { ShareModal } from './components/share/ShareModal'
 import { AuthPage } from './components/auth/AuthPage'
+import { ConfirmDialog } from './components/common/ConfirmDialog'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { isAuthenticated, clearAuth, getCurrentUser, fetchMe } from './services/auth'
 import type { UserDto } from './services/auth'
@@ -152,6 +153,7 @@ function Editor({ route, user, onUserChange }: {
   const [previewing, setPreviewing] = useState(false)
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
 
   // 只读模式：包装 dispatch，拦截写操作
   const guardedDispatch: EditorDispatch = useCallback(
@@ -207,11 +209,15 @@ function Editor({ route, user, onUserChange }: {
     readOnly, onGroup, onUngroup, onReorder, onZoomIn, onZoomOut, onZoomFit, onZoom100, onSearch,
   })
 
-  const onLogout = useCallback(() => {
+  const doLogout = useCallback(() => {
     clearAuth()
     onUserChange(null)
     window.location.hash = '#/login'
   }, [onUserChange])
+
+  const onLogout = useCallback(() => {
+    setLogoutConfirmOpen(true)
+  }, [])
 
   const goHome = useCallback(() => {
     window.location.hash = '#/projects'
@@ -276,6 +282,19 @@ function Editor({ route, user, onUserChange }: {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={logoutConfirmOpen}
+        title="退出登录"
+        message="确定要退出当前账号吗？未保存的更改可能丢失。"
+        confirmText="退出登录"
+        cancelText="取消"
+        danger
+        onConfirm={() => {
+          setLogoutConfirmOpen(false)
+          doLogout()
+        }}
+        onCancel={() => setLogoutConfirmOpen(false)}
+      />
     </div>
   )
 }
