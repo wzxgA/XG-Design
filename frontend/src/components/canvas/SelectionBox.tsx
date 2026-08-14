@@ -8,6 +8,9 @@ interface Props {
   zoom: number
   dispatch: EditorDispatch
   readOnly?: boolean
+  /** 节点相对 frame 的绝对偏移（group 祖先 x/y 累加），仅用于渲染定位；resize 写回仍用相对坐标 */
+  offsetX?: number
+  offsetY?: number
 }
 
 const HANDLES: { name: ResizeHandle; cls: string }[] = [
@@ -23,7 +26,7 @@ const HANDLES: { name: ResizeHandle; cls: string }[] = [
 
 const CORNER: ResizeHandle[] = ['nw', 'ne', 'sw', 'se']
 
-export function SelectionBox({ node, zoom, dispatch, readOnly = false }: Props) {
+export function SelectionBox({ node, zoom, dispatch, readOnly = false, offsetX = 0, offsetY = 0 }: Props) {
   const startRef = useRef<{ rect: Rect; pointerX: number; pointerY: number; corner: boolean } | null>(null)
   const rotateRef = useRef<{ centerX: number; centerY: number; startAngle: number; startRotation: number } | null>(null)
 
@@ -32,7 +35,7 @@ export function SelectionBox({ node, zoom, dispatch, readOnly = false }: Props) 
     return (
       <div
         className="selection-box readonly"
-        style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+        style={{ left: node.x + offsetX, top: node.y + offsetY, width: node.width, height: node.height }}
         onPointerDown={(e) => e.stopPropagation()}
       />
     )
@@ -110,7 +113,7 @@ export function SelectionBox({ node, zoom, dispatch, readOnly = false }: Props) 
   return (
     <div
       className="selection-box"
-      style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+      style={{ left: node.x + offsetX, top: node.y + offsetY, width: node.width, height: node.height }}
       onPointerDown={(e) => e.stopPropagation()}
     >
       {/* 旋转手柄 */}

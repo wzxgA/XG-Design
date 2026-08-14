@@ -4,7 +4,7 @@ import type { LayerNode } from '../../types/design'
 import { Icon, Watermelon } from '../common/brand'
 import { CanvasObject } from './CanvasObject'
 import { SelectionBox } from './SelectionBox'
-import { createLayer, layerId } from '../../utils/layers'
+import { createLayer, layerId, findNodeWithPath, getNodeAbs, getSiblingsAbs } from '../../utils/layers'
 import { ZOOM_MIN, ZOOM_MAX } from '../../state/editor-reducer'
 
 interface Props {
@@ -30,15 +30,6 @@ export const FRAME_PRESETS: FramePreset[] = [
 
 const FRAME_GAP = 80
 
-function findNodeInFrame(frame: LayerNode, id: string): LayerNode | null {
-  for (const node of frame.children) {
-    if (node.id === id) return node
-    const found = findNodeInFrame(node, id)
-    if (found) return found
-  }
-  return null
-}
-
 /** 收集 frame 内全部叶子节点 */
 function collectLeaves(node: LayerNode, out: LayerNode[] = []): LayerNode[] {
   if (node.children.length === 0) {
@@ -47,19 +38,6 @@ function collectLeaves(node: LayerNode, out: LayerNode[] = []): LayerNode[] {
     node.children.forEach((c) => collectLeaves(c, out))
   }
   return out
-}
-
-/** 查找节点所在父容器与同级节点 */
-function findSiblings(frame: LayerNode, id: string): { parent: LayerNode[]; node: LayerNode } | null {
-  const walk = (children: LayerNode[]): { parent: LayerNode[]; node: LayerNode } | null => {
-    for (const n of children) {
-      if (n.id === id) return { parent: children, node: n }
-      const found = walk(n.children)
-      if (found) return found
-    }
-    return null
-  }
-  return walk(frame.children)
 }
 
 export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
@@ -94,11 +72,21 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
   const contentW = Math.max(frames.reduce((max, f) => Math.max(max, f.x + f.width), 0), 760)
   const contentH = Math.max(frames.reduce((max, f) => Math.max(max, f.y + f.height), 0), 490)
 
-  // 选中节点定位（供 SelectionBox / 多选包围框）
-  const selectedNode = selectedId
-    ? frames.map((f) => findNodeInFrame(f, selectedId)).find(Boolean) ?? undefined
-    : undefined
-  const selectedFrameId = selectedNode ? frames.find((f) => !!findNodeInFrame(f, selectedNode.id))?.id : undefined
+  // 选中节点定位 + 相对 frame 的绝对偏移（供 SelectionBox / 多选包围框 / 坐标栏）
+  const selectedCtx = selectedId
+    ? frames
+        .map((f) => {
+          const ctx = findNodeWithPath(f, selectedId)
+          return ctx ? { frame: f, ctx } : null
+        })
+        .find(Boolean) ?? null
+    : null
+  const selectedNode = selectedCtx?.ctx.node ?? undefined
+  const selectedFrameId = selectedCtx?.frame.id
+  // group 祖先 x/y 累加值，渲染叠加层时加到节点相对坐标上
+  const selectedOffset = selectedCtx
+    ? selectedCtx.ctx.path.reduce((s, n) => ({ x: s.x + n.x, y: s.y + n.y }), { x: 0, y: 0 })
+    : { x: 0, y: 0 }
 
   // ---- 坐标转换：client → frame 局部坐标 ----
   const toFrameCoord = (frameId: string, clientX: number, clientY: number) => {
@@ -362,13 +350,17 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       const frame = frames.find((f) => f.id === m.frameId)
       const rect = m.rect
       if (frame && rect && rect.w > 2 && rect.h > 2) {
-        const hits = collectLeaves(frame).filter(
-          (leaf) =>
-            leaf.x < rect.x + rect.w &&
-            leaf.x + leaf.width > rect.x &&
-            leaf.y < rect.y + rect.h &&
-            leaf.y + leaf.height > rect.y,
-        )
+        // 叶子节点坐标为相对父级坐标，统一换算为 frame 绝对坐标后与框选矩形比较
+        const hits = collectLeaves(frame).filter((leaf) => {
+          const abs = getNodeAbs(frame, leaf.id)
+          if (!abs) return false
+          return (
+            abs.x < rect.x + rect.w &&
+            abs.x + leaf.width > rect.x &&
+            abs.y < rect.y + rect.h &&
+            abs.y + leaf.height > rect.y
+          )
+        })
         if (hits.length > 0) {
           const all = hits.map((n) => n.id)
           dispatch({ type: 'SELECT_LAYERS', ids: all })
@@ -404,45 +396,55 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
     panDragRef.current = null
   }
 
-  // ---- 多选包围框（同 frame 内）----
+  // ---- 多选包围框（同 frame 内，用绝对坐标求并集）----
   const multiNode = (() => {
     if (state.selectedIds.length <= 1 || !selectedFrameId) return null
     const frame = frames.find((f) => f.id === selectedFrameId)
     if (!frame) return null
-    const nodes = state.selectedIds.map((id) => findNodeInFrame(frame, id)).filter((n): n is LayerNode => !!n)
-    if (nodes.length < 2) return null
-    const minX = Math.min(...nodes.map((n) => n.x))
-    const minY = Math.min(...nodes.map((n) => n.y))
-    const maxX = Math.max(...nodes.map((n) => n.x + n.width))
-    const maxY = Math.max(...nodes.map((n) => n.y + n.height))
+    const rects = state.selectedIds
+      .map((id) => {
+        const ctx = findNodeWithPath(frame, id)
+        if (!ctx) return null
+        const ox = ctx.path.reduce((s, n) => s + n.x, 0)
+        const oy = ctx.path.reduce((s, n) => s + n.y, 0)
+        return { x: ctx.node.x + ox, y: ctx.node.y + oy, width: ctx.node.width, height: ctx.node.height }
+      })
+      .filter((r): r is { x: number; y: number; width: number; height: number } => !!r)
+    if (rects.length < 2) return null
+    const minX = Math.min(...rects.map((n) => n.x))
+    const minY = Math.min(...rects.map((n) => n.y))
+    const maxX = Math.max(...rects.map((n) => n.x + n.width))
+    const maxY = Math.max(...rects.map((n) => n.y + n.height))
     return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
   })()
 
-  // ---- Alt 间距标注（选中节点与同级节点的水平/垂直间距）----
+  // ---- Alt 间距标注（选中节点与同级节点的水平/垂直间距，坐标统一换算为 frame 绝对坐标）----
   const spacingGuides = (() => {
     if (!altDown || !selectedNode || !selectedFrameId) return []
     const frame = frames.find((f) => f.id === selectedFrameId)
     if (!frame) return []
-    const ctx = findSiblings(frame, selectedNode.id)
+    const ctx = getSiblingsAbs(frame, selectedNode.id)
     if (!ctx) return []
-    const { parent, node } = ctx
+    const { parent, node, nodeAbs } = ctx
+    const ox = nodeAbs.x
+    const oy = nodeAbs.y
     const guides: { x: number; y: number; w: number; h: number; label: string; axis: 'h' | 'v' }[] = []
-    // 水平间距：左邻右界 / 右邻左界
+    // 水平间距：左邻右界 / 右邻左界（gap 差值两坐标共享偏移可抵消，绘制位置需加 ox/oy）
     const leftNeighbor = parent
       .filter((n) => n.id !== node.id && n.x + n.width <= node.x)
       .sort((a, b) => b.x + b.width - (a.x + a.width))[0]
     if (leftNeighbor) {
       const gap = node.x - (leftNeighbor.x + leftNeighbor.width)
-      const y = node.y + node.height / 2
-      guides.push({ x: leftNeighbor.x + leftNeighbor.width, y, w: gap, h: 1, label: `${Math.round(gap)}px`, axis: 'h' })
+      const y = node.y + node.height / 2 + oy
+      guides.push({ x: leftNeighbor.x + leftNeighbor.width + ox, y, w: gap, h: 1, label: `${Math.round(gap)}px`, axis: 'h' })
     }
     const rightNeighbor = parent
       .filter((n) => n.id !== node.id && n.x >= node.x + node.width)
       .sort((a, b) => a.x - b.x)[0]
     if (rightNeighbor) {
       const gap = rightNeighbor.x - (node.x + node.width)
-      const y = node.y + node.height / 2
-      guides.push({ x: node.x + node.width, y, w: gap, h: 1, label: `${Math.round(gap)}px`, axis: 'h' })
+      const y = node.y + node.height / 2 + oy
+      guides.push({ x: node.x + node.width + ox, y, w: gap, h: 1, label: `${Math.round(gap)}px`, axis: 'h' })
     }
     // 垂直间距
     const topNeighbor = parent
@@ -450,16 +452,16 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       .sort((a, b) => b.y + b.height - (a.y + a.height))[0]
     if (topNeighbor) {
       const gap = node.y - (topNeighbor.y + topNeighbor.height)
-      const x = node.x + node.width / 2
-      guides.push({ x, y: topNeighbor.y + topNeighbor.height, w: 1, h: gap, label: `${Math.round(gap)}px`, axis: 'v' })
+      const x = node.x + node.width / 2 + ox
+      guides.push({ x, y: topNeighbor.y + topNeighbor.height + oy, w: 1, h: gap, label: `${Math.round(gap)}px`, axis: 'v' })
     }
     const bottomNeighbor = parent
       .filter((n) => n.id !== node.id && n.y >= node.y + node.height)
       .sort((a, b) => a.y - b.y)[0]
     if (bottomNeighbor) {
       const gap = bottomNeighbor.y - (node.y + node.height)
-      const x = node.x + node.width / 2
-      guides.push({ x, y: node.y + node.height, w: 1, h: gap, label: `${Math.round(gap)}px`, axis: 'v' })
+      const x = node.x + node.width / 2 + ox
+      guides.push({ x, y: node.y + node.height + oy, w: 1, h: gap, label: `${Math.round(gap)}px`, axis: 'v' })
     }
     return guides
   })()
@@ -522,7 +524,14 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
                 <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={isDrawTool || isClickTool || isPenTool} readOnly={readOnly} />
               ))}
               {selectedFrameId === frame.id && selectedNode && !selectedNode.locked && selectedNode.type !== 'frame' && (
-                <SelectionBox node={selectedNode} zoom={zoom} dispatch={dispatch} readOnly={readOnly} />
+                <SelectionBox
+                  node={selectedNode}
+                  zoom={zoom}
+                  dispatch={dispatch}
+                  readOnly={readOnly}
+                  offsetX={selectedOffset.x}
+                  offsetY={selectedOffset.y}
+                />
               )}
               {selectedFrameId === frame.id && multiNode && (
                 <div className="multi-selection" style={{ left: multiNode.x, top: multiNode.y, width: multiNode.width, height: multiNode.height }} />
@@ -586,7 +595,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       </div>
 
       <div className="canvas-coordinates">
-        {selectedNode ? `X ${selectedNode.x}　Y ${selectedNode.y}` : `选中 ${selectedId ?? '无'}`}
+        {selectedNode ? `X ${selectedNode.x + selectedOffset.x}　Y ${selectedNode.y + selectedOffset.y}` : `选中 ${selectedId ?? '无'}`}
       </div>
     </main>
   )

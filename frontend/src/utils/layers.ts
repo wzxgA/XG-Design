@@ -6,6 +6,49 @@ export function layerId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${counter}`
 }
 
+/** 在 frame 内按 id 查找节点，返回 { node, path }；path 为从 frame 到 node 的祖先链（不含 node 自身） */
+export function findNodeWithPath(root: LayerNode, id: string): { node: LayerNode; path: LayerNode[] } | null {
+  const walk = (children: LayerNode[], path: LayerNode[]): { node: LayerNode; path: LayerNode[] } | null => {
+    for (const n of children) {
+      if (n.id === id) return { node: n, path }
+      const found = walk(n.children, [...path, n])
+      if (found) return found
+    }
+    return null
+  }
+  return walk(root.children, [])
+}
+
+/** 节点相对 frame 的绝对坐标（累加全部 group 祖先的 x/y，忽略 rotation） */
+export function getNodeAbs(root: LayerNode, id: string): { x: number; y: number } | null {
+  const ctx = findNodeWithPath(root, id)
+  if (!ctx) return null
+  let x = 0
+  let y = 0
+  for (const anc of ctx.path) {
+    x += anc.x
+    y += anc.y
+  }
+  return { x: ctx.node.x + x, y: ctx.node.y + y }
+}
+
+/** 查找节点所在父容器与同级节点，返回父容器内所有节点共用的绝对偏移（祖先累积值） */
+export function getSiblingsAbs(
+  root: LayerNode,
+  id: string,
+): { parent: LayerNode[]; node: LayerNode; nodeAbs: { x: number; y: number } } | null {
+  const ctx = findNodeWithPath(root, id)
+  if (!ctx) return null
+  let ox = 0
+  let oy = 0
+  for (const anc of ctx.path) {
+    ox += anc.x
+    oy += anc.y
+  }
+  const parent = ctx.path.length > 0 ? ctx.path[ctx.path.length - 1].children : root.children
+  return { parent, node: ctx.node, nodeAbs: { x: ox, y: oy } }
+}
+
 /** 新建一个默认图层（用于"新建图层"菜单） */
 export function createLayer(kind: 'rectangle' | 'text' | 'frame' | 'group' | 'chart' | 'path', x = 0, y = 0): LayerNode {
   const id = layerId(kind)
