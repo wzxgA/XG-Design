@@ -1,5 +1,6 @@
 import { repository } from './index'
 import { importLocalDocuments } from './importLocal'
+import { downloadProjectFile, parseProjectEnvelope } from './exportProject'
 import type { ProjectMeta } from '../types/project'
 
 export interface ImportOutcome {
@@ -43,6 +44,46 @@ export async function unarchiveProject(id: string): Promise<ProjectMeta[]> {
 export async function deleteProject(id: string): Promise<ProjectMeta[]> {
   await repository.deleteDocument(id)
   return repository.listDocuments(true)
+}
+
+/**
+ * 导出项目为 .xgproj 文件并触发下载。
+ * 从仓储读取完整文档（本地 / 远程通用），导出失败时抛出错误由调用方提示。
+ * @param meta 可选项目元信息（updatedAt 等），用于写入信封
+ */
+export async function exportProject(id: string, meta?: { updatedAt?: number }): Promise<void> {
+  const doc = await repository.getDocument(id)
+  if (!doc) throw new Error('项目不存在或已被删除')
+  downloadProjectFile(doc, meta)
+}
+
+/**
+ * 导入 .xgproj 项目文件：读取文件文本 → 解析校验信封 → 创建新项目。
+ * createDocument 会重新分配 id，避免与现有项目冲突；
+ * 同名项目自动追加序号后缀（如 "设计稿 (2)"）。
+ * @returns 最新项目列表与导入结果
+ */
+export async function importProjectFile(file: File): Promise<{ list: ProjectMeta[]; outcome: ImportOutcome }> {
+  try {
+    const text = await file.text()
+    const doc = parseProjectEnvelope(text)
+    const existing = await repository.listDocuments()
+    const names = new Set(existing.map((p) => p.name))
+    let name = doc.name
+    if (names.has(name)) {
+      let n = 2
+      while (names.has(`${name} (${n})`)) n += 1
+      name = `${name} (${n})`
+    }
+    await repository.createDocument(name, doc)
+    return {
+      list: await repository.listDocuments(),
+      outcome: { ok: true, message: `已导入项目「${name}」` },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '导入失败，请稍后重试'
+    return { list: await repository.listDocuments(), outcome: { ok: false, message } }
+  }
 }
 
 /** 导入本地项目（仅远程模式有意义），返回最新项目列表 */

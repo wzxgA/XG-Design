@@ -5,6 +5,7 @@ import type { ProjectMember, SaveStatus } from '../../types/project'
 import { repository } from '../../services'
 import { Icon, Watermelon, type IconName } from '../common/brand'
 import { exportNodeAsPng, exportPageAsPng } from '../../utils/export'
+import { downloadProjectFile } from '../../services/exportProject'
 import { HistoryModal } from '../history/HistoryModal'
 
 const toolItems: [IconName, string, string, ToolType][] = [
@@ -73,7 +74,7 @@ export function TopToolbar({
   const canUndo = state.history.past.length > 0 && !readOnly
   const canRedo = state.history.future.length > 0 && !readOnly
   const [moreOpen, setMoreOpen] = useState(false)
-  const [exporting, setExporting] = useState<'selected-1' | 'selected-2' | 'page-1' | 'page-2' | 'page-3' | null>(null)
+  const [exporting, setExporting] = useState<'selected-1' | 'selected-2' | 'page-1' | 'page-2' | 'page-3' | 'project' | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [members, setMembers] = useState<ProjectMember[]>([])
 
@@ -109,6 +110,19 @@ export function TopToolbar({
       await exportPageAsPng(page, scale, doc.name)
     } catch {
       // 导出失败静默（空页面等）
+    } finally {
+      setExporting(null)
+      setMoreOpen(false)
+    }
+  }
+
+  /** 导出项目文件（.xgproj）：直接序列化编辑器当前文档，无需重新拉取 */
+  const exportProjectFile = () => {
+    setExporting('project')
+    try {
+      downloadProjectFile(doc, { updatedAt: doc.updatedAt })
+    } catch {
+      // 导出失败静默
     } finally {
       setExporting(null)
       setMoreOpen(false)
@@ -177,6 +191,11 @@ export function TopToolbar({
               </button>
               <button onClick={() => exportPage(3)} disabled={exporting !== null}>
                 {exporting === 'page-3' ? '导出中…' : 'PNG @3x'}
+              </button>
+              <div className="more-menu-divider" />
+              <div className="more-menu-label">导出项目</div>
+              <button onClick={exportProjectFile} disabled={exporting !== null}>
+                {exporting === 'project' ? '导出中…' : '项目文件 .xgproj'}
               </button>
               <div className="more-menu-divider" />
               {!readOnly && (

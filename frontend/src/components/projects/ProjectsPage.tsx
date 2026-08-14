@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { repository } from '../../services'
 import { clearAuth } from '../../services/auth'
 import { Icon, Watermelon } from '../common/brand'
 import { ConfirmDialog } from '../common/ConfirmDialog'
-import { openProject, createProject, duplicateProject, archiveProject, unarchiveProject, deleteProject, importLocalProject } from '../../services/projectsActions'
+import { openProject, createProject, duplicateProject, archiveProject, unarchiveProject, deleteProject, exportProject, importProjectFile } from '../../services/projectsActions'
 import type { ProjectMeta } from '../../types/project'
 
 interface Props {
@@ -109,12 +109,29 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
     }
   }
 
-  const importLocal = async () => {
-    if (importing || repository.kind === 'local') return
+  const exportFile = async (p: ProjectMeta) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await exportProject(p.id, { updatedAt: p.updatedAt })
+    } catch (err) {
+      alert(`导出失败：${err instanceof Error ? err.message : '请稍后重试'}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  /** 选择 .xgproj 文件后导入，结果（成功/失败原因）显示在导入行 */
+  const onImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || importing) return
     setImporting(true)
     setImportResult('')
     try {
-      const { list, outcome } = await importLocalProject()
+      const { list, outcome } = await importProjectFile(file)
       setProjects(list)
       setImportResult(outcome.message)
     } finally {
@@ -156,12 +173,19 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
           </div>
         </div>
 
-        {view === 'active' && repository.kind === 'remote' && (
+        {view === 'active' && (
           <div className="projects-import-row">
-            <button className="import-local-btn" onClick={importLocal} disabled={importing}>
-              {importing ? '导入中…' : '导入本地项目'}
+            <button className="import-local-btn" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+              {importing ? '导入中…' : '导入项目文件'}
             </button>
             {importResult && <span className="import-result">{importResult}</span>}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xgproj,application/json"
+              style={{ display: 'none' }}
+              onChange={onImportFileChange}
+            />
           </div>
         )}
 
@@ -208,6 +232,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
                     <>
                       <button title="打开项目" onClick={() => openProject(p.id)}>打开</button>
                       <button title="复制项目" onClick={() => duplicate(p.id)} disabled={busy}>复制</button>
+                      <button title="导出为 .xgproj 文件" onClick={() => exportFile(p)} disabled={busy}>导出</button>
                       <button title="归档项目" onClick={() => archive(p.id)} disabled={busy}>归档</button>
                     </>
                   ) : (
