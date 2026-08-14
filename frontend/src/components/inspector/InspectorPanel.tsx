@@ -4,7 +4,7 @@ import type { LayerNode, PrototypeLink } from '../../types/design'
 import { Icon } from '../common/brand'
 import { PropertyInput } from './PropertyInput'
 import { MIN_SIZE } from '../../utils/geometry'
-import { exportNodeAsPng } from '../../utils/export'
+import { exportPageAsPng } from '../../utils/export'
 import { toCss, toJson, checkLayer } from '../../utils/inspect'
 
 interface Props {
@@ -283,11 +283,11 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
   const [exportScale, setExportScale] = useState(2)
 
   const handleExport = async () => {
-    if (!selected || exporting) return
+    if (exporting) return
     setExporting(true)
     setExportError('')
     try {
-      await exportNodeAsPng(selected, exportScale)
+      await exportPageAsPng(activePage, exportScale, state.document.name)
     } catch (err) {
       setExportError(err instanceof Error ? err.message : '导出失败，请重试')
     } finally {
@@ -437,24 +437,6 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
           )}
 
 
-          <section className="property-section export-section">
-            <div className="section-heading">导出 <span>＋</span></div>
-            <div className="export-row">
-              <span className="export-format">PNG</span>
-              <div className="export-scale-group">
-                {([1, 2, 3] as const).map((s) => (
-                  <button
-                    key={s}
-                    className={`export-scale-btn ${exportScale === s ? 'active' : ''}`}
-                    onClick={() => setExportScale(s)}
-                    title={`导出 ${s}x 倍图`}
-                  >{s}x</button>
-                ))}
-              </div>
-            </div>
-            <button className="export-button" onClick={handleExport} disabled={exporting}>{exporting ? '导出中…' : `导出 ${selected.name}`} <Icon name="external" /></button>
-            {exportError && <div className="export-error">{exportError}</div>}
-          </section>
         </>
       ) : (
         <div className="empty-inspector">
@@ -462,6 +444,27 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
           <strong>{tab === 'design' ? '设计' : tab === 'prototype' ? '原型' : '检查'}设置</strong>
           <span>在画布或图层中选择一个对象</span>
         </div>
+      )}
+
+      {tab === 'design' && (
+        <section className="property-section export-section">
+          <div className="section-heading">导出 <span>＋</span></div>
+          <div className="export-row">
+            <span className="export-format">PNG</span>
+            <div className="export-scale-group">
+              {([1, 2, 3] as const).map((s) => (
+                <button
+                  key={s}
+                  className={`export-scale-btn ${exportScale === s ? 'active' : ''}`}
+                  onClick={() => setExportScale(s)}
+                  title={`导出 ${s}x 倍图`}
+                >{s}x</button>
+              ))}
+            </div>
+          </div>
+          <button className="export-button" onClick={handleExport} disabled={exporting}>{exporting ? '导出中…' : '导出整页'} <Icon name="external" /></button>
+          {exportError && <div className="export-error">{exportError}</div>}
+        </section>
       )}
 
       <div className="inspector-footer"><span>按住 <kbd>⌥</kbd> 查看间距</span><span><Icon name="lock" /> 解锁图层</span></div>

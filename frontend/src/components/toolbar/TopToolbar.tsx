@@ -4,7 +4,7 @@ import type { DesignDocument, LayerNode } from '../../types/design'
 import type { ProjectMember, SaveStatus } from '../../types/project'
 import { repository } from '../../services'
 import { Icon, Watermelon, type IconName } from '../common/brand'
-import { exportNodeAsPng } from '../../utils/export'
+import { exportNodeAsPng, exportPageAsPng } from '../../utils/export'
 import { HistoryModal } from '../history/HistoryModal'
 
 const toolItems: [IconName, string, string, ToolType][] = [
@@ -73,7 +73,7 @@ export function TopToolbar({
   const canUndo = state.history.past.length > 0 && !readOnly
   const canRedo = state.history.future.length > 0 && !readOnly
   const [moreOpen, setMoreOpen] = useState(false)
-  const [exporting, setExporting] = useState<1 | 2 | null>(null)
+  const [exporting, setExporting] = useState<'selected-1' | 'selected-2' | 'page-1' | 'page-2' | 'page-3' | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [members, setMembers] = useState<ProjectMember[]>([])
 
@@ -90,11 +90,25 @@ export function TopToolbar({
   const exportSelected = async (scale: 1 | 2) => {
     const selected = findLayerInDoc(doc, state.selectedIds[0] ?? '')
     if (!selected) return
-    setExporting(scale)
+    setExporting(`selected-${scale}`)
     try {
       await exportNodeAsPng(selected, scale)
     } catch {
       // 导出失败静默
+    } finally {
+      setExporting(null)
+      setMoreOpen(false)
+    }
+  }
+
+  const exportPage = async (scale: 1 | 2 | 3) => {
+    const page = doc.pages.find((p) => p.id === doc.activePageId)
+    if (!page) return
+    setExporting(`page-${scale}`)
+    try {
+      await exportPageAsPng(page, scale, doc.name)
+    } catch {
+      // 导出失败静默（空页面等）
     } finally {
       setExporting(null)
       setMoreOpen(false)
@@ -146,12 +160,23 @@ export function TopToolbar({
           <button className="tool-button more" onClick={() => setMoreOpen((v) => !v)}>•••</button>
           {moreOpen && (
             <div className="more-menu">
-              <div className="more-menu-label">导出</div>
+              <div className="more-menu-label">导出选中</div>
               <button onClick={() => exportSelected(1)} disabled={exporting !== null}>
-                {exporting === 1 ? '导出中…' : 'PNG @1x'}
+                {exporting === 'selected-1' ? '导出中…' : 'PNG @1x'}
               </button>
               <button onClick={() => exportSelected(2)} disabled={exporting !== null}>
-                {exporting === 2 ? '导出中…' : 'PNG @2x'}
+                {exporting === 'selected-2' ? '导出中…' : 'PNG @2x'}
+              </button>
+              <div className="more-menu-divider" />
+              <div className="more-menu-label">导出整页</div>
+              <button onClick={() => exportPage(1)} disabled={exporting !== null}>
+                {exporting === 'page-1' ? '导出中…' : 'PNG @1x'}
+              </button>
+              <button onClick={() => exportPage(2)} disabled={exporting !== null}>
+                {exporting === 'page-2' ? '导出中…' : 'PNG @2x'}
+              </button>
+              <button onClick={() => exportPage(3)} disabled={exporting !== null}>
+                {exporting === 'page-3' ? '导出中…' : 'PNG @3x'}
               </button>
               <div className="more-menu-divider" />
               {!readOnly && (
