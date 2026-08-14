@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
-import { Icon, EyeOpen, EyeClosed, LockClosed, LockOpen, type IconName } from '../common/brand'
+import { ComponentGlyph, Icon, EyeOpen, EyeClosed, LockClosed, LockOpen, type IconName } from '../common/brand'
 import { createLayer, isComponentNode } from '../../utils/layers'
 import { COMPONENT_TEMPLATES, buildComponent } from '../../fixtures/component-library'
 import { layerId } from '../../utils/layers'
@@ -151,7 +151,7 @@ function ComponentGrid({ dispatch, readOnly, activePage }: {
           onClick={() => insert(tpl.name)}
           title={`插入「${tpl.name}」到当前画板`}
         >
-          <span className={`component-tile-icon ${dragging === tpl.name ? 'dragging' : ''}`}>{tpl.short.slice(0, 1)}</span>
+          <span className={`component-tile-icon ${dragging === tpl.name ? 'dragging' : ''}`}><ComponentGlyph name={tpl.name} /></span>
           <span className="component-tile-name">{tpl.short}</span>
         </button>
       ))}

@@ -1,5 +1,7 @@
 // 图标与西瓜品牌组件（CSS/字符绘制）
 
+import type { ReactNode } from 'react'
+
 export type IconName =
   | 'cursor' | 'frame' | 'rect' | 'pen' | 'text' | 'comment' | 'grid'
   | 'search' | 'bell' | 'play' | 'eye' | 'lock' | 'chevron' | 'plus' | 'minus'
@@ -61,4 +63,24 @@ export function LockOpen({ className = '' }: { className?: string }) {
 
 export function Watermelon({ className = '' }: { className?: string }) {
   return <span className={`watermelon ${className}`} aria-hidden="true"><i /><b /><em /><small /></span>
+}
+
+/** 组件库磁贴图标：与组件模板一一对应的 SVG 线性图标 */
+const componentGlyphs: Record<string, ReactNode> = {
+  按钮: (<><rect x="3" y="8" width="18" height="9" rx="4.5" /><line x1="9" y1="12.5" x2="15" y2="12.5" /></>),
+  输入框: (<><rect x="3" y="8" width="18" height="9" rx="2" /><line x1="7" y1="10.5" x2="7" y2="14.5" /></>),
+  图片占位: (<><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="10" r="1.5" /><path d="M21 15.5 16 10.5 6 19" /></>),
+  导航栏: (<><rect x="3" y="8" width="18" height="8" rx="2" /><line x1="6.5" y1="12" x2="8.5" y2="12" /><line x1="11" y1="12" x2="13" y2="12" /><line x1="15.5" y1="12" x2="17.5" y2="12" /></>),
+  卡片: (<><rect x="4" y="4" width="16" height="16" rx="2" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="7.5" y1="16" x2="13" y2="16" /></>),
+  标签: (<><path d="M3 3h8l10 10-8 8L3 11V3z" /><circle cx="7.5" cy="7.5" r="1.5" /></>),
+  分割线: (<><line x1="4" y1="12" x2="20" y2="12" /><line x1="8" y1="7" x2="16" y2="7" /><line x1="8" y1="17" x2="16" y2="17" /></>),
+  柱状图: (<><line x1="5" y1="20" x2="5" y2="12" /><line x1="10" y1="20" x2="10" y2="6" /><line x1="15" y1="20" x2="15" y2="14" /><line x1="20" y1="20" x2="20" y2="9" /></>),
+}
+
+export function ComponentGlyph({ name, className = '' }: { name: string; className?: string }) {
+  return (
+    <svg className={`component-glyph ${className}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {componentGlyphs[name] ?? <rect x="4" y="4" width="16" height="16" rx="2" />}
+    </svg>
+  )
 }
