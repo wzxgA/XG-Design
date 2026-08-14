@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode, PrototypeLink } from '../../types/design'
 import { Icon } from '../common/brand'
@@ -58,8 +59,7 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
         <Icon name="chevron" />
       </div>
 
-      <section className="property-section">
-        <div className="section-heading">连接 <span>＋</span></div>
+      <Section title="连接" hint="＋">
         {otherPages.length === 0 ? (
           <div className="inspect-hint">没有其他页面可连接，请先新建页面。</div>
         ) : readOnly ? (
@@ -83,11 +83,10 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
             <button className="export-button" onClick={addLink} disabled={!targetPageId}>添加跳转连接 <Icon name="plus" /></button>
           </>
         )}
-      </section>
+      </Section>
 
       {links.length > 0 && (
-        <section className="property-section">
-          <div className="section-heading">已配置的连接</div>
+        <Section title="已配置的连接">
           {links.map((link) => {
             const target = state.document.pages.find((p) => p.id === link.targetPageId)
             return (
@@ -99,7 +98,7 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
               </div>
             )
           })}
-        </section>
+        </Section>
       )}
     </div>
   )
@@ -126,8 +125,7 @@ function InspectPanel({ state, selected }: { state: EditorState; selected: Layer
         <Icon name="chevron" />
       </div>
 
-      <section className="property-section">
-        <div className="section-heading">属性</div>
+      <Section title="属性">
         <div className="inspect-grid">
           <div><span>类型</span><b>{selected.type}</b></div>
           <div><span>X / Y</span><b>{selected.x} / {selected.y}</b></div>
@@ -142,22 +140,19 @@ function InspectPanel({ state, selected }: { state: EditorState; selected: Layer
             </>
           )}
         </div>
-      </section>
+      </Section>
 
-      <section className="property-section">
-        <div className="section-heading">CSS <span>＋</span></div>
+      <Section title="CSS" hint="＋">
         <pre className="code-block">{toCss(selected)}</pre>
         <button className="export-button" onClick={() => copy('css', toCss(selected))}>{copied === 'css' ? '已复制 ✓' : '复制 CSS'} <Icon name="external" /></button>
-      </section>
+      </Section>
 
-      <section className="property-section">
-        <div className="section-heading">JSON <span>＋</span></div>
+      <Section title="JSON" hint="＋">
         <pre className="code-block">{toJson(selected)}</pre>
         <button className="export-button" onClick={() => copy('json', toJson(selected))}>{copied === 'json' ? '已复制 ✓' : '复制 JSON'} <Icon name="external" /></button>
-      </section>
+      </Section>
 
-      <section className="property-section">
-        <div className="section-heading">设计检查</div>
+      <Section title="设计检查">
         {issues.length === 0 ? (
           <div className="inspect-ok">✓ 未发现问题</div>
         ) : (
@@ -165,7 +160,7 @@ function InspectPanel({ state, selected }: { state: EditorState; selected: Layer
             {issues.map((issue, i) => <li key={i} className="issue-item">⚠ {issue.message}</li>)}
           </ul>
         )}
-      </section>
+      </Section>
     </div>
   )
 }
@@ -265,6 +260,20 @@ function ChartEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: 
   )
 }
 
+/** 可折叠属性分区：点击标题行收起/展开（子内容用 CSS 隐藏，内部状态得以保留） */
+function Section({ title, hint, className, defaultOpen = true, children }: { title: string; hint?: string; className?: string; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <section className={`property-section collapsible${open ? '' : ' collapsed'}${className ? ` ${className}` : ''}`}>
+      <div className="section-heading" onClick={() => setOpen((o) => !o)} title={open ? '点击折叠' : '点击展开'}>
+        <span className="section-name"><span className="section-caret">▾</span>{title}</span>
+        {hint && <span>{hint}</span>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
 export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
   const tab = state.inspectorTab
   const activePage = state.document.pages.find((p) => p.id === state.document.activePageId)!
@@ -293,6 +302,22 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
   const [exportError, setExportError] = useState('')
   const [exportScale, setExportScale] = useState(2)
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [scrolled, setScrolled] = useState(false)
+  const selectedId = selected?.id ?? ''
+
+  // 切换选中对象 / 切换 tab 时滚动回顶部；编辑属性时位置保持不变
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = 0
+    setScrolled(false)
+  }, [selectedId, tab])
+
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (el) setScrolled(el.scrollTop > 2)
+  }
+
   const handleExport = async () => {
     if (exporting) return
     setExporting(true)
@@ -316,6 +341,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
         ))}
       </div>
 
+      <div ref={scrollRef} className={`inspector-scroll${scrolled ? ' is-scrolled' : ''}`} onScroll={handleScroll}>
       {tab === 'prototype' && selected ? (
         <PrototypePanel state={state} dispatch={dispatch} selected={selected} readOnly={readOnly} />
       ) : tab === 'inspect' && selected ? (
@@ -329,8 +355,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
           </div>
 
           {selected.type === 'text' && (
-            <section className="property-section">
-              <div className="section-heading">文本 <span>＋</span></div>
+            <Section title="文本" hint="＋">
               <div className="style-line text-content-line">
                 <span className="style-label">内容</span>
                 <textarea
@@ -357,11 +382,10 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                   <option value={700}>粗体 700</option>
                 </select>
               </div>
-            </section>
+            </Section>
           )}
 
-          <section className="property-section">
-            <div className="section-heading">位置与尺寸 <span>↔</span></div>
+          <Section title="位置与尺寸" hint="↔">
             <div className="property-grid">
               <PropertyInput label="X" value={selected.x} disabled={readOnly} onChange={(v) => patch({ x: v })} />
               <PropertyInput label="Y" value={selected.y} disabled={readOnly} onChange={(v) => patch({ y: v })} />
@@ -372,11 +396,10 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
               <PropertyInput label="↻" value={selected.rotation} disabled={readOnly} onChange={(v) => patch({ rotation: v })} />
               <PropertyInput label="◒" value={selected.style.cornerRadius ?? 0} min={0} disabled={readOnly} onChange={(v) => patchStyle({ cornerRadius: v })} />
             </div>
-          </section>
+          </Section>
 
           {componentChildren && (componentChildren.bgRect || componentChildren.textNodes.length > 0) && (
-            <section className="property-section">
-              <div className="section-heading">组件 <span>＋</span></div>
+            <Section title="组件" hint="＋">
               {componentChildren.bgRect && (
                 <>
                   <div className="style-line">
@@ -422,11 +445,10 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                   </div>
                 </div>
               ))}
-            </section>
+            </Section>
           )}
 
-          <section className="property-section">
-            <div className="section-heading">填充 <span>＋</span></div>
+          <Section title="填充" hint="＋">
             {selected.type === 'frame' ? (
               <div className="style-line">
                 <span className="style-label">背景</span>
@@ -449,11 +471,10 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                 onChange={(e) => patchStyle({ opacity: +e.target.value / 100 })} />
               <span className="style-value">{Math.round((selected.style.opacity ?? 1) * 100)}%</span>
             </div>
-          </section>
+          </Section>
 
           {selected.type !== 'text' && !isComponentGroup && (
-            <section className="property-section">
-              <div className="section-heading">描边 <span>＋</span></div>
+            <Section title="描边" hint="＋">
               <div className="style-line">
                 <span className="style-label">颜色</span>
                 <ColorField value={selected.style.stroke} allowEmpty onChange={(v) => patchStyle({ stroke: v })} />
@@ -464,24 +485,21 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                   <PropertyInput label="" value={selected.style.strokeWidth ?? 1} min={0} disabled={readOnly} onChange={(v) => patchStyle({ strokeWidth: v })} />
                 </div>
               )}
-            </section>
+            </Section>
           )}
 
-          <section className="property-section">
-            <div className="section-heading">效果 <span>＋</span></div>
+          <Section title="效果" hint="＋">
             <ShadowEditor value={selected.style.shadow} onChange={(v) => patchStyle({ shadow: v })} readOnly={readOnly} />
-          </section>
+          </Section>
 
           {selected.type === 'chart' && (
-            <section className="property-section">
-              <div className="section-heading">图表数据 <span>＋</span></div>
+            <Section title="图表数据" hint="＋">
               <ChartEditor node={selected} dispatch={dispatch} readOnly={readOnly} />
-            </section>
+            </Section>
           )}
 
           {selected.type === 'comment' && (
-            <section className="property-section">
-              <div className="section-heading">评论 <span>＋</span></div>
+            <Section title="评论" hint="＋">
               <textarea className="comment-textarea" value={selected.content ?? ''} rows={3} placeholder="输入评论内容…"
                 onChange={(e) => patch({ content: e.target.value, name: e.target.value ? e.target.value.slice(0, 12) : '评论' })} />
               {(selected.replies ?? []).length > 0 && (
@@ -495,7 +513,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                   ))}
                 </div>
               )}
-            </section>
+            </Section>
           )}
 
 
@@ -509,8 +527,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
       )}
 
       {tab === 'design' && (
-        <section className="property-section export-section">
-          <div className="section-heading">导出 <span>＋</span></div>
+        <Section title="导出" hint="＋" className="export-section">
           <div className="export-row">
             <span className="export-format">PNG</span>
             <div className="export-scale-group">
@@ -526,8 +543,9 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
           </div>
           <button className="export-button" onClick={handleExport} disabled={exporting}>{exporting ? '导出中…' : '导出整页'} <Icon name="external" /></button>
           {exportError && <div className="export-error">{exportError}</div>}
-        </section>
+        </Section>
       )}
+      </div>
 
       <div className="inspector-footer"><span>按住 <kbd>⌥</kbd> 查看间距</span><span><Icon name="lock" /> 解锁图层</span></div>
     </aside>
