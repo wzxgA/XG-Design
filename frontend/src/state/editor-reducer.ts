@@ -85,7 +85,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return {
         ...state,
         document: action.doc,
-        selectedIds: action.selectInitial ? ['grp-data-cards'] : [],
+        selectedIds: [],
         history: emptyHistory(),
       }
 

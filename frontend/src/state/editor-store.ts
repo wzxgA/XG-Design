@@ -87,7 +87,7 @@ async function loadInitial(
 function blankState(): EditorState {
   return {
     document: initDocument(),
-    selectedIds: ['grp-data-cards'],
+    selectedIds: [],
     activeTool: 'select',
     zoom: 100,
     pan: { x: 0, y: 0 },
