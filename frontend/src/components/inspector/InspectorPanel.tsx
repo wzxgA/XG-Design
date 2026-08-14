@@ -278,6 +278,17 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
     if (!selected || readOnly) return
     dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [selected.id], patch: { style } })
   }
+  const patchChild = (childId: string, p: Partial<LayerNode> & { style?: Partial<LayerNode['style']> }) => {
+    if (readOnly) return
+    dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [childId], patch: p })
+  }
+  const isComponentGroup = selected?.type === 'group' && selected.children.length > 0
+  const componentChildren = isComponentGroup
+    ? {
+        bgRect: selected.children.find((c) => c.type === 'rectangle'),
+        textNodes: selected.children.filter((c) => c.type === 'text'),
+      }
+    : null
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
   const [exportScale, setExportScale] = useState(2)
@@ -363,6 +374,57 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
             </div>
           </section>
 
+          {componentChildren && (componentChildren.bgRect || componentChildren.textNodes.length > 0) && (
+            <section className="property-section">
+              <div className="section-heading">组件 <span>＋</span></div>
+              {componentChildren.bgRect && (
+                <>
+                  <div className="style-line">
+                    <span className="style-label">背景色</span>
+                    <ColorField value={componentChildren.bgRect.style.fill} allowEmpty onChange={(v) => patchChild(componentChildren.bgRect!.id, { style: { fill: v } })} />
+                  </div>
+                  <div className="style-line">
+                    <span className="style-label">圆角</span>
+                    <PropertyInput label="" value={componentChildren.bgRect.style.cornerRadius ?? 0} min={0} disabled={readOnly} onChange={(v) => patchChild(componentChildren.bgRect!.id, { style: { cornerRadius: v } })} />
+                  </div>
+                  <div className="style-line">
+                    <span className="style-label">边框</span>
+                    <ColorField value={componentChildren.bgRect.style.stroke} allowEmpty onChange={(v) => patchChild(componentChildren.bgRect!.id, { style: { stroke: v } })} />
+                  </div>
+                  {componentChildren.bgRect.style.stroke && (
+                    <div className="style-line">
+                      <span className="style-label">边框宽度</span>
+                      <PropertyInput label="" value={componentChildren.bgRect.style.strokeWidth ?? 1} min={0} disabled={readOnly} onChange={(v) => patchChild(componentChildren.bgRect!.id, { style: { strokeWidth: v } })} />
+                    </div>
+                  )}
+                </>
+              )}
+              {componentChildren.textNodes.map((tn, i) => (
+                <div key={tn.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined, paddingTop: i > 0 ? 8 : 0 }}>
+                  <div className="style-line text-content-line">
+                    <span className="style-label">{componentChildren.textNodes.length > 1 ? `文字${i + 1}` : '文字'}</span>
+                    <textarea
+                      className="comment-textarea"
+                      rows={2}
+                      placeholder="输入文字…"
+                      disabled={readOnly}
+                      value={tn.content ?? ''}
+                      onChange={(e) => patchChild(tn.id, { content: e.target.value })}
+                    />
+                  </div>
+                  <div className="style-line">
+                    <span className="style-label">文字色</span>
+                    <ColorField value={tn.style.fontColor ?? tn.style.color} onChange={(v) => patchChild(tn.id, { style: { fontColor: v, color: v } })} />
+                  </div>
+                  <div className="style-line">
+                    <span className="style-label">字号</span>
+                    <PropertyInput label="" value={tn.style.fontSize ?? 14} min={8} disabled={readOnly} onChange={(v) => patchChild(tn.id, { style: { fontSize: v } })} />
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
+
           <section className="property-section">
             <div className="section-heading">填充 <span>＋</span></div>
             {selected.type === 'frame' ? (
@@ -375,7 +437,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                 <span className="style-label">字体色</span>
                 <ColorField value={selected.style.fontColor ?? selected.style.color} onChange={(v) => patchStyle({ fontColor: v, color: v })} />
               </div>
-            ) : (
+            ) : isComponentGroup ? null : (
               <div className="style-line">
                 <span className="style-label">填充</span>
                 <ColorField value={selected.style.fill} allowEmpty onChange={(v) => patchStyle({ fill: v })} />
@@ -389,7 +451,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
             </div>
           </section>
 
-          {selected.type !== 'text' && (
+          {selected.type !== 'text' && !isComponentGroup && (
             <section className="property-section">
               <div className="section-heading">描边 <span>＋</span></div>
               <div className="style-line">

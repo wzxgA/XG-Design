@@ -60,6 +60,19 @@ function regenerateIds(node: LayerNode): LayerNode {
   return { ...node, id: layerId(node.type), children: node.children.map(regenerateIds) }
 }
 
+/** 旧文档迁移：将由「组件背景」子节点构成的 group 标记为一体化组件 */
+function migrateComponents(doc: DesignDocument): DesignDocument {
+  const walk = (nodes: LayerNode[]): LayerNode[] =>
+    nodes.map((node) => {
+      const next = { ...node, children: walk(node.children) }
+      if (next.type === 'group' && !next.component && next.children.some((c) => c.name === '组件背景')) {
+        next.component = next.name
+      }
+      return next
+    })
+  return { ...doc, pages: doc.pages.map((p) => ({ ...p, children: walk(p.children) })) }
+}
+
 // ---- 历史记录辅助 ----
 
 /** 在文档变更前记录快照：将当前文档压入 past，清空 future */
@@ -84,7 +97,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case 'LOAD_DOCUMENT':
       return {
         ...state,
-        document: action.doc,
+        document: migrateComponents(action.doc),
         selectedIds: [],
         history: emptyHistory(),
       }

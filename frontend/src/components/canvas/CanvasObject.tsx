@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
+import { isComponentNode } from '../../utils/layers'
 
 interface Props {
   node: LayerNode
@@ -9,6 +10,8 @@ interface Props {
   drawing?: boolean
   /** 只读模式：禁用文本双击编辑、评论编辑（预览 / 分享只读场景） */
   readOnly?: boolean
+  /** 被动模式：不响应指针事件（组件子节点，交互由组件整体接管） */
+  passive?: boolean
 }
 
 function findBoard(state: EditorState): LayerNode | undefined {
@@ -21,7 +24,7 @@ function findBoard(state: EditorState): LayerNode | undefined {
  * 将 LayerNode 树按绝对坐标渲染为 HTML，隐藏节点不渲染，选中节点显示边框。
  * 支持拖拽移动对象（锁定节点不可移动）、Shift 多选、多选整体拖拽。
  */
-export function CanvasObject({ node, state, dispatch, drawing = false, readOnly = false }: Props) {
+export function CanvasObject({ node, state, dispatch, drawing = false, readOnly = false, passive = false }: Props) {
   const startRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null)
   const movedRef = useRef(false)
 
@@ -42,6 +45,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     opacity: node.style.opacity ?? 1,
     transform: node.rotation ? `rotate(${node.rotation}deg)` : undefined,
     cursor: node.locked ? 'default' : 'move',
+    pointerEvents: passive ? 'none' : undefined,
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -100,7 +104,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     startRef.current = null
   }
 
-  const base = {
+  const base = passive ? {} : {
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -110,7 +114,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
   if (node.children.length > 0) {
     return (
       <div className={`canvas-group ${outline}`} style={style} {...base}>
-        {node.children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} />)}
+        {node.children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} passive={passive || isComponentNode(node)} />)}
       </div>
     )
   }

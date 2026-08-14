@@ -51,6 +51,8 @@ export interface LayerNode {
   points?: { x: number; y: number }[]
   /** 评论节点回复列表 */
   replies?: CommentReply[]
+  /** 组件标记：该 group 为一体化组件（背景/文字作为整体编辑，子节点不单独选中） */
+  component?: string
   style: LayerStyle
   children: LayerNode[]
 }

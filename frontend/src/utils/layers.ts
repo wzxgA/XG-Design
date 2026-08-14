@@ -6,6 +6,15 @@ export function layerId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${counter}`
 }
 
+/**
+ * 判断节点是否为一体化组件。
+ * 优先看 component 标记；旧数据（含 HMR 期间未迁移的内存数据）没有标记时，
+ * 以结构兜底：group 且含名为「组件背景」的子节点即视为组件。
+ */
+export function isComponentNode(node: LayerNode): boolean {
+  return node.type === 'group' && (!!node.component || node.children.some((c) => c.name === '组件背景'))
+}
+
 /** 在 frame 内按 id 查找节点，返回 { node, path }；path 为从 frame 到 node 的祖先链（不含 node 自身） */
 export function findNodeWithPath(root: LayerNode, id: string): { node: LayerNode; path: LayerNode[] } | null {
   const walk = (children: LayerNode[], path: LayerNode[]): { node: LayerNode; path: LayerNode[] } | null => {

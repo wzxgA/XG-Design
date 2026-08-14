@@ -4,7 +4,8 @@ import type { LayerNode } from '../../types/design'
 import { Icon, Watermelon } from '../common/brand'
 import { CanvasObject } from './CanvasObject'
 import { SelectionBox } from './SelectionBox'
-import { createLayer, layerId, findNodeWithPath, getNodeAbs, getSiblingsAbs } from '../../utils/layers'
+import { createLayer, findNodeWithPath, getNodeAbs, getSiblingsAbs } from '../../utils/layers'
+import { buildComponent } from '../../fixtures/component-library'
 import { ZOOM_MIN, ZOOM_MAX } from '../../state/editor-reducer'
 
 interface Props {
@@ -608,16 +609,10 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
 }
 
+/** 拖拽落点插入组件：复用组件库模板（带 component 标记），并以落点为中心 */
 function buildComponentLayer(templateId: string, x: number, y: number): LayerNode {
-  const id = layerId('group')
-  const w = 200
-  const h = 120
-  return {
-    id, type: 'group', name: templateId, x: Math.max(0, x - w / 2), y: Math.max(0, y - h / 2), width: w, height: h,
-    rotation: 0, visible: true, locked: false, expanded: true, style: { opacity: 1 },
-    children: [
-      { id: layerId('rect'), type: 'rectangle', name: '组件背景', x: 0, y: 0, width: w, height: h, rotation: 0, visible: true, locked: false, style: { opacity: 1, fill: '#ffffff', stroke: '#c9d4d8', strokeWidth: 1, cornerRadius: 8 }, children: [] },
-      { id: layerId('text'), type: 'text', name: '组件名称', x: 10, y: 10, width: w - 20, height: 20, rotation: 0, visible: true, locked: false, content: templateId, style: { opacity: 1, color: '#5c6b72', fontSize: 12, fontWeight: 600 }, children: [] },
-    ],
-  }
+  const node = buildComponent(templateId, 0, 0)
+  node.x = Math.max(0, x - node.width / 2)
+  node.y = Math.max(0, y - node.height / 2)
+  return node
 }

@@ -13,6 +13,7 @@ function group(w: number, h: number, name: string, children: LayerNode[]): Layer
   return {
     id: layerId('group'), type: 'group', name, x: 0, y: 0, width: w, height: h,
     rotation: 0, visible: true, locked: false, expanded: true, style: { opacity: 1 }, children,
+    component: name,
   }
 }
 

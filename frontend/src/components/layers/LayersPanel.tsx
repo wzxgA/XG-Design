@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
 import { Icon, EyeOpen, EyeClosed, LockClosed, LockOpen, type IconName } from '../common/brand'
-import { createLayer } from '../../utils/layers'
+import { createLayer, isComponentNode } from '../../utils/layers'
 import { COMPONENT_TEMPLATES, buildComponent } from '../../fixtures/component-library'
 import { layerId } from '../../utils/layers'
 
@@ -40,6 +40,9 @@ function LayerTreeItem({ node, depth, dispatch, selectedIds, readOnly, onContext
 }) {
   const selected = selectedIds.includes(node.id)
   const hasChildren = node.children.length > 0
+  // 一体化组件：图层树中显示为单行，不展开子节点（含旧数据结构兜底）
+  const isComponent = isComponentNode(node)
+  const expandable = hasChildren && !isComponent
   const isRenaming = renamingId === node.id
 
   return (
@@ -62,9 +65,9 @@ function LayerTreeItem({ node, depth, dispatch, selectedIds, readOnly, onContext
           className="row-chevron"
           onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_LAYER_EXPANDED', id: node.id }) }}
         >
-          {hasChildren ? (node.expanded ? '⌄' : '›') : ''}
+          {expandable ? (node.expanded ? '⌄' : '›') : ''}
         </span>
-        <Icon name={typeIcon[node.type]} className={`${node.type === 'text' ? 'text-icon' : ''} ${!node.visible ? 'is-hidden' : ''}`} />
+        <Icon name={isComponent ? 'components' : typeIcon[node.type]} className={`${node.type === 'text' ? 'text-icon' : ''} ${!node.visible ? 'is-hidden' : ''}`} />
         {isRenaming ? (
           <input
             className="layer-rename-input"
@@ -100,7 +103,7 @@ function LayerTreeItem({ node, depth, dispatch, selectedIds, readOnly, onContext
           </>
         )}
       </div>
-      {hasChildren && node.expanded && node.children.map((child) => (
+      {expandable && node.expanded && node.children.map((child) => (
         <LayerTreeItem key={child.id} node={child} depth={depth + 1} dispatch={dispatch} selectedIds={selectedIds} readOnly={readOnly} onContextMenu={onContextMenu} onRenameRequest={onRenameRequest} renamingId={renamingId} draft={draft} onDraftChange={onDraftChange} onCommitRename={onCommitRename} />
       ))}
     </>

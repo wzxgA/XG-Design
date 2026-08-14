@@ -1,6 +1,6 @@
 import type { LayerNode, DesignDocument } from '../types/design'
 
-/** 生成图层的 CSS 片段 */
+/** 生成图层的 CSS 片段（递归输出子节点） */
 export function toCss(node: LayerNode): string {
   const lines: string[] = []
   lines.push(`.${node.name.replace(/\s+/g, '-').toLowerCase() || 'layer'} {`)
@@ -24,10 +24,17 @@ export function toCss(node: LayerNode): string {
     lines.push(`  content: "${node.content ?? node.name}";`)
   }
   lines.push('}')
+  // 递归输出子节点 CSS
+  if ((node.type === 'group' || node.type === 'frame') && node.children.length > 0) {
+    for (const child of node.children) {
+      lines.push('')
+      lines.push(toCss(child))
+    }
+  }
   return lines.join('\n')
 }
 
-/** 生成图层的 JSON 数据片段 */
+/** 生成图层的 JSON 数据片段（包含子节点） */
 export function toJson(node: LayerNode): string {
   return JSON.stringify({
     id: node.id,
@@ -41,6 +48,7 @@ export function toJson(node: LayerNode): string {
     locked: node.locked,
     style: node.style,
     content: node.content,
+    children: node.children.length > 0 ? node.children : undefined,
   }, null, 2)
 }
 
@@ -72,6 +80,10 @@ export function checkLayer(node: LayerNode, board: { width: number; height: numb
   // 文本内容可能超出其容器宽度
   if (node.type === 'text' && node.content && node.content.length * (node.style.fontSize ?? 14) > node.width) {
     issues.push({ type: 'text-overflow', message: '文本可能超出容器宽度' })
+  }
+  // 递归检查子节点（子节点坐标是相对父节点，不检查画板边界）
+  for (const child of node.children) {
+    issues.push(...checkLayer(child, undefined))
   }
 
   return issues
