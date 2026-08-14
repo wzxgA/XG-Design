@@ -165,7 +165,7 @@ export function ShareModal({ projectId, onClose }: Props) {
                   <option value="edit">可编辑</option>
                 </select>
               </div>
-              <button className="export-button" onClick={startShare} disabled={busy}>创建分享链接</button>
+              <button className="export-button" onClick={startShare} disabled={busy}><Icon name="link" /> 创建分享链接</button>
               <div className="share-hint">分享链接不会暴露内部用户信息，仅按权限访问。</div>
             </>
           ) : (
@@ -174,7 +174,7 @@ export function ShareModal({ projectId, onClose }: Props) {
                 <span className="share-status">已分享</span>
                 <div className="share-link-box">
                   <span className="share-link">{info?.link || '生成中…'}</span>
-                  <button className="share-copy" onClick={copy} disabled={!info?.link}>{copied ? '已复制 ✓' : '复制'}</button>
+                  <button className="share-copy" onClick={copy} disabled={!info?.link}>{copied ? '已复制 ✓' : '复制'} <Icon name="copy" /></button>
                 </div>
               </div>
               <div className="share-permission-row">
@@ -184,7 +184,7 @@ export function ShareModal({ projectId, onClose }: Props) {
                   <option value="edit">可编辑</option>
                 </select>
               </div>
-              <button className="share-revoke" onClick={revoke} disabled={busy}>取消分享</button>
+              <button className="share-revoke" onClick={revoke} disabled={busy}><Icon name="lock" /> 取消分享</button>
               <div className="share-hint">取消分享后，原链接将失效。</div>
             </>
           )}
@@ -248,7 +248,7 @@ export function ShareModal({ projectId, onClose }: Props) {
                   <option value="viewer">仅查看</option>
                 </select>
                 <button className="member-invite-btn" onClick={invite} disabled={memberBusy || !inviteEmail.trim()}>
-                  {memberBusy ? '邀请中…' : '邀请'}
+                  {memberBusy ? '邀请中…' : '邀请'} <Icon name="plus" />
                 </button>
               </div>
             )}

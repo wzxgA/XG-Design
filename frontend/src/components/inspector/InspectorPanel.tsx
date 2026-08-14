@@ -280,13 +280,14 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
   }
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
+  const [exportScale, setExportScale] = useState(2)
 
   const handleExport = async () => {
     if (!selected || exporting) return
     setExporting(true)
     setExportError('')
     try {
-      await exportNodeAsPng(selected, 2)
+      await exportNodeAsPng(selected, exportScale)
     } catch (err) {
       setExportError(err instanceof Error ? err.message : '导出失败，请重试')
     } finally {
@@ -315,6 +316,38 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
             <div><strong>{selected.name}</strong><small>{selected.type} · {selected.children.length} 个图层</small></div>
             <Icon name="chevron" />
           </div>
+
+          {selected.type === 'text' && (
+            <section className="property-section">
+              <div className="section-heading">文本 <span>＋</span></div>
+              <div className="style-line text-content-line">
+                <span className="style-label">内容</span>
+                <textarea
+                  className="comment-textarea"
+                  rows={3}
+                  placeholder="输入文本内容…"
+                  disabled={readOnly}
+                  value={selected.content ?? ''}
+                  onChange={(e) => patch({ content: e.target.value, name: e.target.value ? e.target.value.slice(0, 12) : '文本' })}
+                />
+              </div>
+              <div className="style-line">
+                <span className="style-label">字号</span>
+                <PropertyInput label="" value={selected.style.fontSize ?? 14} min={8} disabled={readOnly} onChange={(v) => patchStyle({ fontSize: v })} />
+              </div>
+              <div className="style-line">
+                <span className="style-label">字重</span>
+                <select className="proto-select" value={selected.style.fontWeight ?? 400} disabled={readOnly}
+                  onChange={(e) => patchStyle({ fontWeight: +e.target.value })}>
+                  <option value={300}>细体 300</option>
+                  <option value={400}>常规 400</option>
+                  <option value={500}>中等 500</option>
+                  <option value={600}>半粗 600</option>
+                  <option value={700}>粗体 700</option>
+                </select>
+              </div>
+            </section>
+          )}
 
           <section className="property-section">
             <div className="section-heading">位置与尺寸 <span>↔</span></div>
@@ -377,27 +410,6 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
             <ShadowEditor value={selected.style.shadow} onChange={(v) => patchStyle({ shadow: v })} readOnly={readOnly} />
           </section>
 
-          {selected.type === 'text' && (
-            <section className="property-section">
-              <div className="section-heading">文本 <span>＋</span></div>
-              <div className="style-line">
-                <span className="style-label">字号</span>
-                <PropertyInput label="" value={selected.style.fontSize ?? 14} min={8} disabled={readOnly} onChange={(v) => patchStyle({ fontSize: v })} />
-              </div>
-              <div className="style-line">
-                <span className="style-label">字重</span>
-                <select className="proto-select" value={selected.style.fontWeight ?? 400} disabled={readOnly}
-                  onChange={(e) => patchStyle({ fontWeight: +e.target.value })}>
-                  <option value={300}>细体 300</option>
-                  <option value={400}>常规 400</option>
-                  <option value={500}>中等 500</option>
-                  <option value={600}>半粗 600</option>
-                  <option value={700}>粗体 700</option>
-                </select>
-              </div>
-            </section>
-          )}
-
           {selected.type === 'chart' && (
             <section className="property-section">
               <div className="section-heading">图表数据 <span>＋</span></div>
@@ -427,7 +439,19 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
 
           <section className="property-section export-section">
             <div className="section-heading">导出 <span>＋</span></div>
-            <div className="export-row"><span>1x</span><span>PNG</span><Icon name="chevron" /></div>
+            <div className="export-row">
+              <span className="export-format">PNG</span>
+              <div className="export-scale-group">
+                {([1, 2, 3] as const).map((s) => (
+                  <button
+                    key={s}
+                    className={`export-scale-btn ${exportScale === s ? 'active' : ''}`}
+                    onClick={() => setExportScale(s)}
+                    title={`导出 ${s}x 倍图`}
+                  >{s}x</button>
+                ))}
+              </div>
+            </div>
             <button className="export-button" onClick={handleExport} disabled={exporting}>{exporting ? '导出中…' : `导出 ${selected.name}`} <Icon name="external" /></button>
             {exportError && <div className="export-error">{exportError}</div>}
           </section>

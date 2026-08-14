@@ -4,13 +4,13 @@ export type IconName =
   | 'cursor' | 'frame' | 'rect' | 'pen' | 'text' | 'comment' | 'grid'
   | 'search' | 'bell' | 'play' | 'eye' | 'lock' | 'chevron' | 'plus' | 'minus'
   | 'fit' | 'external' | 'layers' | 'components' | 'chart' | 'table'
-  | 'settings' | 'folder' | 'spark'
+  | 'settings' | 'folder' | 'spark' | 'copy' | 'link'
 
 const icons: Record<IconName, string> = {
   cursor: '↖', frame: '□', rect: '▱', pen: '⌁', text: 'T', comment: '◌', grid: '⊞',
   search: '⌕', bell: '♧', play: '▶', eye: '◉', lock: '▣', chevron: '⌄',
   plus: '+', minus: '−', fit: '⛶', external: '↗', layers: '◫', components: '◇',
-  chart: '▥', table: '▤', settings: '⚙', folder: '▰', spark: '✦',
+  chart: '▥', table: '▤', settings: '⚙', folder: '▰', spark: '✦', copy: '⧉', link: '⛓',
 }
 
 export function Icon({ name, className = '' }: { name: IconName; className?: string }) {
