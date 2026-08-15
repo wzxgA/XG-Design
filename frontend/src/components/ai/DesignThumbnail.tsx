@@ -1,4 +1,5 @@
 import type { LayerNode } from '../../types/design'
+import { isComponentNode, renderComponentChildren } from '../../fixtures/component-library'
 
 interface Props {
   layers: LayerNode[]
@@ -43,7 +44,11 @@ function flatten(layers: LayerNode[], ox = 0, oy = 0): FlatLayer[] {
   for (const n of layers) {
     result.push({ ...n, absX: ox + n.x, absY: oy + n.y })
     // AI 生成的 JSON 可能省略 children 字段，递归时兜底为 []
-    result.push(...flatten(n.children ?? [], ox + n.x, oy + n.y))
+    // 组件节点展开实时子节点（renderComponentChildren 返回 null 时回退落盘 children）
+    const children = isComponentNode(n)
+      ? (renderComponentChildren(n) ?? n.children ?? [])
+      : (n.children ?? [])
+    result.push(...flatten(children, ox + n.x, oy + n.y))
   }
   return result
 }

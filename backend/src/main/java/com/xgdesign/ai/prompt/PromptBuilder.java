@@ -11,14 +11,16 @@ import org.springframework.stereotype.Component;
 public class PromptBuilder {
 
     private final AiProperties properties;
+    private final AiComponentCatalog componentCatalog;
 
-    public PromptBuilder(AiProperties properties) {
+    public PromptBuilder(AiProperties properties, AiComponentCatalog componentCatalog) {
         this.properties = properties;
+        this.componentCatalog = componentCatalog;
     }
 
     /**
      * 构建系统提示词。
-     * 结构: 角色定义 → 能力说明 → 设计系统 → 图层 Schema → 画布信息 → 行为规范 → 组件库 → 当前文档上下文
+     * 结构: 角色定义 → 能力说明 → 设计系统 → 图层 Schema → 组件库 → 画布信息 → 行为规范 → 组件使用规则 → 当前文档上下文
      */
     public String buildSystemPrompt(ChatRequest request) {
         StringBuilder sb = new StringBuilder();
@@ -30,11 +32,13 @@ public class PromptBuilder {
         sb.append("\n");
         sb.append(DesignSchemaProvider.getLayerSchemaDescription());
         sb.append("\n");
+        sb.append(componentCatalog.buildPromptSection());
+        sb.append("\n");
         sb.append(SystemPrompts.CANVAS_INFO);
         sb.append("\n");
-        sb.append(SystemPrompts.COMPONENT_LIBRARY);
-        sb.append("\n");
         sb.append(SystemPrompts.BEHAVIOR_RULES);
+        sb.append("\n");
+        sb.append(SystemPrompts.COMPONENT_RULES);
         sb.append("\n");
         sb.append(getDocumentContext(request));
 

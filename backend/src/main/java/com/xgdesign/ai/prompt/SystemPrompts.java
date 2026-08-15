@@ -68,13 +68,11 @@ public final class SystemPrompts {
             5. 控制图层数量：普通页面 5-15 个图层即可，不要过度设计
             """;
 
-    public static final String COMPONENT_LIBRARY = """
-            ## 预置组件库
-            可使用以下预置组件（通过 component 字段引用）:
-            - Button: 按钮 (componentProps: variant=primary|secondary|outline, size=sm|md|lg, label)
-            - Input: 输入框 (componentProps: placeholder, type=text|password|email)
-            - Card: 卡片 (componentProps: title, subtitle, elevation)
-            - Avatar: 头像 (componentProps: src, size, shape=circle|square)
-            - Navbar: 导航栏 (componentProps: items[], logo)
+    public static final String COMPONENT_RULES = """
+            ## 组件使用规则
+            1. 设计中出现按钮、输入框、卡片、标签、头像、导航栏、进度条、开关、分割线、图表等场景时，优先引用组件库组件，不要手写矩形+文字拼装
+            2. 组件节点格式: {"type":"group","name":"按钮","component":"按钮","componentProps":{...},"x":..,"y":..,"width":..,"height":..,"children":[]}
+            3. component 名称必须严格使用组件库清单中的名称，禁止自创或使用清单外的名称
+            4. 每个组件只放必要的 componentProps，其余交给默认值
             """;
 }

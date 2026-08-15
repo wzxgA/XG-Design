@@ -2,6 +2,7 @@ package com.xgdesign.ai;
 
 import com.xgdesign.ai.dto.*;
 import com.xgdesign.ai.prompt.PromptBuilder;
+import com.xgdesign.ai.prompt.AiComponentCatalog;
 import com.xgdesign.ai.tool.DesignToolCallback;
 import com.xgdesign.security.CurrentUserProvider;
 import org.springframework.ai.chat.client.ChatClient;
@@ -28,6 +29,7 @@ public class AiService {
     private final ChatSessionRepository sessionRepo;
     private final ChatMessageRepository messageRepo;
     private final PromptBuilder promptBuilder;
+    private final AiComponentCatalog componentCatalog;
     private final AiProperties properties;
     private final String apiKey;
 
@@ -35,12 +37,14 @@ public class AiService {
                      ChatSessionRepository sessionRepo,
                      ChatMessageRepository messageRepo,
                      PromptBuilder promptBuilder,
+                     AiComponentCatalog componentCatalog,
                      AiProperties properties,
                      @Value("${spring.ai.openai.api-key:}") String apiKey) {
         this.chatClient = chatClient;
         this.sessionRepo = sessionRepo;
         this.messageRepo = messageRepo;
         this.promptBuilder = promptBuilder;
+        this.componentCatalog = componentCatalog;
         this.properties = properties;
         this.apiKey = apiKey;
     }
@@ -117,7 +121,7 @@ public class AiService {
             // 6. 真实 LLM 调用
             AtomicReference<String> designRef = new AtomicReference<>();
             AtomicReference<String> descRef = new AtomicReference<>();
-            DesignToolCallback toolCallback = new DesignToolCallback(designRef, descRef);
+            DesignToolCallback toolCallback = new DesignToolCallback(designRef, descRef, componentCatalog);
 
             StringBuilder aiReplyBuffer = new StringBuilder();
             String sid = sessionId.toString();

@@ -1,0 +1,116 @@
+{
+  "components": [
+    {
+      "name": "按钮",
+      "keywords": ["button", "提交", "确认"],
+      "props": ["text", "bg", "bgGradient", "color", "borderColor", "radius", "width"],
+      "width": 140,
+      "height": 40,
+      "note": "可点击的交互按钮，text 为文案，bg 为背景色，radius 为圆角"
+    },
+    {
+      "name": "输入框",
+      "keywords": ["input", "text", "搜索"],
+      "props": ["placeholder", "bg", "borderColor", "color", "width"],
+      "width": 240,
+      "height": 36,
+      "note": "文本输入区域，placeholder 为占位文字，width 为宽度"
+    },
+    {
+      "name": "导航栏",
+      "keywords": ["navbar", "header", "菜单"],
+      "props": ["logoText", "menuText", "bg", "logoColor", "menuColor", "height"],
+      "width": 320,
+      "height": 48,
+      "note": "页面顶部导航区，logoText 为品牌文案，menuText 为菜单文案"
+    },
+    {
+      "name": "卡片",
+      "keywords": ["card", "容器"],
+      "props": ["title", "desc", "imgHeight", "bg", "color", "descColor"],
+      "width": 240,
+      "height": 160,
+      "note": "内容展示容器，title 为标题，desc 为描述，imgHeight 为图片区高度"
+    },
+    {
+      "name": "标签",
+      "keywords": ["tag", "badge", "状态"],
+      "props": ["text", "bg", "color", "radius", "width"],
+      "width": 72,
+      "height": 24,
+      "note": "短文本标识，text 为文案，bg 为背景色"
+    },
+    {
+      "name": "分割线",
+      "keywords": ["divider", "line"],
+      "props": ["lineColor", "thickness", "width"],
+      "width": 240,
+      "height": 1,
+      "note": "水平分隔线，lineColor 为线条颜色"
+    },
+    {
+      "name": "头像",
+      "keywords": ["avatar", "用户", "person"],
+      "props": ["avatarText", "bg", "color", "size"],
+      "width": 40,
+      "height": 40,
+      "note": "用户头像占位，avatarText 为首字文案，size 为尺寸（宽高相等）"
+    },
+    {
+      "name": "进度条",
+      "keywords": ["progress", "加载", "loading"],
+      "props": ["percent", "color", "bg", "width"],
+      "width": 200,
+      "height": 8,
+      "note": "任务进度展示，percent 为百分比 (0-100)"
+    },
+    {
+      "name": "开关",
+      "keywords": ["switch", "toggle", "开关"],
+      "props": ["on", "color", "width"],
+      "width": 44,
+      "height": 20,
+      "note": "布尔状态切换控件，on 为是否默认打开"
+    },
+    {
+      "name": "列表项",
+      "keywords": ["list", "列表", "表格", "row"],
+      "props": ["title", "desc", "rows", "width"],
+      "width": 320,
+      "height": 44,
+      "note": "单行内容展示，title 为标题，desc 为描述，rows 为重复行数"
+    },
+    {
+      "name": "柱状图",
+      "keywords": ["chart", "数据", "可视化", "bar"],
+      "props": ["chartType", "chartBars", "chartColors", "chartLabels", "chartShowValue", "chartShowLegend", "width", "height"],
+      "width": 260,
+      "height": 160,
+      "note": "柱状图，chartBars 为数值百分比数组 (0-100)"
+    },
+    {
+      "name": "折线图",
+      "keywords": ["chart", "数据", "可视化", "line"],
+      "props": ["chartType", "chartBars", "chartColors", "chartLabels", "chartShowValue", "chartShowLegend", "width", "height"],
+      "width": 260,
+      "height": 160,
+      "note": "折线图，chartBars 为数值百分比数组 (0-100)"
+    },
+    {
+      "name": "饼图",
+      "keywords": ["chart", "数据", "可视化", "pie"],
+      "props": ["chartType", "chartBars", "chartColors", "chartLabels", "chartShowValue", "chartShowLegend", "width", "height"],
+      "width": 260,
+      "height": 160,
+      "note": "饼图，chartBars 为占比百分比数组（总和 100）"
+    },
+    {
+      "name": "环形图",
+      "keywords": ["chart", "数据", "可视化", "donut"],
+      "props": ["chartType", "chartBars", "chartColors", "chartLabels", "chartShowValue", "chartShowLegend", "width", "height"],
+      "width": 260,
+      "height": 160,
+      "note": "环形图，chartBars 为占比百分比数组（总和 100）"
+    }
+  ]
+}

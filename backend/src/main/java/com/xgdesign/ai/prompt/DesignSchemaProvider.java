@@ -44,6 +44,12 @@ public final class DesignSchemaProvider {
             - children 是递归的 LayerSpec 数组
             - content 仅对 text 类型有效
             - imageUrl 仅对 image 类型有效
+
+            ### 组件节点（可选，仅 type=group 时使用）
+            - component: 组件库中的组件名（严格使用组件库清单中的名称，如 "按钮"）
+            - componentProps: 组件可配置属性对象，key 对应该组件的 props，如 {"text":"登录","bg":"#1890ff"}
+            - 使用组件时 children 可留空 []
+            - 节点的 width/height 必须与组件默认尺寸或 componentProps 中的 width/height 一致
             """;
     }
 }

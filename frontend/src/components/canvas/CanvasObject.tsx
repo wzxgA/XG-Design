@@ -121,7 +121,8 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     onPointerCancel: onPointerUp,
   }
 
-  if (node.children.length > 0) {
+  // 组件节点可能不带落盘 children（如 AI 生成的 children: []），isComponentNode 命中即进入组件渲染分支
+  if (node.children.length > 0 || isComponentNode(node)) {
     // 组件优先用 componentProps + 模板 render 实时计算子节点（fallback 到落盘的 node.children）
     const isComponent = isComponentNode(node)
     const children = isComponent ? (renderComponentChildren(node, demoState) ?? node.children) : node.children
