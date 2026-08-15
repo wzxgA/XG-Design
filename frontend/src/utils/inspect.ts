@@ -12,8 +12,12 @@ export function toCss(node: LayerNode): string {
   if (node.style.opacity !== undefined) lines.push(`  opacity: ${node.style.opacity};`)
   if (node.style.cornerRadius) lines.push(`  border-radius: ${node.style.cornerRadius}px;`)
   if (node.type === 'rectangle' || node.type === 'frame') {
-    const bg = node.type === 'frame' ? (node.style.backgroundColor ?? node.style.fill) : node.style.fill
-    if (bg) lines.push(`  background-color: ${bg};`)
+    if (node.style.fillGradient) {
+      lines.push(`  background: linear-gradient(${node.style.fillGradient.angle ?? 0}deg, ${node.style.fillGradient.from}, ${node.style.fillGradient.to});`)
+    } else {
+      const bg = node.type === 'frame' ? (node.style.backgroundColor ?? node.style.fill) : node.style.fill
+      if (bg) lines.push(`  background-color: ${bg};`)
+    }
     if (node.style.stroke) lines.push(`  border: ${node.style.strokeWidth ?? 1}px solid ${node.style.stroke};`)
     if (node.style.shadow) lines.push(`  box-shadow: ${node.style.shadow};`)
   }
@@ -58,6 +62,15 @@ export function toJson(node: LayerNode): string {
     style: node.style,
     content: node.content,
     imageUrl: node.imageUrl,
+    componentProps: node.componentProps,
+    chartBars: node.chartBars,
+    chartType: node.chartType,
+    chartColors: node.chartColors,
+    chartLabels: node.chartLabels,
+    chartShowValue: node.chartShowValue,
+    chartShowLegend: node.chartShowLegend,
+    chartShowAxis: node.chartShowAxis,
+    chartSeries: node.chartSeries,
     children: node.children.length > 0 ? node.children : undefined,
   }, null, 2)
 }

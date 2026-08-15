@@ -3,6 +3,9 @@ import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
 import { Icon } from '../common/brand'
 import { isComponentNode } from '../../utils/layers'
+import { renderComponentChildren } from '../../fixtures/component-library'
+import { renderChartSvg } from '../../utils/chart'
+import { usePreviewDemo } from './preview-demo'
 
 interface Props {
   node: LayerNode
@@ -28,6 +31,11 @@ function findBoard(state: EditorState): LayerNode | undefined {
 export function CanvasObject({ node, state, dispatch, drawing = false, readOnly = false, passive = false }: Props) {
   const startRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null)
   const movedRef = useRef(false)
+  const demo = usePreviewDemo()
+  // 预览演示态（CO-4）：临时覆盖组件交互状态；disabled 视觉变淡
+  const demoState = demo.enabled && isComponentNode(node)
+    ? (demo.pressedId === node.id ? 'pressed' : demo.hoveredId === node.id ? 'hover' : 'default')
+    : undefined
 
   if (!node.visible) return null
 
@@ -105,7 +113,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     startRef.current = null
   }
 
-  const base = passive ? {} : {
+  const base: React.DOMAttributes<HTMLDivElement> = passive ? {} : {
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -113,9 +121,22 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
   }
 
   if (node.children.length > 0) {
+    // 组件优先用 componentProps + 模板 render 实时计算子节点（fallback 到落盘的 node.children）
+    const isComponent = isComponentNode(node)
+    const children = isComponent ? (renderComponentChildren(node, demoState) ?? node.children) : node.children
+    const dimmed = isComponent && (demoState ?? node.componentState ?? 'default') === 'disabled'
+    // CO-6：容器插槽内容（componentSlots 引用的子节点）叠加渲染进组件内
+    const slotIds = new Set(Object.values(node.componentSlots ?? {}).flat())
+    const slotChildren = isComponent ? node.children.filter((c) => slotIds.has(c.id)) : []
     return (
-      <div className={`canvas-group ${outline}`} style={style} {...base}>
-        {node.children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} passive={passive || isComponentNode(node)} />)}
+      <div
+        className={`canvas-group ${outline}`}
+        style={dimmed ? { ...style, opacity: (Number(style.opacity ?? 1)) * 0.55 } : style}
+        data-component-id={isComponent ? node.id : undefined}
+        {...base}
+      >
+        {children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} passive={passive || isComponent} />)}
+        {slotChildren.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} passive={passive || isComponent} />)}
       </div>
     )
   }
@@ -127,7 +148,9 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
           className={`canvas-rect ${outline}`}
           style={{
             ...style,
-            background: node.style.fill ?? '#e5ebef',
+            background: node.style.fillGradient
+              ? `linear-gradient(${node.style.fillGradient.angle ?? 0}deg, ${node.style.fillGradient.from}, ${node.style.fillGradient.to})`
+              : (node.style.fill ?? '#e5ebef'),
             borderRadius: node.style.cornerRadius ?? 0,
             border: node.style.stroke ? `${node.style.strokeWidth ?? 1}px solid ${node.style.stroke}` : undefined,
             boxShadow: node.style.shadow,
@@ -148,14 +171,11 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
       return <CanvasComment node={node} style={style} outline={outline} base={base} state={state} dispatch={dispatch} readOnly={readOnly} />
 
     case 'chart': {
-      const bars = node.chartBars ?? []
-      const max = Math.max(...bars, 1)
+      const svg = renderChartSvg(node)
       return (
         <div className={`canvas-chart ${outline}`} style={style} {...base}>
-          {bars.length > 0 ? (
-            <div className="canvas-bars">
-              {bars.map((h, i) => <i key={i} style={{ height: `${(h / max) * 100}%` }} />)}
-            </div>
+          {svg ? (
+            <div className="canvas-chart-svg" dangerouslySetInnerHTML={{ __html: svg }} />
           ) : (
             <span className="canvas-chart-empty">↗</span>
           )}
@@ -176,7 +196,7 @@ function CanvasPath({ node, style, outline, base }: {
   node: LayerNode
   style: React.CSSProperties
   outline: string
-  base: Record<string, (e: any) => void>
+  base: React.DOMAttributes<HTMLDivElement>
 }) {
   const pts = node.points ?? []
   if (pts.length === 0) return null
@@ -201,18 +221,33 @@ function CanvasImage({ node, style, outline, base }: {
   node: LayerNode
   style: React.CSSProperties
   outline: string
-  base: Record<string, (e: any) => void>
+  base: React.DOMAttributes<HTMLDivElement>
 }) {
   // 未设置图片时显示灰色占位（背景色取自 style.fill）
   const src = node.imageUrl
   return (
     <div
       className={`canvas-image ${outline}`}
-      style={{ ...style, background: src ? undefined : (node.style.fill ?? '#eef2f4') }}
+      style={{
+        ...style,
+        background: src ? undefined : (node.style.fill ?? '#eef2f4'),
+        borderRadius: node.style.cornerRadius ?? 0,
+        overflow: node.style.cornerRadius ? 'hidden' : undefined,
+      }}
       {...base}
     >
       {src ? (
-        <img src={src} alt={node.name} draggable={false} />
+        <img
+          src={src}
+          alt={node.name}
+          draggable={false}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: node.style.objectFit ?? 'contain',
+            display: 'block',
+          }}
+        />
       ) : (
         <span className="canvas-image-empty"><Icon name="image" /></span>
       )}
@@ -224,7 +259,7 @@ interface TextProps {
   node: LayerNode
   style: React.CSSProperties
   outline: string
-  base: Record<string, (e: any) => void>
+  base: React.DOMAttributes<HTMLDivElement>
   state: EditorState
   dispatch: EditorDispatch
   readOnly?: boolean
@@ -264,6 +299,11 @@ function CanvasText({ node, style, outline, base, state, dispatch, readOnly = fa
         fontSize: node.style.fontSize ?? 14,
         fontWeight: node.style.fontWeight ?? 400,
         lineHeight: '1.2',
+        textAlign: node.style.textAlign ?? 'left',
+        justifyContent:
+          node.style.textAlign === 'center' ? 'center'
+          : node.style.textAlign === 'right' ? 'flex-end'
+          : 'flex-start',
       }}
       {...base}
       onDoubleClick={(e) => {
@@ -283,7 +323,7 @@ interface CommentProps {
   node: LayerNode
   style: React.CSSProperties
   outline: string
-  base: Record<string, (e: any) => void>
+  base: React.DOMAttributes<HTMLDivElement>
   state: EditorState
   dispatch: EditorDispatch
   readOnly?: boolean

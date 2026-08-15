@@ -1,7 +1,9 @@
 import { useRef } from 'react'
-import type { EditorState, EditorDispatch } from '../../state/editor-store'
+import type { EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
 import { resizeRect, type ResizeHandle, type Rect } from '../../utils/geometry'
+import { COMPONENT_TEMPLATES } from '../../fixtures/component-library'
+import { loadCustomComponents } from '../../utils/customComponents'
 
 interface Props {
   node: LayerNode
@@ -29,6 +31,12 @@ const CORNER: ResizeHandle[] = ['nw', 'ne', 'sw', 'se']
 export function SelectionBox({ node, zoom, dispatch, readOnly = false, offsetX = 0, offsetY = 0 }: Props) {
   const startRef = useRef<{ rect: Rect; pointerX: number; pointerY: number; corner: boolean } | null>(null)
   const rotateRef = useRef<{ centerX: number; centerY: number; startAngle: number; startRotation: number } | null>(null)
+
+  // CO-6：组件模板缩放约束（内置 + 自定义）
+  const resizeMeta = node.component
+    ? (COMPONENT_TEMPLATES.find((t) => t.name === node.component) ?? loadCustomComponents().find((t) => t.name === node.component))?.resize
+    : undefined
+  const lockRatio = resizeMeta?.lockRatio
 
   // 只读模式：不渲染缩放手柄，仅显示选中框
   if (readOnly) {
@@ -59,8 +67,8 @@ export function SelectionBox({ node, zoom, dispatch, readOnly = false, offsetX =
     const scale = zoom / 100
     let dx = (e.clientX - start.pointerX) / scale
     let dy = (e.clientY - start.pointerY) / scale
-    // Shift 等比缩放：对角手柄按下时按原始宽高比约束
-    if (e.shiftKey && start.corner) {
+    // Shift 或组件 lockRatio 等比缩放：对角手柄按下时按原始宽高比约束
+    if ((e.shiftKey || lockRatio) && start.corner) {
       const ratio = start.rect.width / start.rect.height || 1
       // 以位移较大方向为准，等比推导另一方向
       const primary = Math.abs(dx) > Math.abs(dy) ? dx : dy
@@ -68,6 +76,21 @@ export function SelectionBox({ node, zoom, dispatch, readOnly = false, offsetX =
       dy = primary / ratio
     }
     const next = resizeRect(handle, start.rect, dx, dy)
+    // CO-6：组件模板最小尺寸约束（含角点收缩时修正 x/y）
+    if (resizeMeta) {
+      const minW = resizeMeta.minWidth ?? 0
+      const minH = resizeMeta.minHeight ?? 0
+      if (next.width < minW) {
+        const diff = minW - next.width
+        next.width = minW
+        if (handle.includes('w')) next.x = (next.x ?? 0) - diff
+      }
+      if (next.height < minH) {
+        const diff = minH - next.height
+        next.height = minH
+        if (handle.includes('n')) next.y = (next.y ?? 0) - diff
+      }
+    }
     dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: next })
   }
 

@@ -6,6 +6,7 @@ import { ComponentGlyph, Icon, EyeOpen, EyeClosed, LockClosed, LockOpen, type Ic
 import { createLayer, isComponentNode } from '../../utils/layers'
 import { COMPONENT_TEMPLATES, buildComponent, type ComponentTemplate } from '../../fixtures/component-library'
 import { layerId } from '../../utils/layers'
+import { loadCustomComponents, saveCustomComponent, removeCustomComponent, renameCustomComponent } from '../../utils/customComponents'
 
 const typeIcon: Record<LayerNode['type'], IconName> = {
   frame: 'frame', group: 'layers', rectangle: 'rect',
@@ -111,11 +112,12 @@ function LayerTreeItem({ node, depth, dispatch, selectedIds, readOnly, onContext
   )
 }
 
-/** 组件 tab：内置组件库，点击/拖拽插入画布 */
-function ComponentGrid({ dispatch, readOnly, activePage }: {
+/** 组件 tab：内置组件库 + 我的组件（自定义），支持分类筛选与搜索，点击/拖拽插入画布 */
+function ComponentGrid({ dispatch, readOnly, activePage, state }: {
   dispatch: EditorDispatch
   readOnly: boolean
   activePage: { id: string; children: LayerNode[] }
+  state: EditorState
 }) {
   const frame = activePage.children.find((n) => n.type === 'frame')
   const [dragging, setDragging] = useState<string | null>(null)
@@ -124,6 +126,55 @@ function ComponentGrid({ dispatch, readOnly, activePage }: {
   const [tick, setTick] = useState(0)
   const gridRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
+  const [cat, setCat] = useState('全部')
+  const [query, setQuery] = useState('')
+  const [customs, setCustoms] = useState<ComponentTemplate[]>(() => loadCustomComponents())
+
+  const categories = ['全部', '基础', '表单', '导航', '反馈', '展示', '图表']
+
+  const builtin = COMPONENT_TEMPLATES.filter((t) => {
+    if (cat !== '全部' && t.category !== cat) return false
+    if (query) {
+      const q = query.toLowerCase()
+      return t.name.toLowerCase().includes(q)
+        || t.short.toLowerCase().includes(q)
+        || (t.keywords ?? []).some((k) => k.toLowerCase().includes(q))
+    }
+    return true
+  })
+  const myCustoms = customs.filter((t) => {
+    if (query) return t.name.toLowerCase().includes(query.toLowerCase())
+    return true
+  })
+
+  const insert = (name: string) => {
+    if (readOnly) return
+    const c = buildComponent(name, 40, 40)
+    if (!frame) {
+      // 无画板：先创建默认画板再插入
+      const f = createLayer('frame', 0, 0)
+      f.width = 1440; f.height = 900
+      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: null, layer: f })
+      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: f.id, layer: c })
+      dispatch({ type: 'SELECT_LAYERS', ids: [c.id] })
+      return
+    }
+    dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: frame.id, layer: c })
+    dispatch({ type: 'SELECT_LAYERS', ids: [c.id] })
+  }
+
+  /** 把选中的 group 保存为自定义组件 */
+  const saveSelection = () => {
+    const selected = state.selectedIds.map((id) => findLayer(activePage.children, id)).filter((n): n is LayerNode => !!n)
+    const group = selected.find((n) => n.type === 'group')
+    if (!group) {
+      alert('请先在图层树中选中一个分组，再保存为组件')
+      return
+    }
+    const name = prompt('组件名称：', `${group.name}副本`)
+    if (name === null) return
+    setCustoms(saveCustomComponent(group, name))
+  }
 
   /** 悬停时记录磁贴：方向看磁贴距网格顶部空间，不足则向下弹出 */
   const showTip = (e: React.MouseEvent<HTMLButtonElement>, tpl: ComponentTemplate) => {
@@ -151,48 +202,79 @@ function ComponentGrid({ dispatch, readOnly, activePage }: {
     setTipPos({ left, top })
   }, [tip, tick])
 
-  const insert = (name: string) => {
-    if (readOnly) return
-    const c = buildComponent(name, 40, 40)
-    if (!frame) {
-      // 无画板：先创建默认画板再插入
-      const f = createLayer('frame', 0, 0)
-      f.width = 1440; f.height = 900
-      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: null, layer: f })
-      dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: f.id, layer: c })
-      dispatch({ type: 'SELECT_LAYERS', ids: [c.id] })
-      return
-    }
-    dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: frame.id, layer: c })
-    dispatch({ type: 'SELECT_LAYERS', ids: [c.id] })
-  }
+  const renderTile = (tpl: ComponentTemplate, custom = false) => (
+    <button
+      key={`${custom ? 'c' : 'b'}-${tpl.name}`}
+      className="component-tile"
+      draggable={!readOnly}
+      onDragStart={(e) => {
+        setDragging(tpl.name)
+        e.dataTransfer.setData('application/xg-component', tpl.name)
+        e.dataTransfer.effectAllowed = 'copy'
+      }}
+      onDragEnd={() => setDragging(null)}
+      onClick={() => insert(tpl.name)}
+      onMouseEnter={(e) => showTip(e, tpl)}
+      title={`插入「${tpl.name}」到当前画板`}
+    >
+      <span className={`component-tile-icon ${dragging === tpl.name ? 'dragging' : ''}`}><ComponentGlyph name={tpl.name} /></span>
+      <span className="component-tile-name">{tpl.short}</span>
+      {custom && !readOnly && (
+        <span
+          className="custom-tile-menu"
+          title="重命名 / 删除"
+          onClick={(e) => {
+            e.stopPropagation()
+            const action = prompt('输入操作：rename=重命名，delete=删除', 'rename')
+            if (action === 'delete') {
+              if (confirm(`删除自定义组件「${tpl.name}」？`)) setCustoms(removeCustomComponent(tpl.name))
+            } else if (action === 'rename') {
+              const nn = prompt('新名称：', tpl.name)
+              if (nn && nn.trim()) setCustoms(renameCustomComponent(tpl.name, nn))
+            }
+          }}
+        >•••</span>
+      )}
+    </button>
+  )
 
   return (
-    <div
-      className="component-grid"
-      ref={gridRef}
-      onMouseLeave={hideTip}
-      onScroll={() => { if (tip) setTick((t) => t + 1) }}
-    >
-      {COMPONENT_TEMPLATES.map((tpl) => (
-        <button
-          key={tpl.name}
-          className="component-tile"
-          draggable={!readOnly}
-          onDragStart={(e) => {
-            setDragging(tpl.name)
-            e.dataTransfer.setData('application/xg-component', tpl.name)
-            e.dataTransfer.effectAllowed = 'copy'
-          }}
-          onDragEnd={() => setDragging(null)}
-          onClick={() => insert(tpl.name)}
-          onMouseEnter={(e) => showTip(e, tpl)}
-          title={`插入「${tpl.name}」到当前画板`}
-        >
-          <span className={`component-tile-icon ${dragging === tpl.name ? 'dragging' : ''}`}><ComponentGlyph name={tpl.name} /></span>
-          <span className="component-tile-name">{tpl.short}</span>
-        </button>
-      ))}
+    <div className="components-tab">
+      <div className="component-filter">
+        <div className="component-cats">
+          {categories.map((c) => (
+            <button key={c} className={`cat-chip ${cat === c ? 'active' : ''}`} onClick={() => setCat(c)}>{c}</button>
+          ))}
+        </div>
+        <div className="component-search">
+          <Icon name="search" />
+          <input
+            className="search-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索组件"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+        {!readOnly && (
+          <button className="save-component-btn" onClick={saveSelection} title="把当前选中的分组保存为可复用组件">＋ 保存选中</button>
+        )}
+      </div>
+      <div
+        className="component-grid"
+        ref={gridRef}
+        onMouseLeave={hideTip}
+        onScroll={() => { if (tip) setTick((t) => t + 1) }}
+      >
+        {builtin.map((tpl) => renderTile(tpl))}
+        {builtin.length === 0 && myCustoms.length === 0 && <div className="layer-tree-empty">无匹配组件</div>}
+        {myCustoms.length > 0 && (
+          <>
+            <div className="custom-section-title">我的组件</div>
+            {myCustoms.map((tpl) => renderTile(tpl, true))}
+          </>
+        )}
+      </div>
       {tip && createPortal(
         <div
           ref={tooltipRef}
@@ -322,7 +404,7 @@ export function LayersPanel({ state, dispatch, readOnly = false, onSearchFocusRe
       </div>
 
       {tab === 'components' ? (
-        <ComponentGrid dispatch={dispatch} readOnly={readOnly} activePage={activePage} />
+        <ComponentGrid dispatch={dispatch} readOnly={readOnly} activePage={activePage} state={state} />
       ) : (
         <>
           <div className="search-field">

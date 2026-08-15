@@ -6,6 +6,7 @@ import { LayersPanel } from './components/layers/LayersPanel'
 import { CanvasArea } from './components/canvas/CanvasArea'
 import { InspectorPanel } from './components/inspector/InspectorPanel'
 import { PreviewOverlay } from './components/canvas/PreviewOverlay'
+import { ResizeHandle } from './components/layout/ResizeHandle'
 import { ProjectsPage } from './components/projects/ProjectsPage'
 import { ShareModal } from './components/share/ShareModal'
 import { AuthPage } from './components/auth/AuthPage'
@@ -152,6 +153,21 @@ function Editor({ route, user, onUserChange }: {
   const [previewing, setPreviewing] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
+  // 可拖拽侧栏：null 表示未手动调整（走 CSS 默认/媒体查询自适应）；手动拖拽后写入内联 CSS 变量
+  const [leftW, setLeftW] = useState<number | null>(null)
+  const [rightW, setRightW] = useState<number | null>(null)
+  const workspaceRef = useRef<HTMLDivElement>(null)
+  const [wsW, setWsW] = useState<number | null>(null)
+
+  // 自适应：监听 workspace 宽度，ResizeHandle 据此 clamp 已拖拽的宽度
+  useEffect(() => {
+    const el = workspaceRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setWsW(el.clientWidth))
+    ro.observe(el)
+    setWsW(el.clientWidth)
+    return () => ro.disconnect()
+  }, [])
 
   // 只读模式：包装 dispatch，拦截写操作
   const guardedDispatch: EditorDispatch = useCallback(
@@ -241,9 +257,15 @@ function Editor({ route, user, onUserChange }: {
         userEmail={user?.email}
         logoutNode={logoutButton}
       />
-      <div className="workspace">
+      <div
+        className="workspace"
+        ref={workspaceRef}
+        style={{ '--left-w': leftW ? `${leftW}px` : undefined, '--right-w': rightW ? `${rightW}px` : undefined } as React.CSSProperties}
+      >
         <LayersPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} onSearchFocusReady={(fn) => { searchFocusRef.current = fn }} />
+        <ResizeHandle side="left" value={leftW} onChange={setLeftW} min={180} max={420} limit={wsW ? wsW * 0.35 : null} />
         <CanvasArea state={state} dispatch={guardedDispatch} readOnly={readOnly} />
+        <ResizeHandle side="right" value={rightW} onChange={setRightW} min={200} max={460} limit={wsW ? wsW * 0.4 : null} />
         <InspectorPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} />
       </div>
       {previewing && <PreviewOverlay state={state} onClose={() => setPreviewing(false)} />}

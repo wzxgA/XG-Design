@@ -5,6 +5,7 @@ interface Props {
   value: number
   min?: number
   max?: number
+  step?: number
   disabled?: boolean
   onChange: (value: number) => void
   onCommit?: () => void
@@ -14,7 +15,7 @@ interface Props {
  * 数字属性输入框：本地编辑，失焦或 Enter 提交，
  * 非法值回退最近合法值，支持最小尺寸约束。
  */
-export function PropertyInput({ label, value, min, max, disabled = false, onChange, onCommit }: Props) {
+export function PropertyInput({ label, value, min, max, step, disabled = false, onChange, onCommit }: Props) {
   const [text, setText] = useState(String(value))
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export function PropertyInput({ label, value, min, max, disabled = false, onChan
         value={text}
         min={min}
         max={max}
+        step={step}
         disabled={disabled}
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { EditorState } from '../../state/editor-store'
 import type { LayerNode, PrototypeLink } from '../../types/design'
 import { CanvasObject } from './CanvasObject'
+import { PreviewDemoContext } from './preview-demo'
 import { Icon } from '../common/brand'
 
 interface Props {
@@ -83,10 +84,41 @@ function CommentPins({ node, offsetX, offsetY }: { node: LayerNode; offsetX: num
   )
 }
 
-/** 只读预览层：支持原型连接跳转与返回；一页多画板平铺渲染 */
+/** 递归渲染组件状态徽标（演示模式下显示当前 hover/pressed 状态） */
+function StateBadges({ node, offsetX, offsetY, hoveredId, pressedId }: {
+  node: LayerNode
+  offsetX: number
+  offsetY: number
+  hoveredId: string | null
+  pressedId: string | null
+}) {
+  const absX = offsetX + node.x
+  const absY = offsetY + node.y
+  const state = pressedId === node.id ? 'pressed' : hoveredId === node.id ? 'hover' : null
+  return (
+    <>
+      {node.component && state && (
+        <div
+          className="preview-state-badge"
+          style={{ left: absX, top: absY, width: node.width, height: node.height }}
+        >
+          <span>{state}</span>
+        </div>
+      )}
+      {node.children.map((child) => (
+        <StateBadges key={child.id} node={child} offsetX={absX} offsetY={absY} hoveredId={hoveredId} pressedId={pressedId} />
+      ))}
+    </>
+  )
+}
+
+/** 只读预览层：支持原型连接跳转与返回；一页多画板平铺渲染；支持组件状态演示 */
 export function PreviewOverlay({ state, onClose }: Props) {
   const [pageId, setPageId] = useState(state.document.activePageId)
   const [history, setHistory] = useState<string[]>([])
+  const [demo, setDemo] = useState(false)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [pressedId, setPressedId] = useState<string | null>(null)
 
   const page = state.document.pages.find((p) => p.id === pageId)!
   const frames = page.children.filter((n) => n.type === 'frame') as LayerNode[]
@@ -115,6 +147,13 @@ export function PreviewOverlay({ state, onClose }: Props) {
     return item
   })
 
+  // 演示模式：悬停/按下组件时定位到最近组件节点
+  const componentIdFrom = (e: React.MouseEvent) => {
+    if (!demo) return null
+    const el = (e.target as HTMLElement).closest('[data-component-id]')
+    return el ? el.getAttribute('data-component-id') : null
+  }
+
   return (
     <div className="preview-overlay">
       <div className="preview-toolbar">
@@ -122,25 +161,45 @@ export function PreviewOverlay({ state, onClose }: Props) {
           <button className="preview-back" onClick={goBack} disabled={history.length === 0} title="返回上一页"><Icon name="chevron" /></button>
           <span className="preview-title">{frames.length > 0 ? frames[0].name : page.name}</span>
         </div>
-        <button className="preview-close" onClick={onClose}><Icon name="external" /> 退出预览</button>
+        <div className="preview-actions">
+          <button
+            className={`preview-demo-btn ${demo ? 'active' : ''}`}
+            onClick={() => { setDemo((d) => !d); setHoveredId(null); setPressedId(null) }}
+            title={demo ? '退出状态演示' : '悬停/点击组件查看交互状态'}
+          >
+            <Icon name="cursor" /> 状态演示
+          </button>
+          <button className="preview-close" onClick={onClose}><Icon name="external" /> 退出预览</button>
+        </div>
       </div>
-      <div className="preview-stage">
-        {frames.length > 0 ? (
-          <div className="preview-boards" style={{ width: cursorX - 48 }}>
-            {placed.map(({ frame, left }) => (
-              <div key={frame.id} className="preview-board" style={{ left, width: frame.width, height: frame.height }}>
-                <CanvasObject node={{ ...frame, x: 0, y: 0 }} state={{ ...state, selectedIds: [], activeTool: 'select' }} dispatch={noop} drawing readOnly />
-                {frame.children.map((child) => (
-                  <HotspotLayer key={child.id} node={child} offsetX={0} offsetY={0} state={state} onNavigate={navigate} />
-                ))}
-                <CommentPins node={frame} offsetX={0} offsetY={0} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="preview-empty">空画板</div>
-        )}
-      </div>
+      <PreviewDemoContext.Provider value={{ enabled: demo, hoveredId, pressedId }}>
+        <div
+          className="preview-stage"
+          onMouseOver={(e) => { const id = componentIdFrom(e); if (id !== null) setHoveredId(id) }}
+          onMouseDown={(e) => { const id = componentIdFrom(e); if (id !== null) setPressedId(id) }}
+          onMouseUp={() => { if (demo) setPressedId(null) }}
+          onMouseLeave={() => { if (demo) { setHoveredId(null); setPressedId(null) } }}
+        >
+          {frames.length > 0 ? (
+            <div className="preview-boards" style={{ width: cursorX - 48 }}>
+              {placed.map(({ frame, left }) => (
+                <div key={frame.id} className="preview-board" style={{ left, width: frame.width, height: frame.height }}>
+                  <CanvasObject node={{ ...frame, x: 0, y: 0 }} state={{ ...state, selectedIds: [], activeTool: 'select' }} dispatch={noop} drawing readOnly />
+                  {demo && (
+                    <StateBadges node={frame} offsetX={0} offsetY={0} hoveredId={hoveredId} pressedId={pressedId} />
+                  )}
+                  {frame.children.map((child) => (
+                    <HotspotLayer key={child.id} node={child} offsetX={0} offsetY={0} state={state} onNavigate={navigate} />
+                  ))}
+                  <CommentPins node={frame} offsetX={0} offsetY={0} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="preview-empty">空画板</div>
+          )}
+        </div>
+      </PreviewDemoContext.Provider>
     </div>
   )
 }

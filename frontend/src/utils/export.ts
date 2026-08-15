@@ -1,4 +1,7 @@
 import type { DesignDocument, LayerNode, PageNode } from '../types/design'
+import { isComponentNode } from './layers'
+import { renderComponentChildren } from '../fixtures/component-library'
+import { renderChartSvg } from './chart'
 
 /**
  * 将单个图层节点渲染为 HTML 片段（用于离屏导出）。
@@ -18,7 +21,9 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
 
   switch (node.type) {
     case 'rectangle':
-      el.style.background = node.style.fill ?? 'transparent'
+      el.style.background = node.style.fillGradient
+        ? `linear-gradient(${node.style.fillGradient.angle ?? 0}deg, ${node.style.fillGradient.from}, ${node.style.fillGradient.to})`
+        : (node.style.fill ?? 'transparent')
       if (node.style.cornerRadius) el.style.borderRadius = `${node.style.cornerRadius}px`
       if (node.style.stroke) el.style.border = `${node.style.strokeWidth ?? 1}px solid ${node.style.stroke}`
       if (node.style.shadow) el.style.boxShadow = node.style.shadow
@@ -30,8 +35,8 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
       el.style.fontFamily = "'DM Sans', 'Microsoft YaHei', sans-serif"
       el.style.display = 'flex'
       el.style.alignItems = 'center'
-      el.style.justifyContent = 'center'
-      el.style.textAlign = 'center'
+      el.style.justifyContent = node.style.textAlign === 'center' ? 'center' : node.style.textAlign === 'right' ? 'flex-end' : 'flex-start'
+      el.style.textAlign = node.style.textAlign ?? 'left'
       el.style.lineHeight = '1.2'
       el.style.overflow = 'hidden'
       el.textContent = node.content ?? node.name
@@ -44,24 +49,12 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
       el.style.fontSize = '16px'
       break
     case 'chart': {
-      const bars = node.chartBars ?? []
-      if (bars.length > 0) {
-        const max = Math.max(...bars, 1)
+      const svg = renderChartSvg(node)
+      if (svg) {
         const wrapper = document.createElement('div')
-        wrapper.style.display = 'flex'
-        wrapper.style.alignItems = 'flex-end'
-        wrapper.style.gap = '3px'
         wrapper.style.width = '100%'
         wrapper.style.height = '100%'
-        wrapper.style.padding = '2px'
-        for (const h of bars) {
-          const bar = document.createElement('i')
-          bar.style.flex = '1'
-          bar.style.height = `${(h / max) * 100}%`
-          bar.style.background = 'linear-gradient(to top, #bcd9fb, #68a0f5)'
-          bar.style.borderRadius = '2px 2px 0 0'
-          wrapper.appendChild(bar)
-        }
+        wrapper.innerHTML = svg
         el.appendChild(wrapper)
       }
       break
@@ -88,21 +81,28 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
     case 'image': {
       // 未设置图片时保留背景占位色
       if (!node.style.fill) el.style.background = '#eef2f4'
+      if (node.style.cornerRadius) {
+        el.style.borderRadius = `${node.style.cornerRadius}px`
+        el.style.overflow = 'hidden'
+      }
       if (node.imageUrl) {
         const img = document.createElement('img')
         img.src = node.imageUrl
         img.alt = node.name
         img.style.width = '100%'
         img.style.height = '100%'
-        img.style.objectFit = 'contain'
+        img.style.objectFit = node.style.objectFit ?? 'contain'
         img.style.display = 'block'
         el.appendChild(img)
       }
       break
     }
     case 'group':
-    case 'frame':
-      node.children.forEach((child) => {
+    case 'frame': {
+      // 组件优先用 componentProps + 模板 render 实时计算子节点（fallback 到落盘的 node.children）
+      // 导出始终使用 default 态，不受编辑态/预览演示态影响
+      const children = isComponentNode(node) ? (renderComponentChildren(node, 'default') ?? node.children) : node.children
+      children.forEach((child) => {
         const childEl = renderNodeToHtml(child)
         if (!childEl) return
         childEl.style.left = `${child.x}px`
@@ -113,6 +113,7 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
       const bg = node.style.backgroundColor ?? node.style.fill
       if (bg) el.style.background = bg
       break
+    }
   }
   return el
 }

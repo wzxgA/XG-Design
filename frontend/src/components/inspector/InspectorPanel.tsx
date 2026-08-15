@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
-import type { LayerNode, PrototypeLink } from '../../types/design'
+import type { LayerNode, PrototypeLink, ComponentPropDef, ComponentState } from '../../types/design'
 import { Icon } from '../common/brand'
 import { PropertyInput } from './PropertyInput'
 import { MIN_SIZE } from '../../utils/geometry'
 import { exportPageAsPng } from '../../utils/export'
 import { toCss, toJson, checkLayer } from '../../utils/inspect'
 import { compressImageFile } from '../../utils/image'
+import { COMPONENT_TEMPLATES, defaultProps } from '../../fixtures/component-library'
+import type { ComponentTemplate } from '../../fixtures/component-library'
+import { DEFAULT_CHART_COLORS } from '../../utils/chart'
 
 interface Props {
   state: EditorState
@@ -314,29 +317,414 @@ function ImageEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: 
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
         />
       </div>
+      <div className="style-line">
+        <span className="style-label">填充方式</span>
+        <select
+          className="proto-select"
+          disabled={readOnly}
+          value={node.style.objectFit ?? 'contain'}
+          onChange={(e) => dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { style: { ...node.style, objectFit: e.target.value as 'contain' | 'cover' } } })}
+        >
+          <option value="contain">包含（完整显示）</option>
+          <option value="cover">铺满（裁剪）</option>
+        </select>
+      </div>
+      <div className="style-line">
+        <span className="style-label">圆角</span>
+        <PropertyInput label="" value={node.style.cornerRadius ?? 0} min={0} max={64} disabled={readOnly} onChange={(v) => dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { style: { ...node.style, cornerRadius: v } } })} />
+      </div>
     </div>
   )
 }
 
 function ChartEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: EditorDispatch; readOnly: boolean }) {
   const bars = node.chartBars ?? []
-  const setBars = (next: number[]) => dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { chartBars: next } })
+  const series = node.chartSeries && node.chartSeries.length > 0
+    ? node.chartSeries.map((s) => [...s])
+    : (bars.length > 0 ? [bars] : [[50, 70, 55, 88, 62, 78]])
+  const dataCount = Math.max(...series.map((s) => s.length))
+  const colors = node.chartColors && node.chartColors.length > 0 ? [...node.chartColors] : [...DEFAULT_CHART_COLORS]
+  const labels = node.chartLabels ?? []
+  const [labelText, setLabelText] = useState(labels.join(', '))
+
+  const patch = (p: Record<string, unknown>) => dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: p })
+  const setSeries = (next: number[][]) => {
+    if (next.length === 1) patch({ chartBars: next[0], chartSeries: undefined })
+    else patch({ chartSeries: next })
+  }
   const setCount = (n: number) => {
     const count = Math.max(1, Math.min(12, n))
-    const next = Array.from({ length: count }, (_, i) => bars[i] ?? 50)
-    setBars(next)
+    setSeries(series.map((s) => Array.from({ length: count }, (_, i) => s[i] ?? 50)))
   }
+  const setSeriesCount = (n: number) => {
+    const count = Math.max(1, Math.min(6, n))
+    const next = series.slice(0, count)
+    while (next.length < count) next.push(Array.from({ length: dataCount }, () => 50))
+    setSeries(next)
+  }
+  const setPoint = (si: number, i: number, v: number) => {
+    const next = series.map((s, idx) => idx === si ? s.map((a, ai) => ai === i ? v : a) : [...s])
+    setSeries(next)
+  }
+  const setColors = (next: string[]) => patch({ chartColors: next })
+  const setLabels = (v: string) => patch({ chartLabels: v.split(/[,，]/).map((t) => t.trim()).filter(Boolean) })
+
+  const type = node.chartType ?? 'bar'
+  const isPie = type === 'pie' || type === 'donut'
+
   return (
     <div className="chart-editor">
       <div className="style-line">
-        <span className="style-label">柱数</span>
-        <PropertyInput label="" value={bars.length} min={1} max={12} disabled={readOnly} onChange={setCount} />
+        <span className="style-label">类型</span>
+        <select className="proto-select" disabled={readOnly} value={type} onChange={(e) => patch({ chartType: e.target.value })}>
+          <option value="bar">柱状图</option>
+          <option value="line">折线图</option>
+          <option value="area">面积图</option>
+          <option value="pie">饼图</option>
+          <option value="donut">环形图</option>
+        </select>
       </div>
-      {!readOnly && bars.map((h, i) => (
-        <div className="chart-bar-row" key={i}>
-          <span className="chart-bar-label">柱{i + 1}</span>
-          <input type="range" min={0} max={100} value={h} onChange={(e) => { const next = [...bars]; next[i] = +e.target.value; setBars(next) }} />
-          <span className="chart-bar-value">{h}</span>
+
+      {!isPie && (
+        <div className="style-line">
+          <span className="style-label">数据点</span>
+          <PropertyInput label="" value={dataCount} min={1} max={12} disabled={readOnly} onChange={setCount} />
+        </div>
+      )}
+      {isPie ? (
+        series[0].map((h, i) => (
+          <div className="chart-bar-row" key={i}>
+            <span className="chart-bar-label">{labels[i] || `项${i + 1}`}</span>
+            <input type="range" min={0} max={100} disabled={readOnly} value={h} onChange={(e) => setPoint(0, i, +e.target.value)} />
+            <span className="chart-bar-value">{h}</span>
+          </div>
+        ))
+      ) : series.map((s, si) => (
+        <div className="chart-series" key={si}>
+          {series.length > 1 && <div className="schema-group-label">系列 {si + 1}</div>}
+          {s.map((h, i) => (
+            <div className="chart-bar-row" key={i}>
+              <span className="chart-bar-label">{labels[i] || `柱${i + 1}`}</span>
+              <input type="range" min={0} max={100} disabled={readOnly} value={h} onChange={(e) => setPoint(si, i, +e.target.value)} />
+              <span className="chart-bar-value">{h}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+      {!isPie && (
+        <div className="chart-series-actions">
+          {series.length > 1 && <button className="mini-btn" disabled={readOnly} onClick={() => setSeriesCount(series.length - 1)}>− 系列</button>}
+          <button className="mini-btn" disabled={readOnly} onClick={() => setSeriesCount(series.length + 1)}>＋ 系列</button>
+        </div>
+      )}
+
+      <div className="schema-group-label">配色</div>
+      <div className="chart-colors">
+        {colors.map((c, i) => (
+          <div className="chart-color-row" key={i}>
+            <ColorField value={c} onChange={(v) => setColors(colors.map((cc, ci) => ci === i ? v : cc))} />
+            {colors.length > 1 && !readOnly && <button className="mini-btn" onClick={() => setColors(colors.filter((_, ci) => ci !== i))}>×</button>}
+          </div>
+        ))}
+        {!readOnly && <button className="mini-btn" onClick={() => setColors([...colors, '#6b7680'])}>＋ 颜色</button>}
+      </div>
+
+      <div className="style-line">
+        <span className="style-label">标签</span>
+        <input
+          className="image-url-input"
+          disabled={readOnly}
+          value={labelText}
+          placeholder="用逗号分隔"
+          onChange={(e) => { setLabelText(e.target.value); setLabels(e.target.value) }}
+        />
+      </div>
+
+      <label className="schema-checkbox">
+        <input type="checkbox" disabled={readOnly} checked={!!node.chartShowValue} onChange={(e) => patch({ chartShowValue: e.target.checked })} />
+        <span>显示数值</span>
+      </label>
+      <label className="schema-checkbox">
+        <input type="checkbox" disabled={readOnly} checked={!!node.chartShowLegend} onChange={(e) => patch({ chartShowLegend: e.target.checked })} />
+        <span>显示图例</span>
+      </label>
+    </div>
+  )
+}
+
+/**
+ * schema 驱动的组件属性表单（CO-1）。
+ * 按模板 props 声明自动生成控件，变更写入 componentProps；
+ * width/height 等尺寸类 prop 同时同步到节点本体，保证组件尺寸一致。
+ */
+function SchemaForm({ tpl, node, dispatch, readOnly }: {
+  tpl: ComponentTemplate
+  node: LayerNode
+  dispatch: EditorDispatch
+  readOnly: boolean
+}) {
+  const values = { ...defaultProps(tpl), ...(node.componentProps ?? {}) }
+  const set = (key: string, value: unknown) => {
+    const next = { ...values, [key]: value }
+    const patch: Record<string, unknown> = { componentProps: next }
+    if (key === 'width') patch.width = Number(value)
+    if (key === 'height') patch.height = Number(value)
+    dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
+  }
+  const renderControl = (p: ComponentPropDef) => {
+    switch (p.type) {
+      case 'color':
+        return (
+          <ColorField
+            value={String(values[p.key] ?? '')}
+            onChange={(v) => set(p.key, v)}
+          />
+        )
+      case 'textarea':
+        return (
+          <textarea
+            className="comment-textarea"
+            rows={2}
+            disabled={readOnly}
+            value={String(values[p.key] ?? '')}
+            onChange={(e) => set(p.key, e.target.value)}
+          />
+        )
+      case 'number':
+        return (
+          <PropertyInput
+            label=""
+            value={Number(values[p.key] ?? 0)}
+            min={p.min}
+            max={p.max}
+            step={p.step}
+            disabled={readOnly}
+            onChange={(v) => set(p.key, v)}
+          />
+        )
+      case 'slider':
+        return (
+          <div className="style-line opacity-line">
+            <input
+              type="range"
+              min={p.min ?? 0}
+              max={p.max ?? 100}
+              step={p.step ?? 1}
+              disabled={readOnly}
+              value={Number(values[p.key] ?? p.default ?? 0)}
+              onChange={(e) => set(p.key, +e.target.value)}
+            />
+            <span className="style-value">{Number(values[p.key] ?? p.default ?? 0)}</span>
+          </div>
+        )
+      case 'boolean':
+        return (
+          <label className="schema-checkbox">
+            <input
+              type="checkbox"
+              disabled={readOnly}
+              checked={Boolean(values[p.key] ?? p.default ?? false)}
+              onChange={(e) => set(p.key, e.target.checked)}
+            />
+            <span>{p.label}</span>
+          </label>
+        )
+      case 'select':
+        return (
+          <select
+            className="proto-select"
+            disabled={readOnly}
+            value={String(values[p.key] ?? '')}
+            onChange={(e) => set(p.key, e.target.value)}
+          >
+            {(p.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        )
+      case 'bars': {
+        // 逐项编辑：每个柱子/饼块一行（数值 + 独立颜色 + 删除），添加按钮追加并同步色板
+        const colorKey = 'chartColors'
+        const bars = Array.isArray(values[p.key]) ? (values[p.key] as number[]) : []
+        const colors = Array.isArray(values[colorKey]) ? (values[colorKey] as string[]) : []
+        const validColor = (c: string) => /^#[0-9a-fA-F]{6}$/.test(c)
+        const patchBoth = (barsNext: number[], colorsNext: string[]) => {
+          const next = { ...values, [p.key]: barsNext, [colorKey]: colorsNext }
+          dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { componentProps: next } })
+        }
+        const colorAt = (i: number) => validColor(colors[i] ?? '') ? colors[i] : DEFAULT_CHART_COLORS[i % DEFAULT_CHART_COLORS.length]
+        const setBarAt = (i: number, v: number) => { const nb = [...bars]; nb[i] = v; patchBoth(nb, colors) }
+        const setColorAt = (i: number, c: string) => {
+          const nc = [...colors]
+          while (nc.length <= i) nc.push(DEFAULT_CHART_COLORS[nc.length % DEFAULT_CHART_COLORS.length])
+          nc[i] = c
+          patchBoth(bars, nc)
+        }
+        const removeBar = (i: number) => {
+          const nb = bars.filter((_, k) => k !== i)
+          const nc = colors.length >= bars.length ? colors.filter((_, k) => k !== i) : colors
+          patchBoth(nb, nc)
+        }
+        const addBar = () => {
+          const idx = Math.max(bars.length, colors.length)
+          patchBoth([...bars, 0], [...colors, DEFAULT_CHART_COLORS[idx % DEFAULT_CHART_COLORS.length]])
+        }
+        return (
+          <div className="schema-bars">
+            {bars.length === 0 && <span className="schema-bars-empty">暂无数据，点击下方添加</span>}
+            {bars.map((v, i) => (
+              <div className="schema-bar-row" key={i}>
+                <span className="schema-bar-idx">{i + 1}</span>
+                <input
+                  className="schema-bar-num"
+                  type="number"
+                  min={0}
+                  max={100}
+                  disabled={readOnly}
+                  value={Number.isFinite(v) ? v : 0}
+                  onChange={(e) => setBarAt(i, Number(e.target.value) || 0)}
+                />
+                <span className="color-chip" style={{ background: colorAt(i) }}>
+                  <input
+                    type="color"
+                    disabled={readOnly}
+                    value={colorAt(i)}
+                    onChange={(e) => setColorAt(i, e.target.value)}
+                  />
+                </span>
+                {!readOnly && bars.length > 1 && (
+                  <button className="schema-bar-del" disabled={readOnly} onClick={() => removeBar(i)} title="删除该项">✕</button>
+                )}
+              </div>
+            ))}
+            {!readOnly && (
+              <button className="schema-bar-add" disabled={readOnly} onClick={addBar}>＋ 添加数据项</button>
+            )}
+          </div>
+        )
+      }
+      case 'colors': {
+        const arr = Array.isArray(values[p.key]) ? (values[p.key] as string[]) : []
+        const valid = (c: string) => /^#[0-9a-fA-F]{6}$/.test(c)
+        return (
+          <div className="schema-colors">
+            {arr.map((c, i) => (
+              <span key={i} className="color-chip" style={{ background: valid(c) ? c : '#eef1f2' }}>
+                <input
+                  type="color"
+                  disabled={readOnly}
+                  value={valid(c) ? c : '#4e8ff4'}
+                  onChange={(e) => {
+                    const next = [...arr]; next[i] = e.target.value
+                    set(p.key, next)
+                  }}
+                />
+              </span>
+            ))}
+            {arr.length < 8 && (
+              <button className="color-chip-add" disabled={readOnly} onClick={() => set(p.key, [...arr, '#4e8ff4'])}>＋</button>
+            )}
+            {arr.length > 1 && (
+              <button className="color-chip-del" disabled={readOnly} onClick={() => set(p.key, arr.slice(0, -1))}>−</button>
+            )}
+          </div>
+        )
+      }
+      case 'gradient': {
+        const g = (values[p.key] ?? {}) as { enabled?: boolean; from?: string; to?: string; angle?: number }
+        const setG = (patchG: Partial<typeof g>) => set(p.key, { ...g, ...patchG })
+        return (
+          <div className="schema-gradient">
+            <label className="schema-checkbox">
+              <input type="checkbox" disabled={readOnly} checked={!!g.enabled} onChange={(e) => setG({ enabled: e.target.checked })} />
+              <span>启用渐变</span>
+            </label>
+            {g.enabled && (
+              <div className="schema-gradient-body">
+                <div className="style-line">
+                  <span className="style-label">起始色</span>
+                  <ColorField value={g.from ?? '#ffffff'} onChange={(v) => setG({ from: v })} />
+                </div>
+                <div className="style-line">
+                  <span className="style-label">结束色</span>
+                  <ColorField value={g.to ?? '#4e8ff4'} onChange={(v) => setG({ to: v })} />
+                </div>
+                <div className="style-line opacity-line">
+                  <span className="style-label">角度</span>
+                  <input type="range" min={0} max={360} step={1} disabled={readOnly} value={g.angle ?? 0} onChange={(e) => setG({ angle: +e.target.value })} />
+                  <span className="style-value">{g.angle ?? 0}°</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      }
+      case 'text':
+      default:
+        return (
+          <input
+            className="image-url-input"
+            disabled={readOnly}
+            value={String(values[p.key] ?? '')}
+            onChange={(e) => set(p.key, e.target.value)}
+          />
+        )
+    }
+  }
+  // 按 group 分组：无 group 的归入「组件」；不满足 dependsOn 条件的控件隐藏
+  const groups = new Map<string, ComponentPropDef[]>()
+  for (const p of tpl.props ?? []) {
+    if (p.dependsOn) {
+      const dep = values[p.dependsOn.key]
+      if (!p.dependsOn.equals.includes(String(dep ?? ''))) continue
+    }
+    const g = p.group ?? '组件'
+    if (!groups.has(g)) groups.set(g, [])
+    groups.get(g)!.push(p)
+  }
+  const applyTheme = (themeProps: Record<string, unknown>) => {
+    const next = { ...values, ...themeProps }
+    const patch: Record<string, unknown> = { componentProps: next }
+    if (next.width !== undefined) patch.width = Number(next.width)
+    if (next.height !== undefined) patch.height = Number(next.height)
+    dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
+  }
+  return (
+    <div className="schema-form">
+      {tpl.themes && tpl.themes.length > 0 && (
+        <div className="schema-themes">
+          {tpl.themes.map((t) => (
+            <button key={t.name} className="theme-chip" disabled={readOnly} onClick={() => applyTheme(t.props)}>{t.name}</button>
+          ))}
+        </div>
+      )}
+      {tpl.states && tpl.states.length > 0 && (
+        <div className="style-line">
+          <span className="style-label">状态</span>
+          <select
+            className="proto-select"
+            disabled={readOnly}
+            value={node.componentState ?? 'default'}
+            onChange={(e) => dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { componentState: (e.target.value === 'default' ? undefined : e.target.value) as ComponentState | undefined } })}
+          >
+            <option value="default">默认</option>
+            {tpl.states.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
+          </select>
+        </div>
+      )}
+      {tpl.slots && tpl.slots.length > 0 && (
+        <div className="style-line schema-slots-note">
+          <span className="style-label">插槽</span>
+          <em>{tpl.slots.map((s) => s.label).join('、')}</em>
+        </div>
+      )}
+      {[...groups.entries()].map(([g, defs]) => (
+        <div key={g}>
+          {groups.size > 1 && <div className="schema-group-label">{g}</div>}
+          {defs.map((p) => (
+            <div key={p.key} className="style-line">
+              <span className="style-label">{p.label}</span>
+              {renderControl(p)}
+            </div>
+          ))}
         </div>
       ))}
     </div>
@@ -381,6 +769,11 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
         textNodes: selected.children.filter((c) => c.type === 'text'),
       }
     : null
+  // CO-1：组件 schema 模板（有 props 声明的组件用 SchemaForm，否则走旧 bgRect/textNodes 逻辑）
+  const schemaTpl = selected?.component
+    ? COMPONENT_TEMPLATES.find((t) => t.name === selected.component)
+    : undefined
+  const hasSchema = !!schemaTpl?.props?.length
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
   const [exportScale, setExportScale] = useState(2)
@@ -487,7 +880,12 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
             </div>
           </Section>
 
-          {componentChildren && (componentChildren.bgRect || componentChildren.textNodes.length > 0) && (
+          {hasSchema && schemaTpl ? (
+            <Section title="组件" hint="＋">
+              <SchemaForm tpl={schemaTpl} node={selected} dispatch={dispatch} readOnly={readOnly} />
+            </Section>
+          ) : (
+            componentChildren && (componentChildren.bgRect || componentChildren.textNodes.length > 0) && (
             <Section title="组件" hint="＋">
               {componentChildren.bgRect && (
                 <>
@@ -535,6 +933,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                 </div>
               ))}
             </Section>
+            )
           )}
 
           <Section title="填充" hint="＋">
