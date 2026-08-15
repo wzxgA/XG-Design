@@ -31,6 +31,13 @@ function text(x: number, y: number, w: number, content: string, style: LayerNode
   }
 }
 
+function image(x: number, y: number, w: number, h: number): LayerNode {
+  return {
+    id: layerId('image'), type: 'image', name: '图片', x, y, width: w, height: h,
+    rotation: 0, visible: true, locked: false, style: { opacity: 1, fill: '#eef2f4' }, children: [],
+  }
+}
+
 /** 内置基础组件库模板（点击/拖拽插入画布） */
 export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   {
@@ -58,15 +65,12 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     },
   },
   {
-    name: '图片占位',
+    name: '图片',
     short: '图片',
     build: (x, y) => {
-      const g = group(200, 140, '图片占位', [
-        rect(0, 0, 200, 140, { fill: '#eef2f4', cornerRadius: 8, stroke: '#d8e0e3', strokeWidth: 1 }),
-        text(0, 60, 200, '图片', { color: '#a0abb0', fontSize: 18 }),
-      ])
-      g.x = x; g.y = y
-      return g
+      const n = image(0, 0, 200, 140)
+      n.x = x; n.y = y
+      return n
     },
   },
   {

@@ -7,6 +7,7 @@ import { PropertyInput } from './PropertyInput'
 import { MIN_SIZE } from '../../utils/geometry'
 import { exportPageAsPng } from '../../utils/export'
 import { toCss, toJson, checkLayer } from '../../utils/inspect'
+import { compressImageFile } from '../../utils/image'
 
 interface Props {
   state: EditorState
@@ -235,6 +236,88 @@ function ShadowEditor({ value, onChange, readOnly }: { value: string | undefined
   )
 }
 
+/** 图片选择面板：本地上传（转 dataURL）或 URL 输入 */
+function ImageEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: EditorDispatch; readOnly: boolean }) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [urlDraft, setUrlDraft] = useState(node.imageUrl ?? '')
+  const [compressTip, setCompressTip] = useState('')
+  const [uploading, setUploading] = useState(false)
+
+  // 选中对象切换时同步 URL 草稿
+  useEffect(() => {
+    setUrlDraft(node.imageUrl ?? '')
+    setCompressTip('')
+  }, [node.id, node.imageUrl])
+
+  const patchUrl = (v: string) => {
+    const trimmed = v.trim()
+    if (!trimmed) {
+      dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { imageUrl: undefined } })
+      return
+    }
+    dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { imageUrl: trimmed } })
+  }
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    // 图片会在存入文档前自动压缩（降分辨率 + 转码），因此对原文件放宽到 20MB；
+    // 超过 20MB 的原图解码/压缩会明显占用内存并卡顿，仍建议先自行压缩。
+    if (file.size > 20 * 1024 * 1024) {
+      alert('图片过大（>20MB），请先压缩后再上传')
+      return
+    }
+    setUploading(true)
+    setCompressTip('')
+    try {
+      const { dataUrl, originalBytes, compressedBytes, resized } = await compressImageFile(file)
+      if (!dataUrl) return
+      dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { imageUrl: dataUrl } })
+      // 反馈压缩效果（未压缩时不提示）
+      const savedPct = Math.round((1 - compressedBytes / originalBytes) * 100)
+      if (savedPct > 0) {
+        const kb = (b: number) => (b / 1024).toFixed(0)
+        setCompressTip(`${resized ? '已降分辨率并压缩' : '已压缩'}：${kb(originalBytes)}KB → ${kb(compressedBytes)}KB（省 ${savedPct}%）`)
+      }
+    } catch {
+      setCompressTip('图片处理失败，请重试')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="image-editor">
+      {node.imageUrl ? (
+        <div className="image-preview">
+          <img src={node.imageUrl} alt={node.name} />
+          <button className="image-remove" onClick={() => patchUrl('')} title="移除图片">✕</button>
+        </div>
+      ) : (
+        <div className="image-empty">未设置图片</div>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFile} />
+      <div className="image-actions">
+        <button className="export-button" onClick={() => fileRef.current?.click()} disabled={readOnly || uploading}>{uploading ? '处理中…' : '上传图片'}</button>
+      </div>
+      {compressTip && <div className="image-compress-tip">{compressTip}</div>}
+      <div className="style-line image-url-line">
+        <span className="style-label">URL</span>
+        <input
+          className="image-url-input"
+          value={urlDraft}
+          placeholder="粘贴图片地址…"
+          disabled={readOnly}
+          onChange={(e) => setUrlDraft(e.target.value)}
+          onBlur={(e) => patchUrl(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+        />
+      </div>
+    </div>
+  )
+}
+
 function ChartEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: EditorDispatch; readOnly: boolean }) {
   const bars = node.chartBars ?? []
   const setBars = (next: number[]) => dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { chartBars: next } })
@@ -382,6 +465,12 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                   <option value={700}>粗体 700</option>
                 </select>
               </div>
+            </Section>
+          )}
+
+          {selected.type === 'image' && (
+            <Section title="图片" hint="＋">
+              <ImageEditor node={selected} dispatch={dispatch} readOnly={readOnly} />
             </Section>
           )}
 

@@ -52,7 +52,8 @@ function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-function readProjects(): ProjectMeta[] {
+/** 读取本地项目元数据列表（供 projectsActions 读写封面缓存复用） */
+export function readProjects(): ProjectMeta[] {
   try {
     return JSON.parse(localStorage.getItem(PROJECTS_KEY) ?? '[]') as ProjectMeta[]
   } catch {
@@ -68,7 +69,8 @@ function readLocalStorage(key: string): string | null {
   }
 }
 
-function writeProjects(projects: ProjectMeta[]): void {
+/** 写回本地项目元数据列表（供 projectsActions 写封面缓存复用） */
+export function writeProjects(projects: ProjectMeta[]): void {
   try {
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects))
   } catch {

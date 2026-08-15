@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
+import { Icon } from '../common/brand'
 import { isComponentNode } from '../../utils/layers'
 
 interface Props {
@@ -162,6 +163,10 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
       )
     }
 
+    case 'image':
+      return <CanvasImage node={node} style={style} outline={outline} base={base} />
+
+
     default:
       return null
   }
@@ -188,6 +193,29 @@ function CanvasPath({ node, style, outline, base }: {
           strokeLinecap="round"
         />
       </svg>
+    </div>
+  )
+}
+
+function CanvasImage({ node, style, outline, base }: {
+  node: LayerNode
+  style: React.CSSProperties
+  outline: string
+  base: Record<string, (e: any) => void>
+}) {
+  // 未设置图片时显示灰色占位（背景色取自 style.fill）
+  const src = node.imageUrl
+  return (
+    <div
+      className={`canvas-image ${outline}`}
+      style={{ ...style, background: src ? undefined : (node.style.fill ?? '#eef2f4') }}
+      {...base}
+    >
+      {src ? (
+        <img src={src} alt={node.name} draggable={false} />
+      ) : (
+        <span className="canvas-image-empty"><Icon name="image" /></span>
+      )}
     </div>
   )
 }

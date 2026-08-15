@@ -2,7 +2,7 @@
 
 export type ToolType = 'select' | 'frame' | 'rectangle' | 'pen' | 'text' | 'comment' | 'components'
 
-export type LayerType = 'frame' | 'group' | 'rectangle' | 'text' | 'chart' | 'comment' | 'path'
+export type LayerType = 'frame' | 'group' | 'rectangle' | 'text' | 'chart' | 'comment' | 'path' | 'image'
 
 export type InspectorTab = 'design' | 'prototype' | 'inspect'
 
@@ -45,6 +45,8 @@ export interface LayerNode {
   expanded?: boolean
   /** 文本节点内容 */
   content?: string
+  /** 图片节点图片地址（dataURL 或 URL） */
+  imageUrl?: string
   /** 图表节点数据：柱状高度百分比数组或迷你趋势 */
   chartBars?: number[]
   /** 钢笔路径锚点（相对图层左上角的画布坐标） */

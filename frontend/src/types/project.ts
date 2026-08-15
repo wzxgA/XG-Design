@@ -15,6 +15,10 @@ export interface ProjectMeta {
   updatedAt: number
   archived: boolean
   share?: ShareInfo
+  /** 项目第一页封面缩略图（JPEG dataURL），UI 层缓存，不属于设计文档内容 */
+  cover?: string
+  /** 生成 cover 时对应的项目 updatedAt，用于新鲜度判断（>= updatedAt 视为新鲜） */
+  coverUpdatedAt?: number
 }
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'

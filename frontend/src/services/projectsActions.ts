@@ -1,7 +1,10 @@
 import { repository } from './index'
 import { importLocalDocuments } from './importLocal'
 import { downloadProjectFile, parseProjectEnvelope } from './exportProject'
+import { renderPageThumbnail } from '../utils/export'
+import { readProjects, writeProjects } from './documentRepository'
 import type { ProjectMeta } from '../types/project'
+import type { DesignDocument } from '../types/design'
 
 export interface ImportOutcome {
   ok: boolean
@@ -83,6 +86,103 @@ export async function importProjectFile(file: File): Promise<{ list: ProjectMeta
   } catch (err) {
     const message = err instanceof Error ? err.message : '导入失败，请稍后重试'
     return { list: await repository.listDocuments(), outcome: { ok: false, message } }
+  }
+}
+
+/** 远程模式封面缓存 key：localStorage['xgdesign:cover:'+id] */
+const COVER_PREFIX = 'xgdesign:cover:'
+
+interface CoverCache {
+  dataUrl: string
+  updatedAt: number
+}
+
+/** 封面是否新鲜：coverUpdatedAt >= updatedAt 视为可直接复用 */
+export function isCoverFresh(meta: ProjectMeta): boolean {
+  return !!meta.cover && !!meta.coverUpdatedAt && meta.coverUpdatedAt >= meta.updatedAt
+}
+
+function readCoverCache(id: string): CoverCache | null {
+  try {
+    const raw = localStorage.getItem(COVER_PREFIX + id)
+    if (!raw) return null
+    return JSON.parse(raw) as CoverCache
+  } catch {
+    return null
+  }
+}
+
+function writeCoverCache(id: string, cache: CoverCache): void {
+  try {
+    localStorage.setItem(COVER_PREFIX + id, JSON.stringify(cache))
+  } catch {
+    /* localStorage 配额超限：本次仅内存展示，下次重新生成 */
+  }
+}
+
+/** 列表页加载后合并封面缓存到 meta（本地模式 meta 自带 cover，无需处理） */
+export function attachCovers(list: ProjectMeta[]): ProjectMeta[] {
+  if (repository.kind === 'local') return list
+  return list.map((p) => {
+    const cached = readCoverCache(p.id)
+    if (!cached) return p
+    return { ...p, cover: cached.dataUrl, coverUpdatedAt: cached.updatedAt }
+  })
+}
+
+/** 本地模式：将封面写回 PROJECTS_KEY 对应项目 */
+async function saveLocalCover(id: string, dataUrl: string, stamp: number): Promise<void> {
+  const projects = readProjects()
+  const idx = projects.findIndex((p) => p.id === id)
+  if (idx < 0) return
+  projects[idx] = { ...projects[idx], cover: dataUrl, coverUpdatedAt: stamp }
+  writeProjects(projects)
+}
+
+/**
+ * 编辑器保存成功后调用：生成第一页封面并写入对应数据源的缓存。
+ * 纯 fire-and-forget：内部异常一律吞掉，不影响保存主流程。
+ */
+export async function generateAndCacheCover(id: string, doc: DesignDocument): Promise<void> {
+  try {
+    const page = doc.pages[0]
+    if (!page) return
+    const dataUrl = await renderPageThumbnail(page)
+    if (!dataUrl) return
+    // 封面时间戳取生成时刻与文档最新更新时间的较大值，保证生成后即新鲜，
+    // 避免列表页因 coverUpdatedAt < updatedAt 重复拉取重生成
+    const stamp = Math.max(Date.now(), doc.updatedAt ?? 0)
+    if (repository.kind === 'local') {
+      await saveLocalCover(id, dataUrl, stamp)
+    } else {
+      writeCoverCache(id, { dataUrl, updatedAt: stamp })
+    }
+  } catch {
+    /* 封面生成失败不影响主流程，静默跳过 */
+  }
+}
+
+/**
+ * 列表页懒加载兜底：拉取完整文档 → 生成第一页封面 → 写入缓存。
+ * 失败（无第一页 / 渲染异常 / 网络错误）返回 null，调用方保留占位图标。
+ */
+export async function refreshProjectCover(meta: ProjectMeta): Promise<ProjectMeta | null> {
+  try {
+    const doc = await repository.getDocument(meta.id)
+    if (!doc) return null
+    const page = doc.pages[0]
+    if (!page) return null
+    const dataUrl = await renderPageThumbnail(page)
+    if (!dataUrl) return null
+    const stamp = Math.max(Date.now(), meta.updatedAt ?? 0, doc.updatedAt ?? 0)
+    if (repository.kind === 'local') {
+      await saveLocalCover(meta.id, dataUrl, stamp)
+    } else {
+      writeCoverCache(meta.id, { dataUrl, updatedAt: stamp })
+    }
+    return { ...meta, cover: dataUrl, coverUpdatedAt: stamp }
+  } catch {
+    return null
   }
 }
 

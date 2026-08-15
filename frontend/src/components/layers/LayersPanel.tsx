@@ -8,7 +8,7 @@ import { layerId } from '../../utils/layers'
 
 const typeIcon: Record<LayerNode['type'], IconName> = {
   frame: 'frame', group: 'layers', rectangle: 'rect',
-  text: 'text', chart: 'chart', comment: 'comment', path: 'pen',
+  text: 'text', chart: 'chart', comment: 'comment', path: 'pen', image: 'image',
 }
 
 interface Props {
@@ -219,7 +219,7 @@ export function LayersPanel({ state, dispatch, readOnly = false, onSearchFocusRe
   }
 
   /** 新建图层：放入当前选中 frame 或页内第一个 frame；无 frame 时先建 frame */
-  const createNew = (kind: 'rectangle' | 'text' | 'frame' | 'group') => {
+  const createNew = (kind: 'rectangle' | 'text' | 'frame' | 'group' | 'image') => {
     const selectedFrame = state.selectedIds
       .map((id) => findLayer(activePage.children, id))
       .find((n) => n && n.type === 'frame')
@@ -410,7 +410,7 @@ export function LayersPanel({ state, dispatch, readOnly = false, onSearchFocusRe
       {/* 新建图层菜单 */}
       {newLayerMenuOpen && (
         <div className="layer-popover popover-new-layer">
-          {(['rectangle', 'text', 'frame', 'group'] as const).map((kind) => (
+          {(['rectangle', 'text', 'frame', 'group', 'image'] as const).map((kind) => (
             <button key={kind} onClick={() => createNew(kind)}>{kindName(kind)}</button>
           ))}
         </div>
@@ -464,6 +464,7 @@ function kindName(kind: LayerNode['type']): string {
     case 'text': return '文本'
     case 'frame': return '画板'
     case 'group': return '分组'
+    case 'image': return '图片'
     default: return kind
   }
 }

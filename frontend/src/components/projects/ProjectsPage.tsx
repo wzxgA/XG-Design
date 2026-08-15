@@ -3,7 +3,7 @@ import { repository } from '../../services'
 import { clearAuth } from '../../services/auth'
 import { Icon, Watermelon } from '../common/brand'
 import { ConfirmDialog } from '../common/ConfirmDialog'
-import { openProject, createProject, duplicateProject, archiveProject, unarchiveProject, deleteProject, exportProject, importProjectFile } from '../../services/projectsActions'
+import { openProject, createProject, duplicateProject, archiveProject, unarchiveProject, deleteProject, exportProject, importProjectFile, attachCovers, isCoverFresh, refreshProjectCover } from '../../services/projectsActions'
 import type { ProjectMeta } from '../../types/project'
 
 interface Props {
@@ -29,7 +29,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
     setLoading(true)
     setError('')
     try {
-      setProjects(await repository.listDocuments(v === 'archived'))
+      setProjects(attachCovers(await repository.listDocuments(v === 'archived')))
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载项目失败，请稍后重试')
     } finally {
@@ -82,7 +82,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
     if (busy) return
     setBusy(true)
     try {
-      setProjects(await archiveProject(id))
+      setProjects(attachCovers(await archiveProject(id)))
     } finally {
       setBusy(false)
     }
@@ -92,7 +92,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
     if (busy) return
     setBusy(true)
     try {
-      setProjects(await unarchiveProject(id))
+      setProjects(attachCovers(await unarchiveProject(id)))
     } finally {
       setBusy(false)
     }
@@ -103,7 +103,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
     if (!window.confirm('确定永久删除该项目吗？此操作不可恢复。')) return
     setBusy(true)
     try {
-      setProjects(await deleteProject(id))
+      setProjects(attachCovers(await deleteProject(id)))
     } finally {
       setBusy(false)
     }
@@ -123,6 +123,63 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // ---- 封面懒加载兜底：对无封面 / 封面过期的项目限量并发生成（并发 ≤4）----
+  const coverQueueRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (loading) return
+    const queue = projects
+      .filter((p) => !isCoverFresh(p))
+      .filter((p) => !coverQueueRef.current.has(p.id))
+    if (queue.length === 0) return
+    queue.forEach((p) => coverQueueRef.current.add(p.id))
+
+    let cancelled = false
+    let active = 0
+    const MAX_CONCURRENT = 4
+
+    const work = async () => {
+      while (!cancelled) {
+        const meta = queue.shift()
+        if (!meta) break
+        const updated = await refreshProjectCover(meta)
+        if (updated && !cancelled) {
+          setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+        }
+      }
+    }
+
+    const pump = () => {
+      while (!cancelled && active < MAX_CONCURRENT && queue.length > 0) {
+        active += 1
+        work().finally(() => {
+          active -= 1
+        })
+      }
+    }
+
+    // 浏览器空闲时隙启动，避免与首屏渲染争抢主线程
+    const w = window as unknown as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+    let idleHandle: number | undefined
+    if (w.requestIdleCallback) {
+      idleHandle = w.requestIdleCallback(pump, { timeout: 2000 })
+    } else {
+      idleHandle = window.setTimeout(pump, 300)
+    }
+
+    // 已启动的 work 通过 cancelled 退出；未启动的 idle 回调在此取消
+    return () => {
+      cancelled = true
+      if (idleHandle !== undefined) {
+        if (w.cancelIdleCallback) w.cancelIdleCallback(idleHandle)
+        else window.clearTimeout(idleHandle)
+      }
+    }
+  }, [loading, projects])
+
   /** 选择 .xgproj 文件后导入，结果（成功/失败原因）显示在导入行 */
   const onImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -132,7 +189,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
     setImportResult('')
     try {
       const { list, outcome } = await importProjectFile(file)
-      setProjects(list)
+      setProjects(attachCovers(list))
       setImportResult(outcome.message)
     } finally {
       setImporting(false)
@@ -219,7 +276,9 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
           <div className="project-grid">
             {projects.map((p) => (
               <div className="project-grid-card" key={p.id} onClick={() => view === 'active' && openProject(p.id)}>
-                <div className="project-grid-thumb"><Icon name="frame" /></div>
+                <div className="project-grid-thumb">
+                  {isCoverFresh(p) && p.cover ? <img src={p.cover} alt={p.name} loading="lazy" /> : <Icon name="frame" />}
+                </div>
                 <div className="project-grid-info">
                   <div className="project-name">{p.name}</div>
                   <div className="project-meta">

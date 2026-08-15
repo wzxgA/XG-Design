@@ -5,6 +5,7 @@ import { editorReducer } from './editor-reducer'
 import { starterDocument } from '../fixtures/starter-document'
 import { repository, isConflictError } from '../services'
 import type { DocumentRepository } from '../services'
+import { generateAndCacheCover } from '../services/projectsActions'
 
 export type { EditorState, EditorAction, ToolType }
 export type EditorDispatch = (action: EditorAction) => void
@@ -199,6 +200,12 @@ export function useEditorStore(projectId?: string, share?: ShareSession) {
         }
         setSaveStatus('saved')
         setDirty(false)
+        // 保存成功后异步生成第一页封面缩略图（fire-and-forget，失败静默）
+        if (!share) {
+          const savedDoc = state.document
+          const savedId = savedDoc.id
+          generateAndCacheCover(savedId, savedDoc)
+        }
       } catch (e) {
         console.error('[editor] 保存失败', e)
         setSaveStatus('error')

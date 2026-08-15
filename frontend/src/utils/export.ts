@@ -85,6 +85,21 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
       }
       break
     }
+    case 'image': {
+      // 未设置图片时保留背景占位色
+      if (!node.style.fill) el.style.background = '#eef2f4'
+      if (node.imageUrl) {
+        const img = document.createElement('img')
+        img.src = node.imageUrl
+        img.alt = node.name
+        img.style.width = '100%'
+        img.style.height = '100%'
+        img.style.objectFit = 'contain'
+        img.style.display = 'block'
+        el.appendChild(img)
+      }
+      break
+    }
     case 'group':
     case 'frame':
       node.children.forEach((child) => {
@@ -142,14 +157,14 @@ function computeBounds(nodes: LayerNode[]): Bounds | null {
 /** 输出像素上限，超出自动降倍率，避免大画板 @3x 内存溢出 */
 const MAX_OUTPUT_PIXELS = 4096 * 4096
 
-/** 公共渲染管线：HTML → SVG foreignObject → Canvas → PNG Blob */
-async function renderHtmlToPng(
+/** 公共渲染管线：HTML → SVG foreignObject → Canvas（离屏，不触发下载） */
+async function renderHtmlToCanvas(
   content: HTMLElement,
   width: number,
   height: number,
   scale: number,
   background: string,
-): Promise<Blob> {
+): Promise<HTMLCanvasElement> {
   let outW = Math.max(1, Math.round(width * scale))
   let outH = Math.max(1, Math.round(height * scale))
   if (outW * outH > MAX_OUTPUT_PIXELS) {
@@ -199,7 +214,18 @@ async function renderHtmlToPng(
   ctx.drawImage(img, 0, 0, outW, outH)
 
   container.remove()
+  return canvas
+}
 
+/** 公共渲染管线：HTML → SVG foreignObject → Canvas → PNG Blob */
+async function renderHtmlToPng(
+  content: HTMLElement,
+  width: number,
+  height: number,
+  scale: number,
+  background: string,
+): Promise<Blob> {
+  const canvas = await renderHtmlToCanvas(content, width, height, scale, background)
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
   if (!blob) throw new Error('生成图片失败')
   return blob
@@ -237,10 +263,12 @@ export async function renderPageOffscreen(page: PageNode, scale: number): Promis
   const bounds = computeBounds(visibleNodes)
   if (!bounds) throw new Error(`页面「${page.name}」没有可导出的内容`)
 
-  // 背景：有 frame 以 frame 背景色为准，无 frame 时白色
-  const firstFrame = visibleNodes.find((n) => n.type === 'frame')
-  const background = firstFrame ? (firstFrame.style.backgroundColor ?? firstFrame.style.fill ?? '#ffffff') : '#ffffff'
+  const pageEl = buildPageElement(visibleNodes, bounds)
+  return renderHtmlToPng(pageEl, bounds.width, bounds.height, scale, pageBackground(visibleNodes))
+}
 
+/** 组装页面离屏元素：可见顶层节点按包围盒原点重定位到同一容器 */
+function buildPageElement(visibleNodes: LayerNode[], bounds: Bounds): HTMLElement {
   const pageEl = document.createElement('div')
   pageEl.style.position = 'absolute'
   pageEl.style.left = '0px'
@@ -254,8 +282,35 @@ export async function renderPageOffscreen(page: PageNode, scale: number): Promis
     el.style.top = `${node.y - bounds.y}px`
     pageEl.appendChild(el)
   }
+  return pageEl
+}
 
-  return renderHtmlToPng(pageEl, bounds.width, bounds.height, scale, background)
+/** 页面背景：有 frame 以 frame 背景色为准，无 frame 时白色 */
+function pageBackground(visibleNodes: LayerNode[]): string {
+  const firstFrame = visibleNodes.find((n) => n.type === 'frame')
+  return firstFrame ? (firstFrame.style.backgroundColor ?? firstFrame.style.fill ?? '#ffffff') : '#ffffff'
+}
+
+/** 项目卡片封面缩略图默认输出宽度（px），约为卡片缩略区宽度的 2 倍 */
+export const THUMBNAIL_MAX_WIDTH = 400
+
+/**
+ * 渲染页面第一屏为 JPEG dataURL 缩略图（供项目卡片封面展示）。
+ * 复用 renderHtmlToCanvas 离屏渲染管线，与编辑器所见即所得。
+ * - 页面无可见内容时返回 null（调用方保留占位图标）
+ * - 宽边按 maxWidth 等比缩小，最小倍率 1 保证不放大失真
+ * - JPEG quality 0.7 在清晰度与体积（约 15–40KB）间取得平衡
+ */
+export async function renderPageThumbnail(page: PageNode, maxWidth = THUMBNAIL_MAX_WIDTH): Promise<string | null> {
+  const visibleNodes = page.children.filter((n) => n.visible)
+  if (visibleNodes.length === 0) return null
+  const bounds = computeBounds(visibleNodes)
+  if (!bounds) return null
+
+  const pageEl = buildPageElement(visibleNodes, bounds)
+  const scale = Math.min(1, maxWidth / bounds.width)
+  const canvas = await renderHtmlToCanvas(pageEl, bounds.width, bounds.height, scale, pageBackground(visibleNodes))
+  return canvas.toDataURL('image/jpeg', 0.7)
 }
 
 /** 文件系统安全清洗（与 exportProject.sanitizeFileName 规则一致，避免反向依赖） */

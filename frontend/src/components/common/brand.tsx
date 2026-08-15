@@ -6,13 +6,13 @@ export type IconName =
   | 'cursor' | 'frame' | 'rect' | 'pen' | 'text' | 'comment' | 'grid'
   | 'search' | 'bell' | 'play' | 'eye' | 'lock' | 'chevron' | 'plus' | 'minus'
   | 'fit' | 'external' | 'layers' | 'components' | 'chart' | 'table'
-  | 'settings' | 'folder' | 'spark' | 'copy' | 'link'
+  | 'settings' | 'folder' | 'spark' | 'copy' | 'link' | 'image'
 
 const icons: Record<IconName, string> = {
   cursor: '↖', frame: '□', rect: '▱', pen: '⌁', text: 'T', comment: '◌', grid: '⊞',
   search: '⌕', bell: '♧', play: '▶', eye: '◉', lock: '▣', chevron: '⌄',
   plus: '+', minus: '−', fit: '⛶', external: '↗', layers: '◫', components: '◇',
-  chart: '▥', table: '▤', settings: '⚙', folder: '▰', spark: '✦', copy: '⧉', link: '⛓',
+  chart: '▥', table: '▤',   settings: '⚙', folder: '▰', spark: '✦', copy: '⧉', link: '⛓', image: '▧',
 }
 
 export function Icon({ name, className = '' }: { name: IconName; className?: string }) {
@@ -69,7 +69,7 @@ export function Watermelon({ className = '' }: { className?: string }) {
 const componentGlyphs: Record<string, ReactNode> = {
   按钮: (<><rect x="3" y="8" width="18" height="9" rx="4.5" /><line x1="9" y1="12.5" x2="15" y2="12.5" /></>),
   输入框: (<><rect x="3" y="8" width="18" height="9" rx="2" /><line x1="7" y1="10.5" x2="7" y2="14.5" /></>),
-  图片占位: (<><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="10" r="1.5" /><path d="M21 15.5 16 10.5 6 19" /></>),
+  图片: (<><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="10" r="1.5" /><path d="M21 15.5 16 10.5 6 19" /></>),
   导航栏: (<><rect x="3" y="8" width="18" height="8" rx="2" /><line x1="6.5" y1="12" x2="8.5" y2="12" /><line x1="11" y1="12" x2="13" y2="12" /><line x1="15.5" y1="12" x2="17.5" y2="12" /></>),
   卡片: (<><rect x="4" y="4" width="16" height="16" rx="2" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="7.5" y1="16" x2="13" y2="16" /></>),
   标签: (<><path d="M3 3h8l10 10-8 8L3 11V3z" /><circle cx="7.5" cy="7.5" r="1.5" /></>),

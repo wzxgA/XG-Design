@@ -23,6 +23,15 @@ export function toCss(node: LayerNode): string {
     lines.push(`  font-weight: ${node.style.fontWeight ?? 400};`)
     lines.push(`  content: "${node.content ?? node.name}";`)
   }
+  if (node.type === 'image') {
+    if (node.imageUrl) {
+      lines.push(`  background-image: url("${node.imageUrl}");`)
+      lines.push(`  background-size: contain;`)
+      lines.push(`  background-position: center;`)
+      lines.push(`  background-repeat: no-repeat;`)
+    }
+    if (node.style.fill) lines.push(`  background-color: ${node.style.fill};`)
+  }
   lines.push('}')
   // 递归输出子节点 CSS
   if ((node.type === 'group' || node.type === 'frame') && node.children.length > 0) {
@@ -48,6 +57,7 @@ export function toJson(node: LayerNode): string {
     locked: node.locked,
     style: node.style,
     content: node.content,
+    imageUrl: node.imageUrl,
     children: node.children.length > 0 ? node.children : undefined,
   }, null, 2)
 }
