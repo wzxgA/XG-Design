@@ -11,6 +11,7 @@ import { compressImageFile } from '../../utils/image'
 import { COMPONENT_TEMPLATES, defaultProps } from '../../fixtures/component-library'
 import type { ComponentTemplate } from '../../fixtures/component-library'
 import { DEFAULT_CHART_COLORS } from '../../utils/chart'
+import { CHART_MAX_POINTS, CHART_MAX_SERIES, CHART_MAX_COLORS, RADIUS_MAX, FONT_SIZE_MIN, FEEDBACK_DELAY } from '../../constants/limits'
 
 interface Props {
   state: EditorState
@@ -117,7 +118,7 @@ function InspectPanel({ state, selected }: { state: EditorState; selected: Layer
     try {
       await navigator.clipboard.writeText(text)
       setCopied(type)
-      setTimeout(() => setCopied(null), 1500)
+      setTimeout(() => setCopied(null), FEEDBACK_DELAY)
     } catch { /* clipboard 不可用时静默 */ }
   }
 
@@ -331,7 +332,7 @@ function ImageEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: 
       </div>
       <div className="style-line">
         <span className="style-label">圆角</span>
-        <PropertyInput label="" value={node.style.cornerRadius ?? 0} min={0} max={64} disabled={readOnly} onChange={(v) => dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { style: { ...node.style, cornerRadius: v } } })} />
+        <PropertyInput label="" value={node.style.cornerRadius ?? 0} min={0} max={RADIUS_MAX} disabled={readOnly} onChange={(v) => dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch: { style: { ...node.style, cornerRadius: v } } })} />
       </div>
     </div>
   )
@@ -353,11 +354,11 @@ function ChartEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: 
     else patch({ chartSeries: next })
   }
   const setCount = (n: number) => {
-    const count = Math.max(1, Math.min(12, n))
+    const count = Math.max(1, Math.min(CHART_MAX_POINTS, n))
     setSeries(series.map((s) => Array.from({ length: count }, (_, i) => s[i] ?? 50)))
   }
   const setSeriesCount = (n: number) => {
-    const count = Math.max(1, Math.min(6, n))
+    const count = Math.max(1, Math.min(CHART_MAX_SERIES, n))
     const next = series.slice(0, count)
     while (next.length < count) next.push(Array.from({ length: dataCount }, () => 50))
     setSeries(next)
@@ -388,7 +389,7 @@ function ChartEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: 
       {!isPie && (
         <div className="style-line">
           <span className="style-label">数据点</span>
-          <PropertyInput label="" value={dataCount} min={1} max={12} disabled={readOnly} onChange={setCount} />
+          <PropertyInput label="" value={dataCount} min={1} max={CHART_MAX_POINTS} disabled={readOnly} onChange={setCount} />
         </div>
       )}
       {isPie ? (
@@ -619,7 +620,7 @@ function SchemaForm({ tpl, node, dispatch, readOnly }: {
                 />
               </span>
             ))}
-            {arr.length < 8 && (
+            {arr.length < CHART_MAX_COLORS && (
               <button className="color-chip-add" disabled={readOnly} onClick={() => set(p.key, [...arr, '#4e8ff4'])}>＋</button>
             )}
             {arr.length > 1 && (
@@ -845,7 +846,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
               </div>
               <div className="style-line">
                 <span className="style-label">字号</span>
-                <PropertyInput label="" value={selected.style.fontSize ?? 14} min={8} disabled={readOnly} onChange={(v) => patchStyle({ fontSize: v })} />
+                <PropertyInput label="" value={selected.style.fontSize ?? 14} min={FONT_SIZE_MIN} disabled={readOnly} onChange={(v) => patchStyle({ fontSize: v })} />
               </div>
               <div className="style-line">
                 <span className="style-label">字重</span>
@@ -928,7 +929,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                   </div>
                   <div className="style-line">
                     <span className="style-label">字号</span>
-                    <PropertyInput label="" value={tn.style.fontSize ?? 14} min={8} disabled={readOnly} onChange={(v) => patchChild(tn.id, { style: { fontSize: v } })} />
+                    <PropertyInput label="" value={tn.style.fontSize ?? 14} min={FONT_SIZE_MIN} disabled={readOnly} onChange={(v) => patchChild(tn.id, { style: { fontSize: v } })} />
                   </div>
                 </div>
               ))}

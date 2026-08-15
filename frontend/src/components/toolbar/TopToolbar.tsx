@@ -7,6 +7,8 @@ import { Icon, Watermelon, type IconName } from '../common/brand'
 import { exportNodeAsPng, exportPageAsPng, exportDocumentPagesAsPng } from '../../utils/export'
 import { downloadProjectFile } from '../../services/exportProject'
 import { HistoryModal } from '../history/HistoryModal'
+import { avatarColor } from '../../constants/colors'
+import { AVATAR_MAX_VISIBLE } from '../../constants/limits'
 
 const toolItems: [IconName, string, string, ToolType][] = [
   ['cursor', '选择', 'V', 'select'],
@@ -257,12 +259,12 @@ export function TopToolbar({
             )}
             {members.length > 0 && (
               <div className="avatars" title={`协作者 ${members.length} 人`}>
-                {members.slice(0, 4).map((m) => (
+                {members.slice(0, AVATAR_MAX_VISIBLE).map((m) => (
                   <span key={m.userId} className="avatar" style={{ background: avatarColor(m.userId) }} title={m.displayName}>
                     {m.displayName.slice(0, 1).toUpperCase()}
                   </span>
                 ))}
-                {members.length > 4 && <span className="avatar-more">+{members.length - 4}</span>}
+                {members.length > AVATAR_MAX_VISIBLE && <span className="avatar-more">+{members.length - AVATAR_MAX_VISIBLE}</span>}
               </div>
             )}
           </>
@@ -276,10 +278,3 @@ export function TopToolbar({
   )
 }
 
-const AVATAR_COLORS = ['#f1a46d', '#8ba4dc', '#70c69b', '#e07b9c', '#a78bdc', '#6dc5d6']
-
-function avatarColor(seed: string): string {
-  let hash = 0
-  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}

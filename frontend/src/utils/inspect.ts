@@ -1,4 +1,5 @@
 import type { LayerNode, DesignDocument } from '../types/design'
+import { MUTED } from '../constants/colors'
 
 /** 生成图层的 CSS 片段（递归输出子节点） */
 export function toCss(node: LayerNode): string {
@@ -22,7 +23,7 @@ export function toCss(node: LayerNode): string {
     if (node.style.shadow) lines.push(`  box-shadow: ${node.style.shadow};`)
   }
   if (node.type === 'text') {
-    lines.push(`  color: ${node.style.fontColor ?? node.style.color ?? '#5c6b72'};`)
+    lines.push(`  color: ${node.style.fontColor ?? node.style.color ?? MUTED};`)
     lines.push(`  font-size: ${node.style.fontSize ?? 14}px;`)
     lines.push(`  font-weight: ${node.style.fontWeight ?? 400};`)
     lines.push(`  content: "${node.content ?? node.name}";`)

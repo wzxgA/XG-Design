@@ -7,6 +7,7 @@ import { CanvasArea } from './components/canvas/CanvasArea'
 import { InspectorPanel } from './components/inspector/InspectorPanel'
 import { PreviewOverlay } from './components/canvas/PreviewOverlay'
 import { ResizeHandle } from './components/layout/ResizeHandle'
+import { PANEL_MIN_LEFT, PANEL_MAX_LEFT, PANEL_MIN_RIGHT, PANEL_MAX_RIGHT } from './constants/limits'
 import { ProjectsPage } from './components/projects/ProjectsPage'
 import { ShareModal } from './components/share/ShareModal'
 import { AuthPage } from './components/auth/AuthPage'
@@ -263,9 +264,9 @@ function Editor({ route, user, onUserChange }: {
         style={{ '--left-w': leftW ? `${leftW}px` : undefined, '--right-w': rightW ? `${rightW}px` : undefined } as React.CSSProperties}
       >
         <LayersPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} onSearchFocusReady={(fn) => { searchFocusRef.current = fn }} />
-        <ResizeHandle side="left" value={leftW} onChange={setLeftW} min={180} max={420} limit={wsW ? wsW * 0.35 : null} />
+        <ResizeHandle side="left" value={leftW} onChange={setLeftW} min={PANEL_MIN_LEFT} max={PANEL_MAX_LEFT} limit={wsW ? wsW * 0.35 : null} />
         <CanvasArea state={state} dispatch={guardedDispatch} readOnly={readOnly} />
-        <ResizeHandle side="right" value={rightW} onChange={setRightW} min={200} max={460} limit={wsW ? wsW * 0.4 : null} />
+        <ResizeHandle side="right" value={rightW} onChange={setRightW} min={PANEL_MIN_RIGHT} max={PANEL_MAX_RIGHT} limit={wsW ? wsW * 0.4 : null} />
         <InspectorPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} />
       </div>
       {previewing && <PreviewOverlay state={state} onClose={() => setPreviewing(false)} />}

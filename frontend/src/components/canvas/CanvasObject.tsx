@@ -6,6 +6,7 @@ import { isComponentNode } from '../../utils/layers'
 import { renderComponentChildren } from '../../fixtures/component-library'
 import { renderChartSvg } from '../../utils/chart'
 import { usePreviewDemo } from './preview-demo'
+import { RECT_FILL, BLUE, IMAGE_PLACEHOLDER, MUTED } from '../../constants/colors'
 
 interface Props {
   node: LayerNode
@@ -150,7 +151,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
             ...style,
             background: node.style.fillGradient
               ? `linear-gradient(${node.style.fillGradient.angle ?? 0}deg, ${node.style.fillGradient.from}, ${node.style.fillGradient.to})`
-              : (node.style.fill ?? '#e5ebef'),
+              : (node.style.fill ?? RECT_FILL),
             borderRadius: node.style.cornerRadius ?? 0,
             border: node.style.stroke ? `${node.style.strokeWidth ?? 1}px solid ${node.style.stroke}` : undefined,
             boxShadow: node.style.shadow,
@@ -207,7 +208,7 @@ function CanvasPath({ node, style, outline, base }: {
         <polyline
           points={poly}
           fill="none"
-          stroke={node.style.stroke ?? '#4e8ff4'}
+          stroke={node.style.stroke ?? BLUE}
           strokeWidth={node.style.strokeWidth ?? 2}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -230,7 +231,7 @@ function CanvasImage({ node, style, outline, base }: {
       className={`canvas-image ${outline}`}
       style={{
         ...style,
-        background: src ? undefined : (node.style.fill ?? '#eef2f4'),
+        background: src ? undefined : (node.style.fill ?? IMAGE_PLACEHOLDER),
         borderRadius: node.style.cornerRadius ?? 0,
         overflow: node.style.cornerRadius ? 'hidden' : undefined,
       }}
@@ -295,7 +296,7 @@ function CanvasText({ node, style, outline, base, state, dispatch, readOnly = fa
       className={`canvas-text ${outline}`}
       style={{
         ...style,
-        color: node.style.fontColor ?? node.style.color ?? '#5c6b72',
+        color: node.style.fontColor ?? node.style.color ?? MUTED,
         fontSize: node.style.fontSize ?? 14,
         fontWeight: node.style.fontWeight ?? 400,
         lineHeight: '1.2',

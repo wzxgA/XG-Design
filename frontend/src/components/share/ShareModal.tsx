@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { repository } from '../../services'
 import { getCurrentUser } from '../../services/auth'
 import { Icon } from '../common/brand'
+import { avatarColor } from '../../constants/colors'
+import { ROLE_LABELS } from '../../constants/labels'
+import { FEEDBACK_DELAY } from '../../constants/limits'
 import type { Permission, ShareInfo, MemberRole, ProjectMember } from '../../types/project'
 
 interface Props {
@@ -98,7 +101,7 @@ export function ShareModal({ projectId, onClose }: Props) {
     try {
       await navigator.clipboard.writeText(info.link)
       setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      setTimeout(() => setCopied(false), FEEDBACK_DELAY)
     } catch { /* 剪贴板不可用 */ }
   }
 
@@ -261,14 +264,6 @@ export function ShareModal({ projectId, onClose }: Props) {
 }
 
 function roleLabel(role: MemberRole): string {
-  if (role === 'owner') return '拥有者'
-  return role === 'editor' ? '可编辑' : '仅查看'
+  return ROLE_LABELS[role]
 }
 
-const AVATAR_COLORS = ['#f1a46d', '#8ba4dc', '#70c69b', '#e07b9c', '#a78bdc', '#6dc5d6']
-
-function avatarColor(seed: string): string {
-  let hash = 0
-  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}

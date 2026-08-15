@@ -7,6 +7,7 @@ import { SelectionBox } from './SelectionBox'
 import { createLayer, findNodeWithPath, getNodeAbs, getSiblingsAbs } from '../../utils/layers'
 import { buildComponent } from '../../fixtures/component-library'
 import { ZOOM_MIN, ZOOM_MAX } from '../../state/editor-reducer'
+import { BLUE } from '../../constants/colors'
 
 interface Props {
   state: EditorState
@@ -237,7 +238,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       layer.name = '路径'
       layer.width = Math.max(1, Math.max(...xs) - minX)
       layer.height = Math.max(1, Math.max(...ys) - minY)
-      layer.style = { opacity: 1, stroke: '#4e8ff4', strokeWidth: 2 }
+      layer.style = { opacity: 1, stroke: BLUE, strokeWidth: 2 }
       layer.points = points.map((p) => ({ x: p.x - minX, y: p.y - minY }))
       dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: frameId, layer })
       dispatch({ type: 'SELECT_LAYERS', ids: [layer.id] })
@@ -556,12 +557,12 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
                 <svg className="pen-layer" width={frame.width} height={frame.height} style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
                   {penPoints.map((p, i) => (
                     <g key={i}>
-                      <circle cx={p.x} cy={p.y} r={3} fill="#4e8ff4" />
-                      {i > 0 && <line x1={penPoints[i - 1].x} y1={penPoints[i - 1].y} x2={p.x} y2={p.y} stroke="#4e8ff4" strokeWidth={1.5} />}
+                      <circle cx={p.x} cy={p.y} r={3} fill={BLUE} />
+                      {i > 0 && <line x1={penPoints[i - 1].x} y1={penPoints[i - 1].y} x2={p.x} y2={p.y} stroke={BLUE} strokeWidth={1.5} />}
                     </g>
                   ))}
                   {penPreview && penPoints.length > 0 && (
-                    <line x1={penPoints[penPoints.length - 1].x} y1={penPoints[penPoints.length - 1].y} x2={penPreview.x} y2={penPreview.y} stroke="#4e8ff4" strokeWidth={1.5} strokeDasharray="4 3" />
+                    <line x1={penPoints[penPoints.length - 1].x} y1={penPoints[penPoints.length - 1].y} x2={penPreview.x} y2={penPreview.y} stroke={BLUE} strokeWidth={1.5} strokeDasharray="4 3" />
                   )}
                 </svg>
               )}

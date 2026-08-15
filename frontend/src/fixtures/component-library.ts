@@ -2,6 +2,7 @@ import type { ChartType, ComponentPropDef, ComponentState, LayerNode } from '../
 import { layerId } from '../utils/layers'
 import { DEFAULT_CHART_COLORS } from '../utils/chart'
 import { loadCustomComponents } from '../utils/customComponents'
+import { BLUE, WHITE, LIGHT_BG, MUTED, LIGHT_MUTED, INK, IMAGE_PLACEHOLDER } from '../constants/colors'
 
 export interface ComponentTemplate {
   name: string
@@ -40,21 +41,21 @@ function group(w: number, h: number, name: string, children: LayerNode[]): Layer
 function rect(x: number, y: number, w: number, h: number, style: LayerNode['style'] = {}): LayerNode {
   return {
     id: layerId('rect'), type: 'rectangle', name: '组件背景', x, y, width: w, height: h,
-    rotation: 0, visible: true, locked: false, style: { opacity: 1, fill: '#ffffff', ...style }, children: [],
+    rotation: 0, visible: true, locked: false, style: { opacity: 1, fill: WHITE, ...style }, children: [],
   }
 }
 
 function text(x: number, y: number, w: number, content: string, style: LayerNode['style'] = {}): LayerNode {
   return {
     id: layerId('text'), type: 'text', name: '组件文字', x, y, width: w, height: 20,
-    rotation: 0, visible: true, locked: false, content, style: { opacity: 1, color: '#5c6b72', fontSize: 12, fontWeight: 500, ...style }, children: [],
+    rotation: 0, visible: true, locked: false, content, style: { opacity: 1, color: MUTED, fontSize: 12, fontWeight: 500, ...style }, children: [],
   }
 }
 
 function image(x: number, y: number, w: number, h: number): LayerNode {
   return {
     id: layerId('image'), type: 'image', name: '图片', x, y, width: w, height: h,
-    rotation: 0, visible: true, locked: false, style: { opacity: 1, fill: '#eef2f4' }, children: [],
+    rotation: 0, visible: true, locked: false, style: { opacity: 1, fill: IMAGE_PLACEHOLDER }, children: [],
   }
 }
 
@@ -115,7 +116,7 @@ function chartTemplate(name: string, short: string, description: string, type: C
       const w = Number(p.width ?? 260)
       const hh = Number(p.height ?? h)
       return group(w, hh, name, [
-        rect(0, 0, w, hh, { fill: '#ffffff', cornerRadius: 8, stroke: '#e8edef', strokeWidth: 1 }),
+        rect(0, 0, w, hh, { fill: WHITE, cornerRadius: 8, stroke: '#e8edef', strokeWidth: 1 }),
         chartNode(12, 12, w - 24, hh - 24, parseBars(p.chartBars), {
           chartType: (p.chartType ?? type) as ChartType,
           chartColors: parseColors(p.chartColors),
@@ -127,7 +128,7 @@ function chartTemplate(name: string, short: string, description: string, type: C
     },
     build: (x, y) => {
       const g = group(260, h, name, [
-        rect(0, 0, 260, h, { fill: '#ffffff', cornerRadius: 8, stroke: '#e8edef', strokeWidth: 1 }),
+        rect(0, 0, 260, h, { fill: WHITE, cornerRadius: 8, stroke: '#e8edef', strokeWidth: 1 }),
         chartNode(12, 12, 236, h - 24, bars, { chartType: type, chartColors: [...DEFAULT_CHART_COLORS], chartShowLegend: true }),
       ])
       g.x = x; g.y = y
@@ -179,25 +180,25 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     keywords: ['button', '提交', '确认'],
     props: [
       { key: 'text', label: '文案', type: 'text', default: '按钮' },
-      { key: 'bg', label: '背景色', type: 'color', default: '#4e8ff4' },
+      { key: 'bg', label: '背景色', type: 'color', default: BLUE },
       { key: 'bgGradient', label: '渐变背景', type: 'gradient' },
-      { key: 'color', label: '文字色', type: 'color', default: '#ffffff' },
+      { key: 'color', label: '文字色', type: 'color', default: WHITE },
       { key: 'borderColor', label: '边框色', type: 'color', default: '' },
       { key: 'radius', label: '圆角', type: 'slider', min: 0, max: 24, default: 6 },
       { key: 'width', label: '宽度', type: 'number', min: 40, max: 400, default: 140 },
     ],
     themes: [
-      { name: '主色', props: { bg: '#4e8ff4', color: '#ffffff', borderColor: '' } },
-      { name: '次要', props: { bg: '#f4f6f7', color: '#364249', borderColor: '' } },
-      { name: '成功', props: { bg: '#3bc78c', color: '#ffffff', borderColor: '' } },
-      { name: '危险', props: { bg: '#ea4335', color: '#ffffff', borderColor: '' } },
-      { name: '幽灵', props: { bg: '#ffffff', color: '#4e8ff4', borderColor: '#4e8ff4' } },
+      { name: '主色', props: { bg: BLUE, color: WHITE, borderColor: '' } },
+      { name: '次要', props: { bg: '#f4f6f7', color: INK, borderColor: '' } },
+      { name: '成功', props: { bg: '#3bc78c', color: WHITE, borderColor: '' } },
+      { name: '危险', props: { bg: '#ea4335', color: WHITE, borderColor: '' } },
+      { name: '幽灵', props: { bg: WHITE, color: BLUE, borderColor: BLUE } },
     ],
     states: [
       { name: 'hover', props: { bg: '#3d7de0' } },
       { name: 'pressed', props: { bg: '#3570c4' } },
-      { name: 'disabled', props: { bg: '#c9d4d8', color: '#ffffff' } },
-      { name: 'loading', props: { bg: '#4e8ff4' } },
+      { name: 'disabled', props: { bg: '#c9d4d8', color: WHITE } },
+      { name: 'loading', props: { bg: BLUE } },
       { name: 'error', props: { borderColor: '#e5484d' } },
     ],
     render: (p) => {
@@ -206,18 +207,18 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       return group(Number(p.width), 40, '按钮', [
         rect(0, 0, Number(p.width), 40, {
           fill: String(p.bg ?? ''),
-          fillGradient: g?.enabled ? { from: g.from ?? '#ffffff', to: g.to ?? '#4e8ff4', angle: g.angle ?? 0 } : undefined,
+          fillGradient: g?.enabled ? { from: g.from ?? WHITE, to: g.to ?? BLUE, angle: g.angle ?? 0 } : undefined,
           cornerRadius: Number(p.radius ?? 0),
           stroke: p.borderColor ? String(p.borderColor) : undefined,
           strokeWidth: p.borderColor ? 1 : undefined,
         }),
-        text(0, 10, Number(p.width), loading ? `⟳ ${String(p.text ?? '按钮')}` : String(p.text ?? '按钮'), { color: String(p.color ?? '#ffffff'), fontWeight: 600, textAlign: 'center' }),
+        text(0, 10, Number(p.width), loading ? `⟳ ${String(p.text ?? '按钮')}` : String(p.text ?? '按钮'), { color: String(p.color ?? WHITE), fontWeight: 600, textAlign: 'center' }),
       ])
     },
     build: (x, y) => {
       const g = group(140, 40, '按钮', [
-        rect(0, 0, 140, 40, { fill: '#4e8ff4', cornerRadius: 6 }),
-        text(0, 10, 140, '按钮', { color: '#ffffff', fontWeight: 600, textAlign: 'center' }),
+        rect(0, 0, 140, 40, { fill: BLUE, cornerRadius: 6 }),
+        text(0, 10, 140, '按钮', { color: WHITE, fontWeight: 600, textAlign: 'center' }),
       ])
       g.x = x; g.y = y
       return g
@@ -231,7 +232,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     keywords: ['input', 'text', '搜索'],
     props: [
       { key: 'placeholder', label: '占位文字', type: 'text', default: '请输入内容…' },
-      { key: 'bg', label: '背景色', type: 'color', default: '#ffffff' },
+      { key: 'bg', label: '背景色', type: 'color', default: WHITE },
       { key: 'borderColor', label: '边框色', type: 'color', default: '#c9d4d8' },
       { key: 'color', label: '文字色', type: 'color', default: '#a8b1b5' },
       { key: 'width', label: '宽度', type: 'number', min: 80, max: 480, default: 240 },
@@ -246,7 +247,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     ]),
     build: (x, y) => {
       const g = group(240, 36, '输入框', [
-        rect(0, 0, 240, 36, { fill: '#ffffff', stroke: '#c9d4d8', strokeWidth: 1, cornerRadius: 6 }),
+        rect(0, 0, 240, 36, { fill: WHITE, stroke: '#c9d4d8', strokeWidth: 1, cornerRadius: 6 }),
         text(12, 8, 200, '请输入内容…', { color: '#a8b1b5' }),
       ])
       g.x = x; g.y = y
@@ -274,23 +275,23 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     props: [
       { key: 'logoText', label: 'Logo 文案', type: 'text', default: 'Logo' },
       { key: 'menuText', label: '菜单文案', type: 'text', default: '菜单一 菜单二' },
-      { key: 'bg', label: '背景色', type: 'color', default: '#ffffff' },
-      { key: 'logoColor', label: 'Logo 色', type: 'color', default: '#364249' },
+      { key: 'bg', label: '背景色', type: 'color', default: WHITE },
+      { key: 'logoColor', label: 'Logo 色', type: 'color', default: INK },
       { key: 'menuColor', label: '菜单色', type: 'color', default: '#8a969b' },
       { key: 'height', label: '高度', type: 'number', min: 32, max: 80, default: 48 },
     ],
     themes: [
-      { name: '浅色', props: { bg: '#ffffff', logoColor: '#364249', menuColor: '#8a969b' } },
-      { name: '深色', props: { bg: '#263238', logoColor: '#ffffff', menuColor: '#b0bec5' } },
+      { name: '浅色', props: { bg: WHITE, logoColor: INK, menuColor: '#8a969b' } },
+      { name: '深色', props: { bg: '#263238', logoColor: WHITE, menuColor: '#b0bec5' } },
     ],
     render: (p) => group(320, Number(p.height), '导航栏', [
       rect(0, 0, 320, Number(p.height), { fill: String(p.bg) }),
-      text(16, (Number(p.height) - 20) / 2, 100, String(p.logoText), { fontWeight: 700, color: String(p.logoColor ?? '#364249') }),
+      text(16, (Number(p.height) - 20) / 2, 100, String(p.logoText), { fontWeight: 700, color: String(p.logoColor ?? INK) }),
       text(220, (Number(p.height) - 16) / 2, 84, String(p.menuText), { fontSize: 10, color: String(p.menuColor ?? '#8a969b') }),
     ]),
     build: (x, y) => {
       const g = group(320, 48, '导航栏', [
-        rect(0, 0, 320, 48, { fill: '#ffffff', stroke: '#e3e8ea', strokeWidth: 1 }),
+        rect(0, 0, 320, 48, { fill: WHITE, stroke: '#e3e8ea', strokeWidth: 1 }),
         text(16, 14, 100, 'Logo', { fontWeight: 700 }),
         text(220, 16, 84, '菜单一 菜单二', { fontSize: 10, color: '#8a969b' }),
       ])
@@ -309,29 +310,29 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       { key: 'title', label: '标题', type: 'text', default: '卡片标题' },
       { key: 'desc', label: '描述', type: 'text', default: '卡片描述文字' },
       { key: 'imgHeight', label: '图片高度', type: 'slider', min: 40, max: 200, default: 90 },
-      { key: 'bg', label: '背景色', type: 'color', default: '#ffffff' },
-      { key: 'color', label: '标题色', type: 'color', default: '#364249' },
-      { key: 'descColor', label: '描述色', type: 'color', default: '#9aa5aa' },
+      { key: 'bg', label: '背景色', type: 'color', default: WHITE },
+      { key: 'color', label: '标题色', type: 'color', default: INK },
+      { key: 'descColor', label: '描述色', type: 'color', default: LIGHT_MUTED },
     ],
     themes: [
-      { name: '浅色', props: { bg: '#ffffff', color: '#364249', descColor: '#9aa5aa' } },
+      { name: '浅色', props: { bg: WHITE, color: INK, descColor: LIGHT_MUTED } },
       { name: '深色', props: { bg: '#2c3940', color: '#f5f7f8', descColor: '#aab4ba' } },
     ],
     render: (p) => {
       const imgH = Number(p.imgHeight ?? 90)
       return group(240, 160, '卡片', [
-        rect(0, 0, 240, 160, { fill: String(p.bg ?? '#ffffff'), cornerRadius: 10, stroke: '#e8edef', strokeWidth: 1, shadow: '0 3px 10px rgba(39,60,70,0.04)' }),
-        rect(12, 12, 216, imgH, { fill: '#eef2f4', cornerRadius: 6 }),
-        text(12, 20 + imgH, 200, String(p.title ?? '卡片标题'), { fontSize: 13, fontWeight: 600, color: String(p.color ?? '#364249') }),
-        text(12, 42 + imgH, 200, String(p.desc ?? '卡片描述文字'), { fontSize: 10, color: String(p.descColor ?? '#9aa5aa') }),
+        rect(0, 0, 240, 160, { fill: String(p.bg ?? WHITE), cornerRadius: 10, stroke: '#e8edef', strokeWidth: 1, shadow: '0 3px 10px rgba(39,60,70,0.04)' }),
+        rect(12, 12, 216, imgH, { fill: IMAGE_PLACEHOLDER, cornerRadius: 6 }),
+        text(12, 20 + imgH, 200, String(p.title ?? '卡片标题'), { fontSize: 13, fontWeight: 600, color: String(p.color ?? INK) }),
+        text(12, 42 + imgH, 200, String(p.desc ?? '卡片描述文字'), { fontSize: 10, color: String(p.descColor ?? LIGHT_MUTED) }),
       ])
     },
     build: (x, y) => {
       const g = group(240, 160, '卡片', [
-        rect(0, 0, 240, 160, { fill: '#ffffff', cornerRadius: 10, stroke: '#e8edef', strokeWidth: 1, shadow: '0 3px 10px rgba(39,60,70,0.04)' }),
-        rect(12, 12, 216, 90, { fill: '#eef2f4', cornerRadius: 6 }),
-        text(12, 116, 200, '卡片标题', { fontSize: 13, color: '#364249', fontWeight: 600 }),
-        text(12, 136, 200, '卡片描述文字', { fontSize: 10, color: '#9aa5aa' }),
+        rect(0, 0, 240, 160, { fill: WHITE, cornerRadius: 10, stroke: '#e8edef', strokeWidth: 1, shadow: '0 3px 10px rgba(39,60,70,0.04)' }),
+        rect(12, 12, 216, 90, { fill: IMAGE_PLACEHOLDER, cornerRadius: 6 }),
+        text(12, 116, 200, '卡片标题', { fontSize: 13, color: INK, fontWeight: 600 }),
+        text(12, 136, 200, '卡片描述文字', { fontSize: 10, color: LIGHT_MUTED }),
       ])
       g.x = x; g.y = y
       return g
@@ -346,12 +347,12 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     props: [
       { key: 'text', label: '文案', type: 'text', default: '标签' },
       { key: 'bg', label: '背景色', type: 'color', default: '#e8f2ff' },
-      { key: 'color', label: '文字色', type: 'color', default: '#4e8ff4' },
+      { key: 'color', label: '文字色', type: 'color', default: BLUE },
       { key: 'radius', label: '圆角', type: 'slider', min: 0, max: 24, default: 12 },
       { key: 'width', label: '宽度', type: 'number', min: 40, max: 240, default: 72 },
     ],
     themes: [
-      { name: '蓝', props: { bg: '#e8f2ff', color: '#4e8ff4' } },
+      { name: '蓝', props: { bg: '#e8f2ff', color: BLUE } },
       { name: '绿', props: { bg: '#e6f9f1', color: '#2ea06b' } },
       { name: '橙', props: { bg: '#fff4e5', color: '#e8830c' } },
       { name: '红', props: { bg: '#fdeeee', color: '#e5484d' } },
@@ -364,7 +365,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     build: (x, y) => {
       const g = group(72, 24, '标签', [
         rect(0, 0, 72, 24, { fill: '#e8f2ff', cornerRadius: 12 }),
-        text(0, 6, 72, '标签', { color: '#4e8ff4', fontWeight: 600, fontSize: 10, textAlign: 'center' }),
+        text(0, 6, 72, '标签', { color: BLUE, fontWeight: 600, fontSize: 10, textAlign: 'center' }),
       ])
       g.x = x; g.y = y
       return g
@@ -404,8 +405,8 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     keywords: ['avatar', '用户', 'person'],
     props: [
       { key: 'avatarText', label: '文案', type: 'text', default: '张' },
-      { key: 'bg', label: '背景色', type: 'color', default: '#4e8ff4' },
-      { key: 'color', label: '文字色', type: 'color', default: '#ffffff' },
+      { key: 'bg', label: '背景色', type: 'color', default: BLUE },
+      { key: 'color', label: '文字色', type: 'color', default: WHITE },
       { key: 'size', label: '尺寸', type: 'number', min: 16, max: 96, default: 40 },
     ],
     render: (p) => {
@@ -417,8 +418,8 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     },
     build: (x, y) => {
       const g = group(40, 40, '头像', [
-        rect(0, 0, 40, 40, { fill: '#4e8ff4', cornerRadius: 20 }),
-        text(0, 10, 40, '张', { color: '#ffffff', fontSize: 18, fontWeight: 600, textAlign: 'center' }),
+        rect(0, 0, 40, 40, { fill: BLUE, cornerRadius: 20 }),
+        text(0, 10, 40, '张', { color: WHITE, fontSize: 18, fontWeight: 600, textAlign: 'center' }),
       ])
       g.x = x; g.y = y
       return g
@@ -432,8 +433,8 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     keywords: ['progress', '加载', 'loading'],
     props: [
       { key: 'percent', label: '百分比', type: 'slider', min: 0, max: 100, default: 65 },
-      { key: 'color', label: '进度色', type: 'color', default: '#4e8ff4' },
-      { key: 'bg', label: '轨道色', type: 'color', default: '#eef1f2' },
+      { key: 'color', label: '进度色', type: 'color', default: BLUE },
+      { key: 'bg', label: '轨道色', type: 'color', default: LIGHT_BG },
       { key: 'width', label: '宽度', type: 'number', min: 80, max: 480, default: 200 },
     ],
     render: (p) => group(Number(p.width), 8, '进度条', [
@@ -442,8 +443,8 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     ]),
     build: (x, y) => {
       const g = group(200, 8, '进度条', [
-        rect(0, 0, 200, 8, { fill: '#eef1f2', cornerRadius: 4 }),
-        rect(0, 0, 130, 8, { fill: '#4e8ff4', cornerRadius: 4 }),
+        rect(0, 0, 200, 8, { fill: LIGHT_BG, cornerRadius: 4 }),
+        rect(0, 0, 130, 8, { fill: BLUE, cornerRadius: 4 }),
       ])
       g.x = x; g.y = y
       return g
@@ -457,7 +458,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     keywords: ['switch', 'toggle', '开关'],
     props: [
       { key: 'on', label: '默认打开', type: 'boolean', default: true },
-      { key: 'color', label: '开启色', type: 'color', default: '#4e8ff4' },
+      { key: 'color', label: '开启色', type: 'color', default: BLUE },
       { key: 'width', label: '宽度', type: 'number', min: 24, max: 80, default: 44 },
     ],
     render: (p) => {
@@ -467,13 +468,13 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       const knob = Math.max(12, trackH - 6)
       return group(w, trackH, '开关', [
         rect(0, 0, w, trackH, { fill: on ? String(p.color) : '#d5dde1', cornerRadius: trackH / 2 }),
-        rect(on ? w - knob - 3 : 3, (trackH - knob) / 2, knob, knob, { fill: '#ffffff', cornerRadius: knob / 2, shadow: '0 1px 3px rgba(20,35,42,.25)' }),
+        rect(on ? w - knob - 3 : 3, (trackH - knob) / 2, knob, knob, { fill: WHITE, cornerRadius: knob / 2, shadow: '0 1px 3px rgba(20,35,42,.25)' }),
       ])
     },
     build: (x, y) => {
       const g = group(44, 20, '开关', [
-        rect(0, 0, 44, 20, { fill: '#4e8ff4', cornerRadius: 10 }),
-        rect(27, 3, 14, 14, { fill: '#ffffff', cornerRadius: 7, shadow: '0 1px 3px rgba(20,35,42,.25)' }),
+        rect(0, 0, 44, 20, { fill: BLUE, cornerRadius: 10 }),
+        rect(27, 3, 14, 14, { fill: WHITE, cornerRadius: 7, shadow: '0 1px 3px rgba(20,35,42,.25)' }),
       ])
       g.x = x; g.y = y
       return g
@@ -483,7 +484,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     (x, y) => {
       const g = group(22, 22, '徽标', [
         rect(0, 0, 22, 22, { fill: '#ea4335', cornerRadius: 11 }),
-        text(0, 5, 22, '3', { color: '#ffffff', fontSize: 11, fontWeight: 700, textAlign: 'center' }),
+        text(0, 5, 22, '3', { color: WHITE, fontSize: 11, fontWeight: 700, textAlign: 'center' }),
       ])
       g.x = x; g.y = y
       return g
@@ -500,7 +501,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   simpleTemplate('下拉选择', '下拉', '点击展开选项列表的选择控件', '表单',
     (x, y) => {
       const g = group(180, 36, '下拉选择', [
-        rect(0, 0, 180, 36, { fill: '#ffffff', cornerRadius: 6, stroke: '#c9d4d8', strokeWidth: 1 }),
+        rect(0, 0, 180, 36, { fill: WHITE, cornerRadius: 6, stroke: '#c9d4d8', strokeWidth: 1 }),
         text(12, 10, 140, '请选择…', { color: '#8a969b', fontSize: 11 }),
         text(162, 10, 12, '⌄', { color: '#8a969b', fontSize: 12, textAlign: 'center' }),
       ])
@@ -510,12 +511,12 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   simpleTemplate('单选组', '单选', '一组互斥选项，仅能选择其一', '表单',
     (x, y) => {
       const g = group(160, 78, '单选组', [
-        rect(0, 0, 14, 14, { fill: '#ffffff', cornerRadius: 7, stroke: '#4e8ff4', strokeWidth: 2 }),
-        rect(3.5, 3.5, 7, 7, { fill: '#4e8ff4', cornerRadius: 3.5 }),
+        rect(0, 0, 14, 14, { fill: WHITE, cornerRadius: 7, stroke: BLUE, strokeWidth: 2 }),
+        rect(3.5, 3.5, 7, 7, { fill: BLUE, cornerRadius: 3.5 }),
         text(22, 3, 120, '选项一', { fontSize: 11, color: '#445159' }),
-        rect(0, 28, 14, 14, { fill: '#ffffff', cornerRadius: 7, stroke: '#c9d4d8', strokeWidth: 2 }),
+        rect(0, 28, 14, 14, { fill: WHITE, cornerRadius: 7, stroke: '#c9d4d8', strokeWidth: 2 }),
         text(22, 31, 120, '选项二', { fontSize: 11, color: '#56636a' }),
-        rect(0, 56, 14, 14, { fill: '#ffffff', cornerRadius: 7, stroke: '#c9d4d8', strokeWidth: 2 }),
+        rect(0, 56, 14, 14, { fill: WHITE, cornerRadius: 7, stroke: '#c9d4d8', strokeWidth: 2 }),
         text(22, 59, 120, '选项三', { fontSize: 11, color: '#56636a' }),
       ])
       g.x = x; g.y = y
@@ -532,15 +533,15 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   simpleTemplate('分页', '分页', '多页内容翻页导航控件', '导航',
     (x, y) => {
       const g = group(138, 26, '分页', [
-        rect(0, 0, 22, 26, { fill: '#ffffff', cornerRadius: 5, stroke: '#e3e8ea', strokeWidth: 1 }),
+        rect(0, 0, 22, 26, { fill: WHITE, cornerRadius: 5, stroke: '#e3e8ea', strokeWidth: 1 }),
         text(0, 7, 22, '‹', { textAlign: 'center', color: '#56636a', fontSize: 11 }),
-        rect(26, 0, 26, 26, { fill: '#4e8ff4', cornerRadius: 5 }),
-        text(26, 7, 26, '1', { textAlign: 'center', color: '#ffffff', fontSize: 11, fontWeight: 600 }),
-        rect(56, 0, 26, 26, { fill: '#ffffff', cornerRadius: 5, stroke: '#e3e8ea', strokeWidth: 1 }),
+        rect(26, 0, 26, 26, { fill: BLUE, cornerRadius: 5 }),
+        text(26, 7, 26, '1', { textAlign: 'center', color: WHITE, fontSize: 11, fontWeight: 600 }),
+        rect(56, 0, 26, 26, { fill: WHITE, cornerRadius: 5, stroke: '#e3e8ea', strokeWidth: 1 }),
         text(56, 7, 26, '2', { textAlign: 'center', color: '#56636a', fontSize: 11 }),
-        rect(86, 0, 26, 26, { fill: '#ffffff', cornerRadius: 5, stroke: '#e3e8ea', strokeWidth: 1 }),
+        rect(86, 0, 26, 26, { fill: WHITE, cornerRadius: 5, stroke: '#e3e8ea', strokeWidth: 1 }),
         text(86, 7, 26, '3', { textAlign: 'center', color: '#56636a', fontSize: 11 }),
-        rect(116, 0, 22, 26, { fill: '#ffffff', cornerRadius: 5, stroke: '#e3e8ea', strokeWidth: 1 }),
+        rect(116, 0, 22, 26, { fill: WHITE, cornerRadius: 5, stroke: '#e3e8ea', strokeWidth: 1 }),
         text(116, 7, 22, '›', { textAlign: 'center', color: '#56636a', fontSize: 11 }),
       ])
       g.x = x; g.y = y
@@ -549,14 +550,14 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   simpleTemplate('弹窗', '弹窗', '模态对话框，用于确认或展示信息', '反馈',
     (x, y) => {
       const g = group(280, 150, '弹窗', [
-        rect(0, 0, 280, 150, { fill: '#ffffff', cornerRadius: 10, shadow: '0 12px 32px rgba(39,60,70,.16)' }),
-        rect(0, 0, 280, 4, { fill: '#4e8ff4' }),
-        text(20, 20, 240, '弹窗标题', { fontSize: 14, fontWeight: 700, color: '#364249' }),
+        rect(0, 0, 280, 150, { fill: WHITE, cornerRadius: 10, shadow: '0 12px 32px rgba(39,60,70,.16)' }),
+        rect(0, 0, 280, 4, { fill: BLUE }),
+        text(20, 20, 240, '弹窗标题', { fontSize: 14, fontWeight: 700, color: INK }),
         text(20, 46, 240, '这是弹窗的描述文案，用于说明操作意图。', { fontSize: 11, color: '#8a969b' }),
-        rect(150, 110, 52, 28, { fill: '#eef1f2', cornerRadius: 6 }),
+        rect(150, 110, 52, 28, { fill: LIGHT_BG, cornerRadius: 6 }),
         text(150, 118, 52, '取消', { fontSize: 11, color: '#56636a', textAlign: 'center' }),
-        rect(208, 110, 52, 28, { fill: '#4e8ff4', cornerRadius: 6 }),
-        text(208, 118, 52, '确定', { fontSize: 11, color: '#ffffff', textAlign: 'center' }),
+        rect(208, 110, 52, 28, { fill: BLUE, cornerRadius: 6 }),
+        text(208, 118, 52, '确定', { fontSize: 11, color: WHITE, textAlign: 'center' }),
       ])
       g.x = x; g.y = y
       return g
@@ -565,7 +566,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     (x, y) => {
       const g = group(120, 36, '工具提示', [
         rect(0, 0, 120, 30, { fill: '#2b3a42', cornerRadius: 6 }),
-        text(0, 8, 120, '提示文案', { fontSize: 10, color: '#ffffff', textAlign: 'center' }),
+        text(0, 8, 120, '提示文案', { fontSize: 10, color: WHITE, textAlign: 'center' }),
         text(56, 24, 10, '▼', { fontSize: 9, color: '#2b3a42' }),
       ])
       g.x = x; g.y = y
@@ -588,24 +589,24 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       const rows = Math.max(1, Math.min(8, Number(p.rows ?? 3)))
       const w = Number(p.width ?? 320)
       const h = rows * 44
-      const children: LayerNode[] = [rect(0, 0, w, h, { fill: '#ffffff', stroke: '#eef1f2', strokeWidth: 1 })]
+      const children: LayerNode[] = [rect(0, 0, w, h, { fill: WHITE, stroke: LIGHT_BG, strokeWidth: 1 })]
       for (let i = 0; i < rows; i++) {
         const y = i * 44
         children.push(rect(10, y + 8, 28, 28, { fill: '#e8f2ff', cornerRadius: 6 }))
-        children.push(text(10, y + 16, 28, '图', { fontSize: 10, color: '#4e8ff4', textAlign: 'center' }))
-        children.push(text(46, y + 8, 200, String(p.title), { fontSize: 12, fontWeight: 600, color: '#364249' }))
-        children.push(text(46, y + 25, 200, String(p.desc), { fontSize: 10, color: '#9aa5aa' }))
+        children.push(text(10, y + 16, 28, '图', { fontSize: 10, color: BLUE, textAlign: 'center' }))
+        children.push(text(46, y + 8, 200, String(p.title), { fontSize: 12, fontWeight: 600, color: INK }))
+        children.push(text(46, y + 25, 200, String(p.desc), { fontSize: 10, color: LIGHT_MUTED }))
         children.push(text(w - 28, y + 15, 20, '›', { fontSize: 14, color: '#c0c8cc', textAlign: 'center' }))
       }
       return group(w, h, '列表项', children)
     },
     build: (x, y) => {
       const g = group(320, 44, '列表项', [
-        rect(0, 0, 320, 44, { fill: '#ffffff', stroke: '#eef1f2', strokeWidth: 1 }),
+        rect(0, 0, 320, 44, { fill: WHITE, stroke: LIGHT_BG, strokeWidth: 1 }),
         rect(10, 8, 28, 28, { fill: '#e8f2ff', cornerRadius: 6 }),
-        text(10, 16, 28, '图', { fontSize: 10, color: '#4e8ff4', textAlign: 'center' }),
-        text(46, 8, 200, '列表项标题', { fontSize: 12, fontWeight: 600, color: '#364249' }),
-        text(46, 25, 200, '列表项描述', { fontSize: 10, color: '#9aa5aa' }),
+        text(10, 16, 28, '图', { fontSize: 10, color: BLUE, textAlign: 'center' }),
+        text(46, 8, 200, '列表项标题', { fontSize: 12, fontWeight: 600, color: INK }),
+        text(46, 25, 200, '列表项描述', { fontSize: 10, color: LIGHT_MUTED }),
         text(292, 15, 20, '›', { fontSize: 14, color: '#c0c8cc', textAlign: 'center' }),
       ])
       g.x = x; g.y = y
@@ -630,7 +631,7 @@ export function buildComponent(name: string, x: number, y: number): LayerNode {
   }
   // 兜底：通用 group
   const g = group(200, 120, name, [
-    rect(0, 0, 200, 120, { fill: '#ffffff', stroke: '#c9d4d8', strokeWidth: 1, cornerRadius: 8 }),
+    rect(0, 0, 200, 120, { fill: WHITE, stroke: '#c9d4d8', strokeWidth: 1, cornerRadius: 8 }),
     text(10, 10, 180, name, { fontSize: 12, fontWeight: 600 }),
   ])
   g.x = x; g.y = y

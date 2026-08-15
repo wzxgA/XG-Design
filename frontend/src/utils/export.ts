@@ -2,6 +2,7 @@ import type { DesignDocument, LayerNode, PageNode } from '../types/design'
 import { isComponentNode } from './layers'
 import { renderComponentChildren } from '../fixtures/component-library'
 import { renderChartSvg } from './chart'
+import { MUTED } from '../constants/colors'
 
 /**
  * 将单个图层节点渲染为 HTML 片段（用于离屏导出）。
@@ -29,7 +30,7 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
       if (node.style.shadow) el.style.boxShadow = node.style.shadow
       break
     case 'text':
-      el.style.color = node.style.fontColor ?? node.style.color ?? '#5c6b72'
+      el.style.color = node.style.fontColor ?? node.style.color ?? MUTED
       el.style.fontSize = `${node.style.fontSize ?? 14}px`
       el.style.fontWeight = String(node.style.fontWeight ?? 400)
       el.style.fontFamily = "'DM Sans', 'Microsoft YaHei', sans-serif"

@@ -7,6 +7,7 @@ import { createLayer, isComponentNode } from '../../utils/layers'
 import { COMPONENT_TEMPLATES, buildComponent, type ComponentTemplate } from '../../fixtures/component-library'
 import { layerId } from '../../utils/layers'
 import { loadCustomComponents, saveCustomComponent, removeCustomComponent, renameCustomComponent } from '../../utils/customComponents'
+import { LAYER_KINDS } from '../../constants/labels'
 
 const typeIcon: Record<LayerNode['type'], IconName> = {
   frame: 'frame', group: 'layers', rectangle: 'rect',
@@ -591,12 +592,5 @@ function filterByName(root: LayerNode[], keyword: string): LayerNode[] {
 }
 
 function kindName(kind: LayerNode['type']): string {
-  switch (kind) {
-    case 'rectangle': return '矩形'
-    case 'text': return '文本'
-    case 'frame': return '画板'
-    case 'group': return '分组'
-    case 'image': return '图片'
-    default: return kind
-  }
+  return LAYER_KINDS[kind] ?? kind
 }
