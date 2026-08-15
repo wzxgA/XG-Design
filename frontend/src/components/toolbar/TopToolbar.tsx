@@ -12,10 +12,9 @@ const toolItems: [IconName, string, string, ToolType][] = [
   ['cursor', '选择', 'V', 'select'],
   ['frame', '画板', 'F', 'frame'],
   ['rect', '矩形', 'R', 'rectangle'],
-  ['pen', '钢笔', 'P', 'pen'],
+  ['pen', '路径', 'P', 'pen'],
   ['text', '文字', 'T', 'text'],
   ['comment', '评论', 'C', 'comment'],
-  ['grid', '组件', '', 'components'],
 ]
 
 interface Props {
@@ -25,7 +24,6 @@ interface Props {
   /** 返回项目列表首页 */
   onHome?: () => void
   onPreview?: () => void
-  onOpenProjects?: () => void
   onShare?: () => void
   onUndo?: () => void
   onRedo?: () => void
@@ -65,7 +63,7 @@ function findInTree(nodes: LayerNode[], id: string): LayerNode | null {
 }
 
 export function TopToolbar({
-  state, dispatch, onRenameDocument, onHome, onPreview, onOpenProjects, onShare,
+  state, dispatch, onRenameDocument, onHome, onPreview, onShare,
   onUndo, onRedo, saveStatus = 'idle', readOnly = false, userName, logoutNode,
 }: Props) {
   const doc: DesignDocument = state.document
@@ -150,8 +148,7 @@ export function TopToolbar({
 
   return (
     <header className="topbar">
-      {onHome && <button className="home-button" onClick={onHome} title="返回项目列表">项目列表</button>}
-      <div className="brand" onClick={readOnly ? undefined : onOpenProjects} title={readOnly ? '只读分享页' : '打开项目'} style={{ cursor: readOnly ? 'default' : 'pointer' }}><Watermelon /><strong>XG<span>Design</span></strong></div>
+      <div className="brand" onClick={readOnly ? undefined : onHome} title={readOnly ? '只读分享页' : '返回项目列表'} style={{ cursor: readOnly ? 'default' : 'pointer' }}><Watermelon /><strong>XG<span>Design</span></strong></div>
       <div className="file-meta" title={readOnly ? '只读模式' : '点击重命名'}>
         <input
           className="file-name-input"
@@ -184,9 +181,10 @@ export function TopToolbar({
             key={label}
             className={`tool-button ${state.activeTool === tool ? 'selected' : ''} ${index === 5 ? 'tool-divider' : ''}`}
             onClick={() => dispatch({ type: 'SET_ACTIVE_TOOL', tool })}
-            title={`${label} ${key}`}
+            title={`${label}（${key}）`}
           >
-            <Icon name={icon} /><span className="tool-key">{key}</span>
+            <Icon name={icon} />
+            <kbd className="tool-key">{key}</kbd>
           </button>
         ))}
         <div className="more-wrap" onClick={(e) => e.stopPropagation()}>

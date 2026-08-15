@@ -5,6 +5,8 @@ export interface ComponentTemplate {
   name: string
   /** 用于渲染缩略的简名 */
   short: string
+  /** 组件作用描述（鼠标悬停组件磁贴时展示） */
+  description: string
   /** 插入到画布：返回完整图层树（group 包裹） */
   build: (x: number, y: number) => LayerNode
 }
@@ -43,6 +45,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   {
     name: '按钮',
     short: '按钮',
+    description: '可点击的交互按钮，常用于表单提交或触发操作',
     build: (x, y) => {
       const g = group(140, 40, '按钮', [
         rect(0, 0, 140, 40, { fill: '#4e8ff4', cornerRadius: 6 }),
@@ -55,6 +58,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   {
     name: '输入框',
     short: '输入',
+    description: '供用户输入文本的表单区域，可绑定表单校验',
     build: (x, y) => {
       const g = group(240, 36, '输入框', [
         rect(0, 0, 240, 36, { fill: '#ffffff', stroke: '#c9d4d8', strokeWidth: 1, cornerRadius: 6 }),
@@ -67,6 +71,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   {
     name: '图片',
     short: '图片',
+    description: '展示图片内容的容器，可上传本地图片或粘贴图片地址',
     build: (x, y) => {
       const n = image(0, 0, 200, 140)
       n.x = x; n.y = y
@@ -76,6 +81,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   {
     name: '导航栏',
     short: '导航',
+    description: '页面顶部导航区，用于品牌 Logo 与功能菜单入口',
     build: (x, y) => {
       const g = group(320, 48, '导航栏', [
         rect(0, 0, 320, 48, { fill: '#ffffff', stroke: '#e3e8ea', strokeWidth: 1 }),
@@ -89,6 +95,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   {
     name: '卡片',
     short: '卡片',
+    description: '内容展示容器，适合将标题、图片与描述组合在一起',
     build: (x, y) => {
       const g = group(240, 160, '卡片', [
         rect(0, 0, 240, 160, { fill: '#ffffff', cornerRadius: 10, stroke: '#e8edef', strokeWidth: 1, shadow: '0 3px 10px rgba(39,60,70,0.04)' }),
@@ -103,6 +110,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   {
     name: '标签',
     short: '标签',
+    description: '短文本标识，用于状态、分类或关键词展示',
     build: (x, y) => {
       const g = group(72, 24, '标签', [
         rect(0, 0, 72, 24, { fill: '#e8f2ff', cornerRadius: 12 }),
@@ -115,6 +123,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   {
     name: '分割线',
     short: '分割',
+    description: '水平分隔线，用于划分页面中的内容区块',
     build: (x, y) => {
       const g = group(240, 1, '分割线', [
         rect(0, 0, 240, 1, { fill: '#e3e8ea' }),
@@ -126,6 +135,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   {
     name: '柱状图',
     short: '图表',
+    description: '以柱状高度对比数据大小，适合展示分类数值',
     build: (x, y) => {
       const bars = [40, 70, 55, 88, 62, 78]
       const g = group(260, 160, '柱状图', [

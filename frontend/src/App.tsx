@@ -6,7 +6,6 @@ import { LayersPanel } from './components/layers/LayersPanel'
 import { CanvasArea } from './components/canvas/CanvasArea'
 import { InspectorPanel } from './components/inspector/InspectorPanel'
 import { PreviewOverlay } from './components/canvas/PreviewOverlay'
-import { ProjectsModal } from './components/projects/ProjectsModal'
 import { ProjectsPage } from './components/projects/ProjectsPage'
 import { ShareModal } from './components/share/ShareModal'
 import { AuthPage } from './components/auth/AuthPage'
@@ -151,7 +150,6 @@ function Editor({ route, user, onUserChange }: {
   const { state, dispatch, saveStatus, loading, conflict, loadError, readOnly, resolveConflict } =
     useEditorStore(projectId, share)
   const [previewing, setPreviewing] = useState(false)
-  const [projectsOpen, setProjectsOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
 
@@ -175,11 +173,10 @@ function Editor({ route, user, onUserChange }: {
   const onRedo = useCallback(() => guardedDispatch({ type: 'REDO' }), [guardedDispatch])
   const onEscape = useCallback(() => {
     if (previewing) { setPreviewing(false); return }
-    if (projectsOpen) { setProjectsOpen(false); return }
     if (shareOpen) { setShareOpen(false); return }
     guardedDispatch({ type: 'SELECT_LAYERS', ids: [] })
     if (state.activeTool !== 'select') guardedDispatch({ type: 'SET_ACTIVE_TOOL', tool: 'select' })
-  }, [guardedDispatch, state.activeTool, previewing, projectsOpen, shareOpen])
+  }, [guardedDispatch, state.activeTool, previewing, shareOpen])
 
   const onGroup = useCallback(() => {
     if (state.selectedIds.length >= 2) guardedDispatch({ type: 'GROUP_LAYERS', ids: state.selectedIds })
@@ -235,7 +232,6 @@ function Editor({ route, user, onUserChange }: {
         onRenameDocument={(name) => guardedDispatch({ type: 'RENAME_DOCUMENT', name })}
         onHome={readOnly ? undefined : goHome}
         onPreview={() => setPreviewing(true)}
-        onOpenProjects={() => setProjectsOpen(true)}
         onShare={() => setShareOpen(true)}
         onUndo={onUndo}
         onRedo={onRedo}
@@ -251,7 +247,6 @@ function Editor({ route, user, onUserChange }: {
         <InspectorPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} />
       </div>
       {previewing && <PreviewOverlay state={state} onClose={() => setPreviewing(false)} />}
-      {projectsOpen && !readOnly && <ProjectsModal onClose={() => setProjectsOpen(false)} />}
       {shareOpen && !readOnly && <ShareModal projectId={state.document.id} onClose={() => setShareOpen(false)} />}
       {loading && (
         <div className="editor-loading">

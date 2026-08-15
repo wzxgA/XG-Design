@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
 import { ComponentGlyph, Icon, EyeOpen, EyeClosed, LockClosed, LockOpen, type IconName } from '../common/brand'
 import { createLayer, isComponentNode } from '../../utils/layers'
-import { COMPONENT_TEMPLATES, buildComponent } from '../../fixtures/component-library'
+import { COMPONENT_TEMPLATES, buildComponent, type ComponentTemplate } from '../../fixtures/component-library'
 import { layerId } from '../../utils/layers'
 
 const typeIcon: Record<LayerNode['type'], IconName> = {
@@ -118,6 +119,37 @@ function ComponentGrid({ dispatch, readOnly, activePage }: {
 }) {
   const frame = activePage.children.find((n) => n.type === 'frame')
   const [dragging, setDragging] = useState<string | null>(null)
+  const [tip, setTip] = useState<{ tpl: ComponentTemplate; dir: 'up' | 'down'; el: HTMLElement } | null>(null)
+  const [tipPos, setTipPos] = useState<{ left: number; top: number } | null>(null)
+  const [tick, setTick] = useState(0)
+  const gridRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+
+  /** 悬停时记录磁贴：方向看磁贴距网格顶部空间，不足则向下弹出 */
+  const showTip = (e: React.MouseEvent<HTMLButtonElement>, tpl: ComponentTemplate) => {
+    const el = e.currentTarget
+    const grid = gridRef.current
+    const spaceAbove = grid ? el.getBoundingClientRect().top - grid.getBoundingClientRect().top : 0
+    setTip({ tpl, dir: spaceAbove < 66 ? 'down' : 'up', el })
+  }
+
+  const hideTip = () => { setTip(null); setTipPos(null) }
+
+  // tooltip 渲染到 body 顶层（fixed 定位，不受网格 overflow 裁剪）。
+  // 挂载后测量实际尺寸，居中于磁贴并钳制在视口内（上下左右都不越界）。
+  useLayoutEffect(() => {
+    if (!tip) { setTipPos(null); return }
+    const el = tooltipRef.current
+    if (!el) return
+    const rect = tip.el.getBoundingClientRect()
+    const tw = el.offsetWidth
+    const th = el.offsetHeight
+    let left = rect.left + rect.width / 2 - tw / 2
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8))
+    let top = tip.dir === 'up' ? rect.top - th - 8 : rect.bottom + 8
+    top = Math.max(8, Math.min(top, window.innerHeight - th - 8))
+    setTipPos({ left, top })
+  }, [tip, tick])
 
   const insert = (name: string) => {
     if (readOnly) return
@@ -136,7 +168,12 @@ function ComponentGrid({ dispatch, readOnly, activePage }: {
   }
 
   return (
-    <div className="component-grid">
+    <div
+      className="component-grid"
+      ref={gridRef}
+      onMouseLeave={hideTip}
+      onScroll={() => { if (tip) setTick((t) => t + 1) }}
+    >
       {COMPONENT_TEMPLATES.map((tpl) => (
         <button
           key={tpl.name}
@@ -149,12 +186,25 @@ function ComponentGrid({ dispatch, readOnly, activePage }: {
           }}
           onDragEnd={() => setDragging(null)}
           onClick={() => insert(tpl.name)}
+          onMouseEnter={(e) => showTip(e, tpl)}
           title={`插入「${tpl.name}」到当前画板`}
         >
           <span className={`component-tile-icon ${dragging === tpl.name ? 'dragging' : ''}`}><ComponentGlyph name={tpl.name} /></span>
           <span className="component-tile-name">{tpl.short}</span>
         </button>
       ))}
+      {tip && createPortal(
+        <div
+          ref={tooltipRef}
+          className={`component-tooltip ${tip.dir}`}
+          style={{ left: tipPos?.left ?? 0, top: tipPos?.top ?? 0 }}
+          role="tooltip"
+        >
+          <strong>{tip.tpl.name}</strong>
+          <em>{tip.tpl.description}</em>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
