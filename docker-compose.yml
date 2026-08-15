@@ -25,6 +25,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-xgdesign}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xgdesign}
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+      # v2.0 AI 变量
+      AI_ENABLED: ${AI_ENABLED:-true}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.deepseek.com}
+      AI_MODEL: ${AI_MODEL:-deepseek-chat}
+      AI_MOCK_MODE: ${AI_MOCK_MODE:-false}
     ports:
       - "8090:8090"
 

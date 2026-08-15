@@ -183,3 +183,4 @@ export type EditorAction =
   | { type: 'CLEAR_HISTORY' }
   | { type: 'UNDO' }
   | { type: 'REDO' }
+  | { type: 'APPLY_DESIGN'; layers: LayerNode[] }

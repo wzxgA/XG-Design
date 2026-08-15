@@ -9,6 +9,7 @@ import { downloadProjectFile } from '../../services/exportProject'
 import { HistoryModal } from '../history/HistoryModal'
 import { avatarColor } from '../../constants/colors'
 import { AVATAR_MAX_VISIBLE } from '../../constants/limits'
+import { aiActions } from '../../state/ai-store'
 
 const toolItems: [IconName, string, string, ToolType][] = [
   ['cursor', '选择', 'V', 'select'],
@@ -271,6 +272,15 @@ export function TopToolbar({
         )}
         <button className="preview-button" onClick={onPreview}><Icon name="play" /> 预览</button>
         {!readOnly && <button className="share-button" onClick={onShare}>分享 <Icon name="external" /></button>}
+        {!readOnly && (
+          <button
+            className="ai-toggle-btn"
+            onClick={() => aiActions.togglePanel()}
+            title="AI 助手"
+          >
+            <Icon name="spark" /> AI
+          </button>
+        )}
         <span className="top-zoom">{zoom}%</span>
       </div>
       {historyOpen && <HistoryModal projectId={doc.id} onClose={() => setHistoryOpen(false)} />}

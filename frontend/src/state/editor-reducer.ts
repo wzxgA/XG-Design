@@ -386,6 +386,21 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case 'CLEAR_HISTORY':
       return { ...state, history: { past: [], future: [] } }
 
+    case 'APPLY_DESIGN': {
+      // 将 AI 生成的图层数组应用到当前页面的画板内
+      const doc = cloneDocument(state.document)
+      const page = doc.pages.find((p) => p.id === doc.activePageId)
+      if (!page) return state
+      // 找到第一个 frame 作为画板，没有则直接放到页面根级
+      const frame = page.children.find((n) => n.type === 'frame')
+      if (frame) {
+        frame.children = [...frame.children, ...action.layers]
+      } else {
+        page.children = [...page.children, ...action.layers]
+      }
+      return withHistory(state, doc, { selectedIds: [] })
+    }
+
     case 'ADD_COMMENT_REPLY': {
       const doc = mapLayers(state.document, new Set([action.commentId]), (node) => ({
         ...node,

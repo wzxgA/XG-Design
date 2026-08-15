@@ -15,6 +15,15 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  ai:
+    openai:
+      api-key: ${AI_API_KEY:sk-39852c9d7b684ec09339beb32c23f5f9}
+      base-url: ${AI_BASE_URL:https://api.deepseek.com}
+      chat:
+        options:
+          model: ${AI_MODEL:deepseek-v4-flash}
+          temperature: 0.7
+          max-tokens: 16384
 
 app:
   cors:
@@ -22,3 +31,10 @@ app:
   jwt:
     secret: ${JWT_SECRET:xgdesign-dev-secret-key-change-me-in-production-0123456789abcdef}
     ttl-hours: ${JWT_TTL_HOURS:24}
+
+xgdesign:
+  ai:
+    enabled: ${AI_ENABLED:true}
+    mock-mode: ${AI_MOCK_MODE:false}
+    max-history-messages: 20
+    system-prompt-extra: ""
