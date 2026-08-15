@@ -55,6 +55,13 @@ public final class DesignSchemaProvider {
             - layers 数组顶层必须恰好一个节点，用 frame 或 group 包裹全部图层，禁止输出多个散开的顶层图层
             - 生成完整页面 → 顶层用 frame（画板），其 children 放所有图层
             - 生成组件/局部修改 → 顶层用 group，其 children 放图层
+
+            editDesign 工具操作指令格式（operationsJson 是 JSON 数组，每条一个操作）:
+            - update: {"op":"update","id":"目标图层id","patch":{"style":{"fill":"#ff0000"},"content":"新文字"}}
+              patch 只放需要改的字段；style 是浅合并（只改指定属性）
+            - delete: {"op":"delete","id":"目标图层id"}
+            - replace: {"op":"replace","id":"目标图层id","node":{...完整图层节点...}}
+              node 必须含 type；若为组件节点需带 component/componentProps；替换后保留原 id
             """;
     }
 }

@@ -1,14 +1,16 @@
 import { useState } from 'react'
-import type { ChatMessage } from '../../types/ai'
+import type { ChatMessage, EditOperation } from '../../types/ai'
 import type { LayerNode } from '../../types/design'
 import { DesignPreviewCard } from './DesignPreviewCard'
+import { EditPreviewCard } from './EditPreviewCard'
 
 interface Props {
   message: ChatMessage
   onApply?: (layers: LayerNode[]) => void
+  onApplyEdit?: (operations: EditOperation[]) => void
 }
 
-export function ChatMessageItem({ message, onApply }: Props) {
+export function ChatMessageItem({ message, onApply, onApplyEdit }: Props) {
   const isUser = message.role === 'user'
 
   return (
@@ -30,6 +32,13 @@ export function ChatMessageItem({ message, onApply }: Props) {
         )}
         {message.designSuggestion && Array.isArray(message.designSuggestion.parsedLayers) && (
           <DesignPreviewCard suggestion={message.designSuggestion} onApply={onApply} />
+        )}
+        {message.editSuggestion && Array.isArray(message.editSuggestion.parsedOperations) && (
+          <EditPreviewCard
+            operations={message.editSuggestion.parsedOperations}
+            description={message.editSuggestion.description}
+            onApply={onApplyEdit}
+          />
         )}
       </div>
     </div>

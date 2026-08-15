@@ -35,6 +35,13 @@ public class ChatMessageEntity {
     @Column(name = "design_description", length = 500)
     private String designDescription;
 
+    /** editDesign 工具产生的操作指令 JSON（update/delete/replace 数组） */
+    @Column(name = "edit_operations", columnDefinition = "TEXT")
+    private String editOperations;
+
+    @Column(name = "edit_description", length = 500)
+    private String editDescription;
+
     @Column(name = "token_count")
     private Integer tokenCount;
 
@@ -97,6 +104,22 @@ public class ChatMessageEntity {
 
     public void setDesignDescription(String designDescription) {
         this.designDescription = designDescription;
+    }
+
+    public String getEditOperations() {
+        return editOperations;
+    }
+
+    public void setEditOperations(String editOperations) {
+        this.editOperations = editOperations;
+    }
+
+    public String getEditDescription() {
+        return editDescription;
+    }
+
+    public void setEditDescription(String editDescription) {
+        this.editDescription = editDescription;
     }
 
     public Integer getTokenCount() {

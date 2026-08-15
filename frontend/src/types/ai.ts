@@ -5,6 +5,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   designSuggestion?: DesignSuggestion
+  editSuggestion?: EditSuggestion
   createdAt: string
   status: 'sending' | 'streaming' | 'done' | 'error'
 }
@@ -14,6 +15,19 @@ export interface DesignSuggestion {
   documentJson: string
   description: string
   parsedLayers: import('./design').LayerNode[]
+}
+
+/** AI 修改操作（editDesign 工具产生） */
+export type EditOperation =
+  | { op: 'update'; id: string; patch: Partial<import('./design').LayerNode> & { style?: Partial<import('./design').LayerStyle> } }
+  | { op: 'delete'; id: string }
+  | { op: 'replace'; id: string; node: import('./design').LayerNode }
+
+/** AI 修改操作建议 */
+export interface EditSuggestion {
+  operationsJson: string
+  description: string
+  parsedOperations: EditOperation[]
 }
 
 /** 对话会话 */
@@ -28,7 +42,7 @@ export interface ChatSession {
 
 /** SSE 流式事件 */
 export interface ChatStreamEvent {
-  type: 'text' | 'design' | 'done' | 'error'
+  type: 'text' | 'design' | 'edit' | 'done' | 'error'
   content: string
   sessionId: string
   messageId: string

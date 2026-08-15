@@ -4,6 +4,7 @@ import com.xgdesign.ai.dto.*;
 import com.xgdesign.ai.prompt.PromptBuilder;
 import com.xgdesign.ai.prompt.AiComponentCatalog;
 import com.xgdesign.ai.tool.DesignToolCallback;
+import com.xgdesign.ai.tool.EditDesignCallback;
 import com.xgdesign.security.CurrentUserProvider;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -123,6 +124,11 @@ public class AiService {
             AtomicReference<String> descRef = new AtomicReference<>();
             DesignToolCallback toolCallback = new DesignToolCallback(designRef, descRef, componentCatalog);
 
+            // editDesign 工具：修改/删除/替换已有图层
+            AtomicReference<String> editOpsRef = new AtomicReference<>();
+            AtomicReference<String> editDescRef = new AtomicReference<>();
+            EditDesignCallback editToolCallback = new EditDesignCallback(editOpsRef, editDescRef, componentCatalog);
+
             StringBuilder aiReplyBuffer = new StringBuilder();
             String sid = sessionId.toString();
             String mid = messageId.toString();
@@ -131,7 +137,7 @@ public class AiService {
                     .system(systemPrompt)
                     .messages(history)
                     .user(request.message())
-                    .tools(toolCallback)
+                    .tools(toolCallback, editToolCallback)
                     .stream()
                     .chatResponse()
                     .<ServerSentEvent<ChatStreamEvent>>handle((resp, sink) -> {
@@ -143,16 +149,20 @@ public class AiService {
                     .concatWith(Flux.defer(() -> {
                         List<ServerSentEvent<ChatStreamEvent>> events = new ArrayList<>();
                         String design = designRef.get();
+                        String editOps = editOpsRef.get();
                         if (design != null) {
                             events.add(designEvent(design, descRef.get(), sid, mid));
                         }
-                        saveAiMessage(sessionId, aiReplyBuffer.toString(), design, descRef.get());
+                        if (editOps != null) {
+                            events.add(editEvent(editOps, editDescRef.get(), sid, mid));
+                        }
+                        saveAiMessage(sessionId, aiReplyBuffer.toString(), design, descRef.get(), editOps, editDescRef.get());
                         updateSessionStats(sessionId);
                         events.add(doneEvent(sid, mid));
                         return Flux.fromIterable(events);
                     }))
                     .onErrorResume(e -> {
-                        saveAiMessage(sessionId, aiReplyBuffer.toString(), null, null);
+                        saveAiMessage(sessionId, aiReplyBuffer.toString(), null, null, null, null);
                         updateSessionStats(sessionId);
                         return Flux.just(errorEvent(e.getMessage(), sid));
                     });
@@ -168,7 +178,7 @@ public class AiService {
         String mockDesign = MockDesignTemplates.getTemplate(request.message());
         String mockDesc = MockDesignTemplates.getDescription(request.message());
 
-        saveAiMessage(sessionId, mockText, mockDesign, mockDesc);
+        saveAiMessage(sessionId, mockText, mockDesign, mockDesc, null, null);
         updateSessionStats(sessionId);
 
         String sid = sessionId.toString();
@@ -220,13 +230,16 @@ public class AiService {
         messageRepo.save(msg);
     }
 
-    private void saveAiMessage(UUID sessionId, String content, String designSuggestion, String designDescription) {
+    private void saveAiMessage(UUID sessionId, String content, String designSuggestion, String designDescription,
+                               String editOperations, String editDescription) {
         ChatMessageEntity msg = new ChatMessageEntity();
         msg.setSessionId(sessionId);
         msg.setRole("assistant");
         msg.setContent(content != null ? content : "");
         msg.setDesignSuggestion(designSuggestion);
         msg.setDesignDescription(designDescription);
+        msg.setEditOperations(editOperations);
+        msg.setEditDescription(editDescription);
         messageRepo.save(msg);
     }
 
@@ -282,6 +295,12 @@ public class AiService {
                 .build();
     }
 
+    private ServerSentEvent<ChatStreamEvent> editEvent(String operations, String description, String sessionId, String messageId) {
+        return ServerSentEvent.<ChatStreamEvent>builder()
+                .data(new ChatStreamEvent("edit", operations, sessionId, messageId))
+                .build();
+    }
+
     private ServerSentEvent<ChatStreamEvent> doneEvent(String sessionId, String messageId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
                 .data(new ChatStreamEvent("done", null, sessionId, messageId))
@@ -315,12 +334,20 @@ public class AiService {
                     entity.getDesignDescription()
             );
         }
+        EditOperationsDto editOps = null;
+        if (entity.getEditOperations() != null) {
+            editOps = new EditOperationsDto(
+                    entity.getEditOperations(),
+                    entity.getEditDescription()
+            );
+        }
         return new ChatMessageDto(
                 entity.getId().toString(),
                 entity.getSessionId().toString(),
                 entity.getRole(),
                 entity.getContent(),
                 suggestion,
+                editOps,
                 entity.getCreatedAt().toString()
         );
     }

@@ -2,9 +2,13 @@ import { useEffect, useState } from 'react'
 import { useAiStore, aiActions } from '../../state/ai-store'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
+import type { EditOperation } from '../../types/ai'
 import { ChatMessageList } from './ChatMessageList'
 import { ChatInput } from './ChatInput'
 import { SessionSidebar } from './SessionSidebar'
+
+/** 修改类关键词：检测到时自动勾选"附带当前画布上下文" */
+const EDIT_KEYWORDS = ['改', '修改', '调整', '删除', '替换', '换成', '变成', '变成']
 
 interface Props {
   state: EditorState
@@ -25,6 +29,14 @@ export function AiChatPanel({ state, dispatch, readOnly }: Props) {
     }
   }, [panelOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 输入含修改关键词时自动勾选上下文（用户可手动取消）
+  const handleInputChange = (v: string) => {
+    setInput(v)
+    if (EDIT_KEYWORDS.some((k) => v.includes(k))) {
+      setIncludeContext(true)
+    }
+  }
+
   const handleSend = () => {
     if (!input.trim() || isStreaming || readOnly) return
     aiActions.sendMessage({
@@ -39,6 +51,10 @@ export function AiChatPanel({ state, dispatch, readOnly }: Props) {
 
   const handleApply = (layers: LayerNode[]) => {
     dispatch({ type: 'APPLY_DESIGN', layers })
+  }
+
+  const handleApplyEdit = (operations: EditOperation[]) => {
+    dispatch({ type: 'APPLY_EDIT', operations })
   }
 
   const handleStop = () => {
@@ -67,7 +83,7 @@ export function AiChatPanel({ state, dispatch, readOnly }: Props) {
         />
       )}
 
-      <ChatMessageList messages={messages} isStreaming={isStreaming} onApply={handleApply} />
+      <ChatMessageList messages={messages} isStreaming={isStreaming} onApply={handleApply} onApplyEdit={handleApplyEdit} />
 
       <div className="ai-footer">
         {isStreaming && (
@@ -75,7 +91,7 @@ export function AiChatPanel({ state, dispatch, readOnly }: Props) {
         )}
         <ChatInput
           value={input}
-          onChange={setInput}
+          onChange={handleInputChange}
           onSend={handleSend}
           disabled={isStreaming || readOnly}
           includeContext={includeContext}

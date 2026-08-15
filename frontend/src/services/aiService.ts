@@ -1,5 +1,5 @@
 import { api } from './http'
-import type { ChatMessage, ChatSession, ChatStreamEvent, ChatRequest, DesignSuggestion } from '../types/ai'
+import type { ChatMessage, ChatSession, ChatStreamEvent, ChatRequest, DesignSuggestion, EditOperation, EditSuggestion } from '../types/ai'
 import type { LayerNode } from '../types/design'
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
@@ -96,6 +96,34 @@ export const aiService = {
       documentJson: json,
       description: description ?? 'AI 生成的设计',
       parsedLayers: normalized,
+    }
+  },
+
+  parseEditOperations(json: string, description?: string): EditSuggestion {
+    const parsed = JSON.parse(json) as EditOperation[]
+    if (!Array.isArray(parsed)) {
+      throw new Error('修改操作数据格式错误')
+    }
+    // 校验每条操作；replace 的 node 递归规范化
+    const validated = parsed.map((op) => {
+      if (!op || typeof op !== 'object') throw new Error('修改操作格式错误')
+      if (op.op === 'update') {
+        if (!op.id) throw new Error('update 操作缺少 id')
+        return op
+      } else if (op.op === 'delete') {
+        if (!op.id) throw new Error('delete 操作缺少 id')
+        return op
+      } else if (op.op === 'replace') {
+        if (!op.id) throw new Error('replace 操作缺少 id')
+        if (!op.node || !op.node.type) throw new Error('replace 操作缺少 node')
+        return { ...op, node: normalizeLayer(op.node) }
+      }
+      throw new Error('未知操作类型: ' + (op as { op?: string }).op)
+    })
+    return {
+      operationsJson: json,
+      description: description ?? 'AI 修改建议',
+      parsedOperations: validated,
     }
   },
 }

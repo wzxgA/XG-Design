@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { ChatMessage } from '../../types/ai'
+import type { ChatMessage, EditOperation } from '../../types/ai'
 import type { LayerNode } from '../../types/design'
 import { ChatMessageItem } from './ChatMessageItem'
 
@@ -7,9 +7,10 @@ interface Props {
   messages: ChatMessage[]
   isStreaming: boolean
   onApply?: (layers: LayerNode[]) => void
+  onApplyEdit?: (operations: EditOperation[]) => void
 }
 
-export function ChatMessageList({ messages, isStreaming, onApply }: Props) {
+export function ChatMessageList({ messages, isStreaming, onApply, onApplyEdit }: Props) {
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export function ChatMessageList({ messages, isStreaming, onApply }: Props) {
   return (
     <div className="ai-msg-list">
       {messages.map(msg => (
-        <ChatMessageItem key={msg.id} message={msg} onApply={onApply} />
+        <ChatMessageItem key={msg.id} message={msg} onApply={onApply} onApplyEdit={onApplyEdit} />
       ))}
       <div ref={endRef} />
     </div>

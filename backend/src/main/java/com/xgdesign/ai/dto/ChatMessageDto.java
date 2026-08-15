@@ -9,5 +9,6 @@ public record ChatMessageDto(
         String role,
         String content,
         DesignSuggestionDto designSuggestion,
+        EditOperationsDto editOperations,
         String createdAt
 ) {}

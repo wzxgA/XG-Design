@@ -404,6 +404,34 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return withHistory(state, doc, { selectedIds: [] })
     }
 
+    case 'APPLY_EDIT': {
+      // 将 AI 修改操作（update/delete/replace）原位应用到当前文档，不新增副本
+      let doc = cloneDocument(state.document)
+      for (const op of action.operations) {
+        if (op.op === 'update') {
+          const patch = op.patch
+          doc = mapLayers(doc, new Set([op.id]), (n) => ({
+            ...n,
+            ...patch,
+            style: patch.style ? { ...n.style, ...patch.style } : n.style,
+          }))
+        } else if (op.op === 'delete') {
+          doc = {
+            ...doc,
+            pages: doc.pages.map((p) => ({
+              ...p,
+              children: deleteIds(p.children, new Set([op.id])),
+            })),
+          }
+        } else if (op.op === 'replace') {
+          // 保留原 id（替换内容但 id 不变，选中状态延续）
+          const newNode = { ...op.node, id: op.id }
+          doc = mapLayers(doc, new Set([op.id]), () => newNode)
+        }
+      }
+      return withHistory(state, doc, { selectedIds: [] })
+    }
+
     case 'ADD_COMMENT_REPLY': {
       const doc = mapLayers(state.document, new Set([action.commentId]), (node) => ({
         ...node,

@@ -92,6 +92,7 @@ const WRITE_ACTIONS = new Set<EditorAction['type']>([
   'UNDO',
   'REDO',
   'APPLY_DESIGN',
+  'APPLY_EDIT',
 ])
 
 export default function App() {

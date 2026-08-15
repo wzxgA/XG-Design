@@ -184,6 +184,17 @@ function onStreamEvent(event: ChatStreamEvent, streamingId: string) {
         ),
       })
     } catch { /* skip invalid design JSON */ }
+  } else if (event.type === 'edit') {
+    try {
+      const suggestion = aiService.parseEditOperations(event.content)
+      setState({
+        messages: state.messages.map(m =>
+          m.id === streamingId
+            ? { ...m, editSuggestion: suggestion }
+            : m
+        ),
+      })
+    } catch { /* skip invalid edit operations JSON */ }
   } else if (event.type === 'done') {
     if (event.sessionId && !state.currentSessionId) {
       setState({ currentSessionId: event.sessionId })

@@ -184,3 +184,4 @@ export type EditorAction =
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'APPLY_DESIGN'; layers: LayerNode[] }
+  | { type: 'APPLY_EDIT'; operations: import('../types/ai').EditOperation[] }

@@ -80,4 +80,13 @@ public final class SystemPrompts {
             3. component 名称必须严格使用组件库清单中的名称，禁止自创或使用清单外的名称
             4. 每个组件只放必要的 componentProps，其余交给默认值
             """;
+
+    public static final String EDIT_RULES = """
+            ## 修改场景规则
+            1. 当用户要求"修改/调整/删除/替换"当前画布上的图层时，调用 editDesign 工具（不要用 generateDesign）
+            2. update 操作的 patch 只放需要改的字段；style 是浅合并（只改指定属性，其余保留）
+            3. replace 用于把普通图层换成组件（node 为组件节点），替换后保留原 id
+            4. 操作前参考"当前文档"上下文中的图层 id；若无文档上下文则提示用户先选中图层或附带上下文
+            5. 选中图层信息见 selectedLayerId（前端已传），可直接对该 id 操作
+            """;
 }
