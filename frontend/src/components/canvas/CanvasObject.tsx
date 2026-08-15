@@ -47,6 +47,8 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
   const useSelectionBox = selected && node.children.length === 0 && !node.locked && !multiSelected
   const outline = selected && !useSelectionBox ? 'canvas-selected' : ''
   const scale = state.zoom / 100
+  // 选择工具下 hover 图层统一显示手型，避免出现形似十字的四向移动箭头；锁定节点显示默认箭头
+  const isComponent = isComponentNode(node)
 
   const style: React.CSSProperties = {
     position: 'absolute',
@@ -56,7 +58,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     height: node.height,
     opacity: node.style.opacity ?? 1,
     transform: node.rotation ? `rotate(${node.rotation}deg)` : undefined,
-    cursor: node.locked ? 'default' : 'move',
+    cursor: node.locked ? 'default' : 'pointer',
     pointerEvents: passive ? 'none' : undefined,
   }
 
@@ -124,8 +126,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
   }
 
   // 组件节点可能不带落盘 children（如 AI 生成的 children: []），isComponentNode 命中即进入组件渲染分支
-  if (node.children.length > 0 || isComponentNode(node)) {
-    const isComponent = isComponentNode(node)
+  if (node.children.length > 0 || isComponent) {
     // 预览交互模式（demo.enabled）：命中注册表的组件叠加 DOM 覆盖控件
     const spec = demo.enabled && isComponent ? INTERACTIVE_COMPONENTS[node.component ?? ''] : undefined
     // 开关视觉由覆盖 props 驱动：预览态内存值 > 节点 componentProps（未交互时保持默认）

@@ -1,5 +1,6 @@
 import type { LayerNode } from '../../types/design'
-import { isComponentNode, renderComponentChildren } from '../../fixtures/component-library'
+import { isComponentNode } from '../../utils/layers'
+import { renderComponentChildren } from '../../fixtures/component-library'
 
 interface Props {
   layers: LayerNode[]
