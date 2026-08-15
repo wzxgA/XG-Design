@@ -53,9 +53,22 @@ public class DesignToolCallback {
             if (!node.isArray()) {
                 throw new IllegalArgumentException("生成的设计 JSON 不是数组");
             }
+            // 顶层必须恰好一个 frame 或 group 作为唯一父节点，避免散开图层或 frame 嵌套
+            validateTopLevel(node);
             validateComponents(node);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("生成的设计 JSON 不完整或格式错误，请重新生成: " + e.getOriginalMessage(), e);
+        }
+    }
+
+    /** 校验顶层结构：数组长度必须为 1，且元素 type 为 frame 或 group（页面用 frame，组件/局部用 group） */
+    private void validateTopLevel(JsonNode node) {
+        if (node.size() != 1) {
+            throw new IllegalArgumentException("layers 数组顶层必须恰好 1 个 frame 或 group 节点，当前有 " + node.size() + " 个。请用单个 frame（生成页面）或 group（生成组件/局部）包裹所有图层后重新生成。");
+        }
+        String type = node.get(0).path("type").asText("");
+        if (!"frame".equals(type) && !"group".equals(type)) {
+            throw new IllegalArgumentException("layers 顶层节点 type 必须为 frame 或 group，当前为 " + type + "。请用 frame（生成页面）或 group（生成组件/局部）包裹后重新生成。");
         }
     }
 

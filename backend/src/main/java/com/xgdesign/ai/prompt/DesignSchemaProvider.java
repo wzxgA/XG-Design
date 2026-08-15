@@ -50,6 +50,11 @@ public final class DesignSchemaProvider {
             - componentProps: 组件可配置属性对象，key 对应该组件的 props，如 {"text":"登录","bg":"#1890ff"}
             - 使用组件时 children 可留空 []
             - 节点的 width/height 必须与组件默认尺寸或 componentProps 中的 width/height 一致
+
+            顶层结构（重要）:
+            - layers 数组顶层必须恰好一个节点，用 frame 或 group 包裹全部图层，禁止输出多个散开的顶层图层
+            - 生成完整页面 → 顶层用 frame（画板），其 children 放所有图层
+            - 生成组件/局部修改 → 顶层用 group，其 children 放图层
             """;
     }
 }

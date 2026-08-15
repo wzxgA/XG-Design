@@ -66,6 +66,11 @@ public final class SystemPrompts {
             3. 尽量精简 JSON：省略默认值（rotation=0、visible=true 可省略）、省略空 children
             4. 每个图层只保留必要字段，不要添加 schema 之外的字段
             5. 控制图层数量：普通页面 5-15 个图层即可，不要过度设计
+            6. 生成一个完整页面时，顶层必须输出一个 frame（画板）作为唯一父节点，所有图层放入其 children 内；
+               若用户要求的是组件或局部修改，可以顶层输出一个 group 作为唯一父节点
+            7. layers 数组顶层不得输出多个散开的图层，必须用 frame 或 group 包裹
+            8. 若当前文档已存在画板：生成页面时默认将新 frame 放到页面顶层与已有画板并列，不要嵌套进已有画板；
+               生成组件/局部时则并入当前画板 children
             """;
 
     public static final String COMPONENT_RULES = """

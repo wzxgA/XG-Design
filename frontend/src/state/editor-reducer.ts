@@ -1,5 +1,5 @@
 import type { EditorAction, EditorState, LayerNode, DesignDocument, LayerStyle, HistoryState, PageNode } from '../types/design'
-import { layerId } from '../utils/layers'
+import { layerId, ensureAiParent } from '../utils/layers'
 
 export const ZOOM_MIN = 25
 export const ZOOM_MAX = 200
@@ -387,16 +387,19 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return { ...state, history: { past: [], future: [] } }
 
     case 'APPLY_DESIGN': {
-      // 将 AI 生成的图层数组应用到当前页面的画板内
+      // 将 AI 生成的图层数组应用到当前页面：
+      // 1) ensureAiParent 兜底保证顶层单一父节点（frame/group）
+      // 2) 顶层 frame（画板语义）→ 页面根级与已有画板并列；顶层 group（组件/局部）→ 并入第一个画板
       const doc = cloneDocument(state.document)
       const page = doc.pages.find((p) => p.id === doc.activePageId)
       if (!page) return state
-      // 找到第一个 frame 作为画板，没有则直接放到页面根级
+      const layers = ensureAiParent(action.layers)
       const frame = page.children.find((n) => n.type === 'frame')
-      if (frame) {
-        frame.children = [...frame.children, ...action.layers]
+      const topType = layers[0]?.type
+      if (frame && topType === 'group') {
+        frame.children = [...frame.children, ...layers]
       } else {
-        page.children = [...page.children, ...action.layers]
+        page.children = [...page.children, ...layers]
       }
       return withHistory(state, doc, { selectedIds: [] })
     }
