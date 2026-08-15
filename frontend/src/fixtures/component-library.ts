@@ -150,8 +150,9 @@ export function defaultProps(tpl: ComponentTemplate): Record<string, unknown> {
  * 按组件节点的 componentProps 实时计算渲染子节点列表。
  * 模板有 render 时返回 render 结果（group）的 children；否则返回 null（调用方回退 node.children）。
  * @param overrideState 预览演示态临时覆盖 componentState（画布编辑态传 undefined 用节点自带状态）
+ * @param overrides 预览交互态覆盖 props（如开关的 on），优先级最高（内存值不落盘）
  */
-export function renderComponentChildren(node: LayerNode, overrideState?: string): LayerNode[] | null {
+export function renderComponentChildren(node: LayerNode, overrideState?: string, overrides?: Record<string, unknown>): LayerNode[] | null {
   if (!node.component) return null
   const tpl = COMPONENT_TEMPLATES.find((t) => t.name === node.component)
   if (!tpl?.render) return null
@@ -160,6 +161,7 @@ export function renderComponentChildren(node: LayerNode, overrideState?: string)
   const stateName = overrideState ?? node.componentState ?? 'default'
   const st = tpl.states?.find((s) => s.name === stateName)
   if (st) props = { ...props, ...st.props }
+  props = { ...props, ...(overrides ?? {}) }
   props = { ...props, __state: stateName }
   const rendered = tpl.render(props)
   return rendered.children

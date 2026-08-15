@@ -119,6 +119,10 @@ export function PreviewOverlay({ state, onClose }: Props) {
   const [demo, setDemo] = useState(false)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [pressedId, setPressedId] = useState<string | null>(null)
+  // 预览交互值（内存态，退出预览即丢弃，不写回文档）
+  const [values, setValues] = useState<Record<string, unknown>>({})
+  const onValue = (id: string, value: unknown) =>
+    setValues((prev) => ({ ...prev, [id]: value }))
 
   const page = state.document.pages.find((p) => p.id === pageId)!
   const frames = page.children.filter((n) => n.type === 'frame') as LayerNode[]
@@ -165,14 +169,14 @@ export function PreviewOverlay({ state, onClose }: Props) {
           <button
             className={`preview-demo-btn ${demo ? 'active' : ''}`}
             onClick={() => { setDemo((d) => !d); setHoveredId(null); setPressedId(null) }}
-            title={demo ? '退出状态演示' : '悬停/点击组件查看交互状态'}
+            title={demo ? '退出交互演示' : '开启交互演示：输入框可输入、开关可切换、按钮可点击'}
           >
-            <Icon name="cursor" /> 状态演示
+            <Icon name="cursor" /> 交互演示
           </button>
           <button className="preview-close" onClick={onClose}><Icon name="external" /> 退出预览</button>
         </div>
       </div>
-      <PreviewDemoContext.Provider value={{ enabled: demo, hoveredId, pressedId }}>
+      <PreviewDemoContext.Provider value={{ enabled: demo, hoveredId, pressedId, values, onValue }}>
         <div
           className="preview-stage"
           onMouseOver={(e) => { const id = componentIdFrom(e); if (id !== null) setHoveredId(id) }}

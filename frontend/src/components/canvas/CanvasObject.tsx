@@ -6,6 +6,8 @@ import { isComponentNode } from '../../utils/layers'
 import { renderComponentChildren } from '../../fixtures/component-library'
 import { renderChartSvg } from '../../utils/chart'
 import { usePreviewDemo } from './preview-demo'
+import { INTERACTIVE_COMPONENTS } from './preview-interactions'
+import { InteractiveControl } from './InteractiveControl'
 import { RECT_FILL, BLUE, IMAGE_PLACEHOLDER, MUTED } from '../../constants/colors'
 
 interface Props {
@@ -123,9 +125,16 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
 
   // 组件节点可能不带落盘 children（如 AI 生成的 children: []），isComponentNode 命中即进入组件渲染分支
   if (node.children.length > 0 || isComponentNode(node)) {
-    // 组件优先用 componentProps + 模板 render 实时计算子节点（fallback 到落盘的 node.children）
     const isComponent = isComponentNode(node)
-    const children = isComponent ? (renderComponentChildren(node, demoState) ?? node.children) : node.children
+    // 预览交互模式（demo.enabled）：命中注册表的组件叠加 DOM 覆盖控件
+    const spec = demo.enabled && isComponent ? INTERACTIVE_COMPONENTS[node.component ?? ''] : undefined
+    // 开关视觉由覆盖 props 驱动：预览态内存值 > 节点 componentProps（未交互时保持默认）
+    const toggleValue = spec?.kind === 'toggle'
+      ? (node.id in demo.values ? !!demo.values[node.id] : !!node.componentProps?.on)
+      : undefined
+    const overrides = spec?.kind === 'toggle' ? { on: toggleValue } : undefined
+    // 组件优先用 componentProps + 模板 render 实时计算子节点（fallback 到落盘的 node.children）
+    const children = isComponent ? (renderComponentChildren(node, demoState, overrides) ?? node.children) : node.children
     const dimmed = isComponent && (demoState ?? node.componentState ?? 'default') === 'disabled'
     // CO-6：容器插槽内容（componentSlots 引用的子节点）叠加渲染进组件内
     const slotIds = new Set(Object.values(node.componentSlots ?? {}).flat())
@@ -139,6 +148,14 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
       >
         {children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} passive={passive || isComponent} />)}
         {slotChildren.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} passive={passive || isComponent} />)}
+        {spec && (
+          <InteractiveControl
+            spec={spec}
+            node={node}
+            value={demo.values[node.id]}
+            onChange={(v) => demo.onValue(node.id, v)}
+          />
+        )}
       </div>
     )
   }

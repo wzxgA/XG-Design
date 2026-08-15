@@ -360,3 +360,15 @@ button { font: inherit; border: 0; background: none; color: inherit; cursor: poi
 .resize-handle:hover { background: var(--blue); opacity: .4; }
 .resize-handle:active { opacity: .7; }
 
+/* ===== 预览交互控件（P6 预览组件交互） ===== */
+.preview-input { background: transparent; border: none; outline: none; padding: 8px 12px; font-size: 14px; font-family: inherit; color: #445159; pointer-events: auto; }
+.preview-input:focus { outline: 1.5px solid var(--blue); outline-offset: -1px; border-radius: 4px; }
+.preview-input::placeholder { color: #a1abb0; }
+.preview-select { background: #fff; border: 1px solid #c9d4d8; border-radius: 6px; padding: 0 6px; font-size: 12px; font-family: inherit; color: #56636a; pointer-events: auto; cursor: pointer; }
+.preview-select:focus { outline: none; border-color: var(--blue); }
+.preview-toggle { cursor: pointer; pointer-events: auto; }
+.preview-radio { pointer-events: auto; }
+.preview-radio-row { cursor: pointer; position: relative; }
+.preview-radio-row:hover { background: rgba(78,143,244,.06); }
+.preview-radio-check { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; border-radius: 50%; background: var(--blue); box-shadow: inset 0 0 0 3.5px #fff, 0 0 0 1.5px var(--blue); }
+
