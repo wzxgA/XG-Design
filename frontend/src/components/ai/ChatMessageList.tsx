@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import type { ChatMessage } from '../../types/ai'
 import type { LayerNode } from '../../types/design'
 import { ChatMessageItem } from './ChatMessageItem'
-import { AiLoadingIndicator } from './AiLoadingIndicator'
 
 interface Props {
   messages: ChatMessage[]
@@ -36,7 +35,6 @@ export function ChatMessageList({ messages, isStreaming, onApply }: Props) {
       {messages.map(msg => (
         <ChatMessageItem key={msg.id} message={msg} onApply={onApply} />
       ))}
-      {isStreaming && <AiLoadingIndicator />}
       <div ref={endRef} />
     </div>
   )
