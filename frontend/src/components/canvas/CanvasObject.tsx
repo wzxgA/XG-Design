@@ -65,6 +65,8 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
   const onPointerDown = (e: React.PointerEvent) => {
     // 绘制/钢笔模式：不拦截，让事件冒泡到画板空白处理（绘制工具需要覆盖在对象上）
     if (drawing) return
+    // 中键：不选中不移动，冒泡到画布容器触发平移（与"中键=平移画布"惯例一致）
+    if (e.button === 1) return
     e.stopPropagation()
     if (node.locked) {
       dispatch({ type: 'SELECT_LAYERS', ids: [node.id] })

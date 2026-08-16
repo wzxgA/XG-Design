@@ -62,6 +62,8 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
   const [penPreview, setPenPreview] = useState<{ x: number; y: number } | null>(null)
   const frameDragRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number; frameId: string; moved: boolean } | null>(null)
   const panDragRef = useRef<{ pointerX: number; pointerY: number; panX: number; panY: number } | null>(null)
+  // 平移中：画布光标显示 grabbing（覆盖组件 pointer 手型）
+  const [panning, setPanning] = useState(false)
   const spaceDownRef = useRef(false)
   const [framePreset, setFramePreset] = useState<FramePreset | null>(null)
   const [altDown, setAltDown] = useState(false)
@@ -258,6 +260,8 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
   // ---- frame 空白处事件（select：移动画板 / Shift：框选）----
   const onFramePointerDown = (e: React.PointerEvent, frameId: string) => {
     if (readOnly) return
+    // 中键：不移动画板/不框选/不绘制，冒泡到画布容器触发平移（与"中键=平移画布"一致）
+    if (e.button === 1) return
     const tool = state.activeTool
     const { x, y } = toFrameCoord(frameId, e.clientX, e.clientY)
     const frame = frames.find((f) => f.id === frameId)!
@@ -383,6 +387,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       e.preventDefault()
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
       panDragRef.current = { pointerX: e.clientX, pointerY: e.clientY, panX: pan.x, panY: pan.y }
+      setPanning(true)
       return
     }
     if (e.target === e.currentTarget) dispatch({ type: 'SELECT_LAYERS', ids: [] })
@@ -396,6 +401,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
 
   const onCanvasPointerUp = () => {
     panDragRef.current = null
+    setPanning(false)
   }
 
   // ---- 多选包围框（同 frame 内，用绝对坐标求并集）----
@@ -487,7 +493,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
   return (
     <main
       ref={mainRef}
-      className="canvas-area"
+      className={`canvas-area${panning ? ' is-panning' : ''}`}
       onClick={(e) => { if (e.target === e.currentTarget) dispatch({ type: 'SELECT_LAYERS', ids: [] }) }}
       onPointerDown={onCanvasPointerDown}
       onPointerMove={onCanvasPointerMove}
@@ -495,6 +501,9 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       onPointerCancel={onCanvasPointerUp}
       onDragOver={(e) => e.preventDefault()}
       onDrop={onCanvasDrop}
+      // 禁用浏览器中键 auto-scroll，中键统一用于画布平移
+      onMouseDown={(e) => { if (e.button === 1) e.preventDefault() }}
+      onAuxClick={(e) => { if (e.button === 1) e.preventDefault() }}
     >
       <div className="canvas-badge"><span className="canvas-dot" /> {state.document.name} <span>·</span> {activePage.name}</div>
       <div className="canvas-watermelon"><Watermelon /></div>
