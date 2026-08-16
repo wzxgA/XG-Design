@@ -135,9 +135,14 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     const toggleValue = spec?.kind === 'toggle'
       ? (node.id in demo.values ? !!demo.values[node.id] : !!node.componentProps?.on)
       : undefined
-    const overrides = spec?.kind === 'toggle' ? { on: toggleValue } : undefined
+    // 输入类组件：隐藏组件内占位文字（input 覆盖层的 placeholder 承担显示）
+    const overrides = spec?.kind === 'toggle' ? { on: toggleValue }
+      : spec?.kind === 'text' ? { placeholder: '' }
+      : undefined
     // 组件优先用 componentProps + 模板 render 实时计算子节点（fallback 到落盘的 node.children）
-    const children = isComponent ? (renderComponentChildren(node, demoState, overrides) ?? node.children) : node.children
+    const rawChildren = isComponent ? (renderComponentChildren(node, demoState, overrides) ?? node.children) : node.children
+    // 交互模式下输入类组件去掉占位 text 节点，避免与输入内容重叠
+    const children = spec?.kind === 'text' ? rawChildren.filter((c) => c.type !== 'text') : rawChildren
     const dimmed = isComponent && (demoState ?? node.componentState ?? 'default') === 'disabled'
     // CO-6：容器插槽内容（componentSlots 引用的子节点）叠加渲染进组件内
     const slotIds = new Set(Object.values(node.componentSlots ?? {}).flat())

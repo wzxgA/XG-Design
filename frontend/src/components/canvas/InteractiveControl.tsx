@@ -27,12 +27,19 @@ export function InteractiveControl({ spec, node, value, onChange }: Props) {
   }
 
   if (spec.kind === 'text') {
+    // 占位文字：优先取组件 componentProps.placeholder，其次取落盘 children 中首个文本内容
+    const placeholder = (() => {
+      const p = node.componentProps?.placeholder
+      if (typeof p === 'string' && p.trim()) return p
+      const textChild = (node.children ?? []).find((c) => c.type === 'text')
+      return textChild && textChild.content ? String(textChild.content) : '请输入…'
+    })()
     return (
       <input
         className="preview-input"
         style={baseStyle}
         value={typeof value === 'string' ? value : ''}
-        placeholder=""
+        placeholder={placeholder}
         onChange={(e) => { e.stopPropagation(); onChange(e.target.value) }}
         onPointerDown={(e) => e.stopPropagation()}
       />
