@@ -11,7 +11,6 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -26,28 +25,25 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class AiService {
 
-    private final ChatClient chatClient;
     private final ChatSessionRepository sessionRepo;
     private final ChatMessageRepository messageRepo;
     private final PromptBuilder promptBuilder;
     private final AiComponentCatalog componentCatalog;
     private final AiProperties properties;
-    private final String apiKey;
+    private final AiModelFactory modelFactory;
 
-    public AiService(ChatClient chatClient,
-                     ChatSessionRepository sessionRepo,
+    public AiService(ChatSessionRepository sessionRepo,
                      ChatMessageRepository messageRepo,
                      PromptBuilder promptBuilder,
                      AiComponentCatalog componentCatalog,
                      AiProperties properties,
-                     @Value("${spring.ai.openai.api-key:}") String apiKey) {
-        this.chatClient = chatClient;
+                     AiModelFactory modelFactory) {
         this.sessionRepo = sessionRepo;
         this.messageRepo = messageRepo;
         this.promptBuilder = promptBuilder;
         this.componentCatalog = componentCatalog;
         this.properties = properties;
-        this.apiKey = apiKey;
+        this.modelFactory = modelFactory;
     }
 
     // ==================== 会话管理 ====================
@@ -113,9 +109,9 @@ public class AiService {
             saveUserMessage(sessionId, request.message());
             updateSessionStats(sessionId);
 
-            // 5. Mock 模式（配置开启 或 未配置真实 API Key 时自动降级）
-            boolean noRealKey = apiKey == null || apiKey.isBlank() || apiKey.startsWith("placeholder");
-            if (properties.isMockMode() || noRealKey) {
+            // 5. 按用户配置构建客户端；Mock 模式或用户/全局无有效 Key 时走 Mock
+            ChatClient client = modelFactory.buildForCurrentUser();
+            if (properties.isMockMode() || client == null) {
                 return mockChat(request, sessionId, messageId);
             }
 
@@ -133,7 +129,7 @@ public class AiService {
             String sid = sessionId.toString();
             String mid = messageId.toString();
 
-            return chatClient.prompt()
+            return client.prompt()
                     .system(systemPrompt)
                     .messages(history)
                     .user(request.message())

@@ -4,6 +4,7 @@ import { clearAuth } from '../../services/auth'
 import { Icon, Watermelon } from '../common/brand'
 import { ConfirmDialog } from '../common/ConfirmDialog'
 import { openProject, createProject, duplicateProject, archiveProject, unarchiveProject, deleteProject, exportProject, importProjectFile, attachCovers, isCoverFresh, refreshProjectCover } from '../../services/projectsActions'
+import { AiSettingsModal } from '../settings/AiSettingsModal'
 import type { ProjectMeta } from '../../types/project'
 
 interface Props {
@@ -24,6 +25,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState('')
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const load = useCallback(async (v: View = view) => {
     setLoading(true)
@@ -203,6 +205,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
       <header className="projects-topbar">
         <div className="brand"><Watermelon /><strong>XG<span>Design</span></strong></div>
         <div className="projects-topbar-user">
+          <button className="settings-btn" onClick={() => setSettingsOpen(true)} title="AI 服务设置">⚙</button>
           <div className="user-chip">
             <span className="user-avatar">{initials}</span>
             {userName && <span className="user-name">{userName}</span>}
@@ -210,6 +213,8 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
           </div>
         </div>
       </header>
+
+      {settingsOpen && <AiSettingsModal onClose={() => setSettingsOpen(false)} />}
 
       <main className="projects-main">
         <div className="projects-head">

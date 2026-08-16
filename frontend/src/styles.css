@@ -397,3 +397,20 @@ button { font: inherit; border: 0; background: none; color: inherit; cursor: poi
 .effect-glow { animation: xg-glow var(--glow-speed, 2s) ease-in-out infinite; }
 .effect-flow, .effect-glow { will-change: background-position, box-shadow; }
 
+/* ===== v2.1 用户 AI 设置 ===== */
+.settings-btn { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #7d878f; font-size: 15px; display: grid; place-items: center; cursor: pointer; }
+.settings-btn:hover { border-color: var(--blue); color: var(--blue); }
+.projects-topbar-user { display: flex; align-items: center; gap: 10px; }
+.ai-settings-form { display: flex; flex-direction: column; gap: 12px; }
+.settings-has-key { font-style: normal; font-size: 10px; color: var(--green); }
+.settings-clear-key { align-self: flex-start; font-size: 10px; color: #e0536a; padding: 0; }
+.settings-clear-key:hover { text-decoration: underline; }
+.settings-model-row { display: flex; gap: 6px; }
+.settings-model-row .new-project-input { flex: 1; }
+.settings-model-select { flex: 0 0 92px; height: 32px; }
+.settings-hint { font-size: 10px; color: #9aa5aa; }
+.settings-test { font-size: 11px; border-radius: 6px; padding: 7px 10px; word-break: break-all; }
+.settings-test.ok { color: #2ba371; background: #e8f7f0; }
+.settings-test.fail { color: #e0536a; background: #fdeef1; }
+.settings-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
