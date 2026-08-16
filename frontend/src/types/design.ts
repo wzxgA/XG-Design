@@ -10,8 +10,16 @@ export type LeftPanelTab = 'layers' | 'components'
 
 export interface LayerStyle {
   fill?: string
-  /** 线性渐变背景：from/to 双色 + 角度（0=上→下，90=左→右），优先于 fill */
-  fillGradient?: { from: string; to: string; angle?: number }
+  /** 渐变背景：线性（from/to 或 stops 多色 + 角度）/ 径向（type=radial），优先于 fill */
+  fillGradient?: {
+    from: string
+    to: string
+    angle?: number
+    /** linear=线性（默认，0=上→下，90=左→右）；radial=径向 */
+    type?: 'linear' | 'radial'
+    /** 多色渐变 stops；缺省/不足 2 个时回退 from/to 双色 */
+    stops?: { color: string; position?: number }[]
+  }
   opacity?: number
   stroke?: string
   strokeWidth?: number
@@ -28,6 +36,15 @@ export interface LayerStyle {
   backgroundColor?: string
   /** 图片填充方式 */
   objectFit?: 'contain' | 'cover'
+  /** 流光特效（仅预览模式播放，画布编辑态静态） */
+  effects?: {
+    /** 渐变流光：背景渐变缓慢流动 */
+    flow?: { speed?: number }
+    /** 扫光：高光条周期扫过 */
+    shimmer?: { color?: string; speed?: number }
+    /** 发光脉冲：box-shadow 呼吸 */
+    glow?: { color?: string; speed?: number }
+  }
 }
 
 export interface CommentReply {

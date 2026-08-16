@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode, PrototypeLink, ComponentPropDef, ComponentState } from '../../types/design'
+import { GradientStyleEditor, EffectsEditor } from './EffectEditors'
 import { Icon } from '../common/brand'
 import { PropertyInput } from './PropertyInput'
 import { MIN_SIZE } from '../../utils/geometry'
@@ -960,6 +961,9 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                 onChange={(e) => patchStyle({ opacity: +e.target.value / 100 })} />
               <span className="style-value">{Math.round((selected.style.opacity ?? 1) * 100)}%</span>
             </div>
+            {selected.type !== 'text' && !isComponentGroup && (
+              <GradientStyleEditor style={selected.style} readOnly={readOnly} onChange={patchStyle} />
+            )}
           </Section>
 
           {selected.type !== 'text' && !isComponentGroup && (
@@ -979,6 +983,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
 
           <Section title="效果" hint="＋">
             <ShadowEditor value={selected.style.shadow} onChange={(v) => patchStyle({ shadow: v })} readOnly={readOnly} />
+            <EffectsEditor style={selected.style} readOnly={readOnly} onChange={patchStyle} />
           </Section>
 
           {selected.type === 'chart' && (

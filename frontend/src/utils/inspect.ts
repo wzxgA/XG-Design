@@ -1,5 +1,6 @@
 import type { LayerNode, DesignDocument } from '../types/design'
 import { isComponentNode } from './layers'
+import { backgroundOf } from './style'
 import { renderComponentChildren } from '../fixtures/component-library'
 import { MUTED } from '../constants/colors'
 
@@ -15,11 +16,12 @@ export function toCss(node: LayerNode): string {
   if (node.style.opacity !== undefined) lines.push(`  opacity: ${node.style.opacity};`)
   if (node.style.cornerRadius) lines.push(`  border-radius: ${node.style.cornerRadius}px;`)
   if (node.type === 'rectangle' || node.type === 'frame') {
-    if (node.style.fillGradient) {
-      lines.push(`  background: linear-gradient(${node.style.fillGradient.angle ?? 0}deg, ${node.style.fillGradient.from}, ${node.style.fillGradient.to});`)
+    const bg = backgroundOf(node.style)
+    if (bg) {
+      lines.push(`  background: ${bg};`)
     } else {
-      const bg = node.type === 'frame' ? (node.style.backgroundColor ?? node.style.fill) : node.style.fill
-      if (bg) lines.push(`  background-color: ${bg};`)
+      const fill = node.type === 'frame' ? (node.style.backgroundColor ?? node.style.fill) : node.style.fill
+      if (fill) lines.push(`  background-color: ${fill};`)
     }
     if (node.style.stroke) lines.push(`  border: ${node.style.strokeWidth ?? 1}px solid ${node.style.stroke};`)
     if (node.style.shadow) lines.push(`  box-shadow: ${node.style.shadow};`)

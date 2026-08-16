@@ -102,7 +102,13 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
 
   // Alt 按住查看间距
   useEffect(() => {
-    const down = (e: KeyboardEvent) => { if (e.key === 'Alt') setAltDown(true) }
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') {
+        // 阻止浏览器激活菜单栏（Firefox/IE 等），仅在非输入区生效
+        if (!isEditableTarget(e.target)) e.preventDefault()
+        setAltDown(true)
+      }
+    }
     const up = (e: KeyboardEvent) => { if (e.key === 'Alt') setAltDown(false) }
     const blur = () => setAltDown(false)
     window.addEventListener('keydown', down)
@@ -143,6 +149,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       marqueeRef.current = null
       setMarquee(null)
       frameDragRef.current = null
+      document.body.style.userSelect = ''
     }
   }, [isDrawTool])
 
@@ -374,6 +381,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       }
       marqueeRef.current = null
       setMarquee(null)
+      document.body.style.userSelect = ''
     }
     frameDragRef.current = null
   }
@@ -390,7 +398,8 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       setPanning(true)
       return
     }
-    if (e.target === e.currentTarget) dispatch({ type: 'SELECT_LAYERS', ids: [] })
+    // Shift + 空白点击：不打断已有选择（空白处仅普通点击才清空）
+    if (e.target === e.currentTarget && !e.shiftKey) dispatch({ type: 'SELECT_LAYERS', ids: [] })
   }
 
   const onCanvasPointerMove = (e: React.PointerEvent) => {
@@ -494,7 +503,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
     <main
       ref={mainRef}
       className={`canvas-area${panning ? ' is-panning' : ''}`}
-      onClick={(e) => { if (e.target === e.currentTarget) dispatch({ type: 'SELECT_LAYERS', ids: [] }) }}
+      onClick={(e) => { if (e.target === e.currentTarget && !e.shiftKey) dispatch({ type: 'SELECT_LAYERS', ids: [] }) }}
       onPointerDown={onCanvasPointerDown}
       onPointerMove={onCanvasPointerMove}
       onPointerUp={onCanvasPointerUp}

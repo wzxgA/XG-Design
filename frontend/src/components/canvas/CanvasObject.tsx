@@ -5,6 +5,7 @@ import { Icon } from '../common/brand'
 import { isComponentNode } from '../../utils/layers'
 import { renderComponentChildren } from '../../fixtures/component-library'
 import { renderChartSvg } from '../../utils/chart'
+import { backgroundOf, effectClasses } from '../../utils/style'
 import { usePreviewDemo } from './preview-demo'
 import { INTERACTIVE_COMPONENTS } from './preview-interactions'
 import { InteractiveControl } from './InteractiveControl'
@@ -49,6 +50,8 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
   const scale = state.zoom / 100
   // 选择工具下 hover 图层统一显示手型，避免出现形似十字的四向移动箭头；锁定节点显示默认箭头
   const isComponent = isComponentNode(node)
+  // 流光特效：仅预览模式播放动画（画布编辑态静态）
+  const fx = effectClasses(node.style, demo.playEffects)
 
   const style: React.CSSProperties = {
     position: 'absolute',
@@ -149,7 +152,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     const slotChildren = isComponent ? node.children.filter((c) => slotIds.has(c.id)) : []
     return (
       <div
-        className={`canvas-group ${outline}`}
+        className={`canvas-group ${outline} ${fx}`}
         style={dimmed ? { ...style, opacity: (Number(style.opacity ?? 1)) * 0.55 } : style}
         data-component-id={isComponent ? node.id : undefined}
         {...base}
@@ -172,12 +175,10 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     case 'rectangle':
       return (
         <div
-          className={`canvas-rect ${outline}`}
+          className={`canvas-rect ${outline} ${fx}`}
           style={{
             ...style,
-            background: node.style.fillGradient
-              ? `linear-gradient(${node.style.fillGradient.angle ?? 0}deg, ${node.style.fillGradient.from}, ${node.style.fillGradient.to})`
-              : (node.style.fill ?? RECT_FILL),
+            background: backgroundOf(node.style) ?? (node.style.fill ?? RECT_FILL),
             borderRadius: node.style.cornerRadius ?? 0,
             border: node.style.stroke ? `${node.style.strokeWidth ?? 1}px solid ${node.style.stroke}` : undefined,
             boxShadow: node.style.shadow,
@@ -187,20 +188,20 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
       )
 
     case 'path':
-      return <CanvasPath node={node} style={style} outline={outline} base={base} />
+      return <CanvasPath node={node} style={style} outline={outline} fx={fx} base={base} />
 
     case 'text':
-      return <CanvasText node={node} style={style} outline={outline} base={base} state={state} dispatch={dispatch} readOnly={readOnly} />
+      return <CanvasText node={node} style={style} outline={outline} fx={fx} base={base} state={state} dispatch={dispatch} readOnly={readOnly} />
 
     case 'comment':
       // 预览模式由 CommentPins 接管，避免重复
       if (drawing) return null
-      return <CanvasComment node={node} style={style} outline={outline} base={base} state={state} dispatch={dispatch} readOnly={readOnly} />
+      return <CanvasComment node={node} style={style} outline={outline} fx={fx} base={base} state={state} dispatch={dispatch} readOnly={readOnly} />
 
     case 'chart': {
       const svg = renderChartSvg(node)
       return (
-        <div className={`canvas-chart ${outline}`} style={style} {...base}>
+        <div className={`canvas-chart ${outline} ${fx}`} style={style} {...base}>
           {svg ? (
             <div className="canvas-chart-svg" dangerouslySetInnerHTML={{ __html: svg }} />
           ) : (
@@ -211,7 +212,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     }
 
     case 'image':
-      return <CanvasImage node={node} style={style} outline={outline} base={base} />
+      return <CanvasImage node={node} style={style} outline={outline} fx={fx} base={base} />
 
 
     default:
@@ -219,17 +220,18 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
   }
 }
 
-function CanvasPath({ node, style, outline, base }: {
+function CanvasPath({ node, style, outline, fx, base }: {
   node: LayerNode
   style: React.CSSProperties
   outline: string
+  fx: string
   base: React.DOMAttributes<HTMLDivElement>
 }) {
   const pts = node.points ?? []
   if (pts.length === 0) return null
   const poly = pts.map((p) => `${p.x},${p.y}`).join(' ')
   return (
-    <div className={`canvas-path ${outline}`} style={style} {...base}>
+    <div className={`canvas-path ${outline} ${fx}`} style={style} {...base}>
       <svg width={node.width} height={node.height} viewBox={`0 0 ${node.width} ${node.height}`} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
         <polyline
           points={poly}
@@ -244,17 +246,18 @@ function CanvasPath({ node, style, outline, base }: {
   )
 }
 
-function CanvasImage({ node, style, outline, base }: {
+function CanvasImage({ node, style, outline, fx, base }: {
   node: LayerNode
   style: React.CSSProperties
   outline: string
+  fx: string
   base: React.DOMAttributes<HTMLDivElement>
 }) {
   // 未设置图片时显示灰色占位（背景色取自 style.fill）
   const src = node.imageUrl
   return (
     <div
-      className={`canvas-image ${outline}`}
+      className={`canvas-image ${outline} ${fx}`}
       style={{
         ...style,
         background: src ? undefined : (node.style.fill ?? IMAGE_PLACEHOLDER),
@@ -286,13 +289,14 @@ interface TextProps {
   node: LayerNode
   style: React.CSSProperties
   outline: string
+  fx: string
   base: React.DOMAttributes<HTMLDivElement>
   state: EditorState
   dispatch: EditorDispatch
   readOnly?: boolean
 }
 
-function CanvasText({ node, style, outline, base, state, dispatch, readOnly = false }: TextProps) {
+function CanvasText({ node, style, outline, fx, base, state, dispatch, readOnly = false }: TextProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(node.content ?? '')
   const inputRef = useRef<HTMLDivElement>(null)
@@ -319,7 +323,7 @@ function CanvasText({ node, style, outline, base, state, dispatch, readOnly = fa
 
   return (
     <div
-      className={`canvas-text ${outline}`}
+      className={`canvas-text ${outline} ${fx}`}
       style={{
         ...style,
         color: node.style.fontColor ?? node.style.color ?? MUTED,
@@ -350,13 +354,14 @@ interface CommentProps {
   node: LayerNode
   style: React.CSSProperties
   outline: string
+  fx: string
   base: React.DOMAttributes<HTMLDivElement>
   state: EditorState
   dispatch: EditorDispatch
   readOnly?: boolean
 }
 
-function CanvasComment({ node, style, outline, base, state, dispatch, readOnly = false }: CommentProps) {
+function CanvasComment({ node, style, outline, fx, base, state, dispatch, readOnly = false }: CommentProps) {
   const [draft, setDraft] = useState(node.content ?? '')
   const [replyDraft, setReplyDraft] = useState('')
   const scale = state.zoom / 100
@@ -384,7 +389,7 @@ function CanvasComment({ node, style, outline, base, state, dispatch, readOnly =
   }
 
   return (
-    <div className={`canvas-comment ${outline}`} style={style} {...base}>
+    <div className={`canvas-comment ${outline} ${fx}`} style={style} {...base}>
       <span className="comment-pin">{selected ? '💬' : '●'}</span>
       {showBubble && (
         <div className="comment-bubble" style={{ transform: `scale(${1 / scale})` }}>

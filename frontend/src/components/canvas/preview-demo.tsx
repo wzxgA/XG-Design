@@ -9,6 +9,8 @@ export interface PreviewDemoState {
   values: Record<string, unknown>
   /** 更新某个组件的预览态交互值 */
   onValue: (id: string, value: unknown) => void
+  /** 是否播放流光特效动画（预览模式 true；画布编辑态 false） */
+  playEffects: boolean
 }
 
 export const PreviewDemoContext = createContext<PreviewDemoState>({
@@ -17,6 +19,7 @@ export const PreviewDemoContext = createContext<PreviewDemoState>({
   pressedId: null,
   values: {},
   onValue: () => {},
+  playEffects: false,
 })
 
 export const usePreviewDemo = () => useContext(PreviewDemoContext)

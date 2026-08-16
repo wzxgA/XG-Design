@@ -176,7 +176,7 @@ export function PreviewOverlay({ state, onClose }: Props) {
           <button className="preview-close" onClick={onClose}><Icon name="external" /> 退出预览</button>
         </div>
       </div>
-      <PreviewDemoContext.Provider value={{ enabled: demo, hoveredId, pressedId, values, onValue }}>
+      <PreviewDemoContext.Provider value={{ enabled: demo, hoveredId, pressedId, values, onValue, playEffects: true }}>
         <div
           className="preview-stage"
           onMouseOver={(e) => { const id = componentIdFrom(e); if (id !== null) setHoveredId(id) }}

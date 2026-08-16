@@ -1,5 +1,6 @@
 import type { LayerNode } from '../../types/design'
 import { isComponentNode } from '../../utils/layers'
+import { svgGradientOf } from '../../utils/style'
 import { renderComponentChildren } from '../../fixtures/component-library'
 
 interface Props {
@@ -30,7 +31,13 @@ export function DesignThumbnail({ layers, width = 300, height = 150 }: Props) {
 
   return (
     <svg width={width} height={height} className="ai-design-thumbnail">
-      {flat.map(node => renderNode(node, scale, offsetX, offsetY))}
+      <defs>
+        {flat.map((node, i) => {
+          const g = svgGradientOf(node.style, `xg-thumb-g-${i}`)
+          return g ? <g key={i} dangerouslySetInnerHTML={{ __html: g.defs }} /> : null
+        })}
+      </defs>
+      {flat.map((node, i) => renderNode(node, scale, offsetX, offsetY, i))}
     </svg>
   )
 }
@@ -66,12 +73,13 @@ function calcBounds(flat: FlatLayer[]): Bounds {
   return { minX, minY, maxX, maxY }
 }
 
-function renderNode(node: FlatLayer, scale: number, offsetX: number, offsetY: number): React.ReactNode {
+function renderNode(node: FlatLayer, scale: number, offsetX: number, offsetY: number, idx = 0): React.ReactNode {
   const x = node.absX * scale + offsetX
   const y = node.absY * scale + offsetY
   const w = node.width * scale
   const h = node.height * scale
-  const fill = node.style?.fill ?? node.style?.backgroundColor ?? 'transparent'
+  const gradient = svgGradientOf(node.style, `xg-thumb-g-${idx}`)
+  const fill = gradient?.url ?? node.style?.fill ?? node.style?.backgroundColor ?? 'transparent'
   const radius = node.style?.cornerRadius ? node.style.cornerRadius * scale : 0
 
   if (node.type === 'text') {

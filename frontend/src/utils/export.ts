@@ -1,5 +1,6 @@
 import type { DesignDocument, LayerNode, PageNode } from '../types/design'
 import { isComponentNode } from './layers'
+import { backgroundOf } from './style'
 import { renderComponentChildren } from '../fixtures/component-library'
 import { renderChartSvg } from './chart'
 import { MUTED } from '../constants/colors'
@@ -22,9 +23,7 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
 
   switch (node.type) {
     case 'rectangle':
-      el.style.background = node.style.fillGradient
-        ? `linear-gradient(${node.style.fillGradient.angle ?? 0}deg, ${node.style.fillGradient.from}, ${node.style.fillGradient.to})`
-        : (node.style.fill ?? 'transparent')
+      el.style.background = backgroundOf(node.style) ?? (node.style.fill ?? 'transparent')
       if (node.style.cornerRadius) el.style.borderRadius = `${node.style.cornerRadius}px`
       if (node.style.stroke) el.style.border = `${node.style.strokeWidth ?? 1}px solid ${node.style.stroke}`
       if (node.style.shadow) el.style.boxShadow = node.style.shadow
