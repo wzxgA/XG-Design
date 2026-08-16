@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.StringJoiner;
 
 /**
@@ -50,6 +51,9 @@ public class AiComponentCatalog {
         for (ComponentSpec s : list) {
             sb.append("- ").append(s.name()).append(" (").append(s.width()).append("x").append(s.height()).append("): ");
             sb.append(s.note() == null || s.note().isBlank() ? "无描述" : s.note()).append("。");
+            if (s.keywords() != null && !s.keywords().isEmpty()) {
+                sb.append(" 关键词: ").append(String.join(", ", s.keywords())).append("。");
+            }
             if (s.props() != null && !s.props().isEmpty()) {
                 sb.append(" 可配置: ").append(String.join(", ", s.props()));
             }
@@ -65,6 +69,40 @@ public class AiComponentCatalog {
             if (s.name().equals(name)) return true;
         }
         return false;
+    }
+
+    /** 相近组件建议：按名称/关键词匹配度排序，返回最多 3 个；无匹配返回空列表 */
+    public List<String> suggestSimilar(String name) {
+        if (name == null || name.isBlank()) return List.of();
+        String q = name.toLowerCase();
+        return ensureLoaded().stream()
+                .map(s -> Map.entry(s.name(), matchScore(s, q)))
+                .filter(e -> e.getValue() > 0)
+                .sorted((a, b) -> b.getValue() - a.getValue())
+                .limit(3)
+                .map(Map.Entry::getKey)
+                .toList();
+    }
+
+    /** 相近组件建议文案：有匹配输出建议清单，否则输出全部组件名 */
+    public String suggestSimilarText(String name) {
+        List<String> sim = suggestSimilar(name);
+        if (sim.isEmpty()) return componentNames();
+        return String.join("、", sim);
+    }
+
+    /** 名称/关键词匹配得分 */
+    private int matchScore(ComponentSpec s, String q) {
+        String n = s.name().toLowerCase();
+        if (n.equals(q)) return 100;
+        if (n.contains(q) || q.contains(n)) return 80;
+        for (String k : s.keywords()) {
+            if (k == null || k.isBlank()) continue;
+            String kk = k.toLowerCase();
+            if (kk.equals(q)) return 90;
+            if (kk.contains(q) || q.contains(kk)) return 60;
+        }
+        return 0;
     }
 
     /** 白名单组件名列表（逗号分隔），用于错误提示 */

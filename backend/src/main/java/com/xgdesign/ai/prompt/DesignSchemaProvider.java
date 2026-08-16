@@ -51,6 +51,19 @@ public final class DesignSchemaProvider {
             - 使用组件时 children 可留空 []
             - 节点的 width/height 必须与组件默认尺寸或 componentProps 中的 width/height 一致
 
+            组件节点示例（搜索框/搜索场景必须用组件，不要手写矩形+文字）:
+            ```json
+            {
+              "id": "search-1",
+              "type": "group",
+              "name": "搜索框",
+              "component": "搜索框",
+              "componentProps": {"placeholder": "搜索商品…", "width": 260},
+              "x": 32, "y": 40, "width": 260, "height": 32,
+              "children": []
+            }
+            ```
+
             顶层结构（重要）:
             - layers 数组顶层必须恰好一个节点，用 frame 或 group 包裹全部图层，禁止输出多个散开的顶层图层
             - 生成完整页面 → 顶层用 frame（画板），其 children 放所有图层

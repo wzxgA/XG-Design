@@ -491,15 +491,50 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       g.x = x; g.y = y
       return g
     }),
-  simpleTemplate('搜索框', '搜索', '带放大镜图标的搜索输入区域', '表单',
-    (x, y) => {
+  {
+    name: '搜索框',
+    short: '搜索',
+    description: '带圆角与放大镜图标的搜索输入区域，可输入关键词',
+    category: '表单',
+    keywords: ['search', '搜索', '查询', 'input'],
+    props: [
+      { key: 'placeholder', label: '占位文字', type: 'text', default: '搜索…' },
+      { key: 'bg', label: '背景色', type: 'color', default: '#f4f6f7' },
+      { key: 'borderColor', label: '边框色', type: 'color', default: '#e3e8ea' },
+      { key: 'color', label: '图标/文字色', type: 'color', default: '#a8b1b5' },
+      { key: 'radius', label: '圆角', type: 'slider', min: 0, max: 24, default: 16 },
+      { key: 'width', label: '宽度', type: 'number', min: 120, max: 480, default: 220 },
+    ],
+    render: (p) => {
+      const w = Number(p.width ?? 220)
+      const color = String(p.color ?? '#a8b1b5')
+      const handle = rect(21, 19, 5, 5, { fill: color })
+      handle.rotation = 45
+      return group(w, 32, '搜索框', [
+        rect(0, 0, w, 32, {
+          fill: String(p.bg ?? '#f4f6f7'),
+          cornerRadius: Number(p.radius ?? 16),
+          stroke: p.borderColor ? String(p.borderColor) : undefined,
+          strokeWidth: p.borderColor ? 1 : undefined,
+        }),
+        rect(10, 8, 14, 14, { fill: 'transparent', stroke: color, strokeWidth: 2, cornerRadius: 7 }),
+        handle,
+        text(32, 8, w - 44, String(p.placeholder ?? '搜索…'), { color }),
+      ])
+    },
+    build: (x, y) => {
+      const handle = rect(21, 19, 5, 5, { fill: '#a8b1b5' })
+      handle.rotation = 45
       const g = group(220, 32, '搜索框', [
         rect(0, 0, 220, 32, { fill: '#f4f6f7', cornerRadius: 16, stroke: '#e3e8ea', strokeWidth: 1 }),
-        text(12, 8, 190, '搜索…', { color: '#a8b1b5', fontSize: 11 }),
+        rect(10, 8, 14, 14, { fill: 'transparent', stroke: '#a8b1b5', strokeWidth: 2, cornerRadius: 7 }),
+        handle,
+        text(32, 8, 176, '搜索…', { color: '#a8b1b5', fontSize: 11 }),
       ])
       g.x = x; g.y = y
       return g
-    }),
+    },
+  },
   simpleTemplate('下拉选择', '下拉', '点击展开选项列表的选择控件', '表单',
     (x, y) => {
       const g = group(180, 36, '下拉选择', [

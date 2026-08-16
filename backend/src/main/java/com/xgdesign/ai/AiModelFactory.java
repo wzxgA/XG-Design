@@ -25,15 +25,21 @@ public class AiModelFactory {
     private final String globalApiKey;
     private final String globalBaseUrl;
     private final String globalModel;
+    private final Integer globalMaxTokens;
+    private final Double globalTemperature;
 
     public AiModelFactory(AiUserSettingsRepository settingsRepo,
                           @Value("${spring.ai.openai.api-key:}") String globalApiKey,
                           @Value("${spring.ai.openai.base-url:https://api.deepseek.com}") String globalBaseUrl,
-                          @Value("${spring.ai.openai.chat.options.model:deepseek-v4-flash}") String globalModel) {
+                          @Value("${spring.ai.openai.chat.options.model:deepseek-v4-flash}") String globalModel,
+                          @Value("${spring.ai.openai.chat.options.max-tokens:16384}") Integer globalMaxTokens,
+                          @Value("${spring.ai.openai.chat.options.temperature:0.7}") Double globalTemperature) {
         this.settingsRepo = settingsRepo;
         this.globalApiKey = globalApiKey;
         this.globalBaseUrl = globalBaseUrl;
         this.globalModel = globalModel;
+        this.globalMaxTokens = globalMaxTokens;
+        this.globalTemperature = globalTemperature;
     }
 
     /** 按当前登录用户的配置构建 ChatClient；无有效 Key（含回退全局）时返回 null → 走 Mock */
@@ -83,9 +89,13 @@ public class AiModelFactory {
             apiBuilder.completionsPath(completionsPath);
         }
         OpenAiApi api = apiBuilder.build();
+        OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder().model(model);
+        // 显式设置输出上限与采样温度（手动构建的 ChatClient 不读 spring.ai.openai.chat.options 自动配置，须自行注入）
+        if (globalMaxTokens != null) optionsBuilder.maxTokens(globalMaxTokens);
+        if (globalTemperature != null) optionsBuilder.temperature(globalTemperature);
         OpenAiChatModel chatModel = OpenAiChatModel.builder()
                 .openAiApi(api)
-                .defaultOptions(OpenAiChatOptions.builder().model(model).build())
+                .defaultOptions(optionsBuilder.build())
                 .build();
         return ChatClient.builder(chatModel).build();
     }

@@ -10,11 +10,83 @@
     },
     {
       "name": "输入框",
-      "keywords": ["input", "text", "搜索"],
+      "keywords": ["input", "text", "搜索", "查询", "搜索框", "搜索栏"],
       "props": ["placeholder", "bg", "borderColor", "color", "width"],
       "width": 240,
       "height": 36,
-      "note": "文本输入区域，placeholder 为占位文字，width 为宽度"
+      "note": "文本输入区域，placeholder 为占位文字，width 为宽度。搜索/查询/搜索框/搜索栏场景也使用本组件"
+    },
+    {
+      "name": "搜索框",
+      "keywords": ["search", "搜索", "查询", "搜索框", "搜索栏", "input"],
+      "props": ["placeholder", "bg", "borderColor", "color", "radius", "width"],
+      "width": 220,
+      "height": 32,
+      "note": "带圆角与放大镜图标的搜索输入区，placeholder 为提示词，可输入文字"
+    },
+    {
+      "name": "下拉选择",
+      "keywords": ["select", "dropdown", "下拉", "筛选", "选择"],
+      "props": [],
+      "width": 180,
+      "height": 36,
+      "note": "点击展开选项列表的选择控件，默认文案请选择"
+    },
+    {
+      "name": "单选组",
+      "keywords": ["radio", "单选", "选项"],
+      "props": [],
+      "width": 160,
+      "height": 78,
+      "note": "互斥单选组，默认三行选项"
+    },
+    {
+      "name": "面包屑",
+      "keywords": ["breadcrumb", "面包屑", "层级", "路径"],
+      "props": [],
+      "width": 240,
+      "height": 20,
+      "note": "层级路径导航，展示当前位置"
+    },
+    {
+      "name": "分页",
+      "keywords": ["pagination", "分页", "翻页"],
+      "props": [],
+      "width": 138,
+      "height": 26,
+      "note": "多页内容翻页导航控件"
+    },
+    {
+      "name": "弹窗",
+      "keywords": ["modal", "dialog", "弹窗", "对话框", "确认"],
+      "props": [],
+      "width": 280,
+      "height": 150,
+      "note": "模态对话框，用于确认或展示信息"
+    },
+    {
+      "name": "工具提示",
+      "keywords": ["tooltip", "提示", "气泡"],
+      "props": [],
+      "width": 120,
+      "height": 36,
+      "note": "悬停展示的说明气泡"
+    },
+    {
+      "name": "徽标",
+      "keywords": ["badge", "徽标", "角标", "计数"],
+      "props": [],
+      "width": 22,
+      "height": 22,
+      "note": "角标或计数标识，突出提示数量"
+    },
+    {
+      "name": "图片",
+      "keywords": ["image", "photo", "照片", "图片"],
+      "props": [],
+      "width": 200,
+      "height": 140,
+      "note": "图片展示容器"
     },
     {
       "name": "导航栏",

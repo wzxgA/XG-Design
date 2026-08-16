@@ -7,6 +7,7 @@ import com.xgdesign.ai.prompt.AiComponentCatalog;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -24,6 +25,8 @@ public class DesignToolCallback {
     private final AtomicReference<String> designRef;
     private final AtomicReference<String> descriptionRef;
     private final AiComponentCatalog componentCatalog;
+    /** 本次请求内连续校验失败次数，≥2 次时输出更激进的精简指令 */
+    private final AtomicInteger failCount = new AtomicInteger();
 
     public DesignToolCallback(AtomicReference<String> designRef, AtomicReference<String> descriptionRef,
                               AiComponentCatalog componentCatalog) {
@@ -57,8 +60,18 @@ public class DesignToolCallback {
             validateTopLevel(node);
             validateComponents(node);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("生成的设计 JSON 不完整或格式错误，请重新生成: " + e.getOriginalMessage(), e);
+            // JSON 截断/格式错误是超 max-tokens 的最常见表现：报错附带精简要求，并按失败次数逐级收紧
+            int fail = failCount.incrementAndGet();
+            throw new IllegalArgumentException(buildTruncatedRetryMessage("生成的设计 JSON 不完整或格式错误，请重新生成: " + e.getOriginalMessage(), fail), e);
         }
+    }
+
+    /** 截断重试消息：第 1 次给普通精简要求，连续失败 ≥2 次给激进精简要求 */
+    private String buildTruncatedRetryMessage(String base, int fail) {
+        if (fail >= 2) {
+            return base + "。若输出长度受限导致截断，请严格按要求重试: 仅输出 5 个图层以内、必须使用组件库组件、省略所有可选字段、组件 children 留空 []、使用单行紧凑 JSON";
+        }
+        return base + "。注意控制输出长度: 图层控制在 8 个以内、省略可选字段（rotation=0/visible=true/opacity=1/fontWeight=400 不写）、组件 children 留空 []、使用单行紧凑 JSON";
     }
 
     /** 校验顶层结构：数组长度必须为 1，且元素 type 为 frame 或 group（页面用 frame，组件/局部用 group） */
@@ -87,7 +100,7 @@ public class DesignToolCallback {
                     throw new IllegalArgumentException("组件节点 type 必须为 group，当前为 " + type + " (组件: " + name + ")。请修正后重新生成。");
                 }
                 if (!componentCatalog.isValidComponentName(name)) {
-                    throw new IllegalArgumentException("组件名 \"" + name + "\" 不在组件库中，可用组件: " + componentCatalog.componentNames() + "。请改用上述名称重新生成。");
+                    throw new IllegalArgumentException("组件名 \"" + name + "\" 不在组件库中，相近可用组件: " + componentCatalog.suggestSimilarText(name) + "。请改用上述名称重新生成。");
                 }
             }
             JsonNode children = node.get("children");
