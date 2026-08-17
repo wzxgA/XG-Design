@@ -1,6 +1,7 @@
 import type { LayerNode } from '../../types/design'
 import { isComponentNode } from '../../utils/layers'
 import { svgGradientOf } from '../../utils/style'
+import { pathToSvgD } from '../../utils/path'
 import { renderComponentChildren } from '../../fixtures/component-library'
 
 interface Props {
@@ -107,6 +108,23 @@ function renderNode(node: FlatLayer, scale: number, offsetX: number, offsetY: nu
       >
         {(node.content ?? '').slice(0, 30)}
       </text>
+    )
+  }
+
+  if (node.type === 'path') {
+    const pts = node.points ?? []
+    if (pts.length < 2) return null
+    return (
+      <g key={node.id} transform={`translate(${x} ${y}) scale(${scale})`}>
+        <path
+          d={pathToSvgD(pts, node.pathClosed)}
+          fill={node.style?.fill ? fill : 'none'}
+          stroke={node.style?.stroke ?? '#4e8ff4'}
+          strokeWidth={Math.max(0.5, (node.style?.strokeWidth ?? 2) * scale)}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </g>
     )
   }
 

@@ -1,6 +1,7 @@
 import type { DesignDocument, LayerNode, PageNode } from '../types/design'
 import { isComponentNode } from './layers'
 import { backgroundCss } from './style'
+import { pathToSvgD } from './path'
 import { renderComponentChildren } from '../fixtures/component-library'
 import { renderChartSvg } from './chart'
 import { MUTED } from '../constants/colors'
@@ -66,14 +67,14 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
         svg.setAttribute('width', String(node.width))
         svg.setAttribute('height', String(node.height))
         svg.setAttribute('viewBox', `0 0 ${node.width} ${node.height}`)
-        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline')
-        poly.setAttribute('points', pts.map((p) => `${p.x},${p.y}`).join(' '))
-        poly.setAttribute('fill', 'none')
-        poly.setAttribute('stroke', node.style.stroke ?? '#4e8ff4')
-        poly.setAttribute('stroke-width', String(node.style.strokeWidth ?? 2))
-        poly.setAttribute('stroke-linejoin', 'round')
-        poly.setAttribute('stroke-linecap', 'round')
-        svg.appendChild(poly)
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        path.setAttribute('d', pathToSvgD(pts, node.pathClosed))
+        path.setAttribute('fill', node.style.fill ?? 'none')
+        path.setAttribute('stroke', node.style.stroke ?? '#4e8ff4')
+        path.setAttribute('stroke-width', String(node.style.strokeWidth ?? 2))
+        path.setAttribute('stroke-linejoin', 'round')
+        path.setAttribute('stroke-linecap', 'round')
+        svg.appendChild(path)
         el.appendChild(svg)
       }
       break

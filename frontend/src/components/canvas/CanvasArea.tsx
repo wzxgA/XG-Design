@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
-import type { LayerNode } from '../../types/design'
+import type { LayerNode, PathPoint } from '../../types/design'
 import { Icon, Watermelon } from '../common/brand'
 import { CanvasObject } from './CanvasObject'
 import { SelectionBox } from './SelectionBox'
 import { createLayer, findNodeWithPath, getNodeAbs, getSiblingsAbs } from '../../utils/layers'
+import { pathToSvgD, computePathBounds } from '../../utils/path'
 import { buildComponent } from '../../fixtures/component-library'
 import { ZOOM_MIN, ZOOM_MAX } from '../../state/editor-reducer'
 import { BLUE } from '../../constants/colors'
@@ -57,8 +58,9 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
   const [drawRect, setDrawRect] = useState<{ x: number; y: number; w: number; h: number; frameId: string } | null>(null)
   const marqueeRef = useRef<{ startX: number; startY: number; frameId: string; shift: boolean; rect: { x: number; y: number; w: number; h: number } | null } | null>(null)
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number; frameId: string } | null>(null)
-  const penRef = useRef<{ frameId: string; points: { x: number; y: number }[] } | null>(null)
-  const [penPoints, setPenPoints] = useState<{ x: number; y: number }[]>([])
+  const penRef = useRef<{ frameId: string; points: PathPoint[]; closed: boolean; down: { x: number; y: number } | null; dragging: boolean } | null>(null)
+  const [penPoints, setPenPoints] = useState<PathPoint[]>([])
+  const [penClosed, setPenClosed] = useState(false)
   const [penPreview, setPenPreview] = useState<{ x: number; y: number } | null>(null)
   const frameDragRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number; frameId: string; moved: boolean } | null>(null)
   const panDragRef = useRef<{ pointerX: number; pointerY: number; panX: number; panY: number } | null>(null)
@@ -227,40 +229,73 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
   }
 
   // ---- 钢笔 ----
+  /** 同步笔刷点集到 ref 与 state */
+  const commitPenPoints = (pts: PathPoint[]) => {
+    if (penRef.current) penRef.current.points = pts
+    setPenPoints(pts)
+  }
+
+  /** 指针按下：在路径末尾添加一个锚点（后续拖拽决定其贝塞尔手柄） */
   const addPenPoint = (frameId: string, x: number, y: number) => {
-    const pen = penRef.current ?? { frameId, points: [] }
-    penRef.current = { frameId, points: [...pen.points, { x, y }] }
-    setPenPoints(penRef.current.points)
+    const pen = penRef.current ?? { frameId, points: [] as PathPoint[], closed: false, down: null, dragging: false }
+    if (pen.frameId !== frameId) return
+    penRef.current = pen
+    pen.down = { x, y }
+    pen.dragging = false
+    commitPenPoints([...pen.points, { x, y }])
+  }
+
+  /** 拖拽中更新当前锚点的贝塞尔手柄（平滑锚点：handleIn 镜像 handleOut） */
+  const dragPenHandle = (x: number, y: number) => {
+    const pen = penRef.current
+    if (!pen || !pen.down || pen.points.length === 0) return
+    const dx = x - pen.down.x
+    const dy = y - pen.down.y
+    if (Math.abs(dx) + Math.abs(dy) > 0.5) pen.dragging = true
+    const pts = [...pen.points]
+    const last = pts[pts.length - 1]
+    pts[pts.length - 1] = { ...last, handleOut: { x: dx, y: dy }, handleIn: { x: -dx, y: -dy } }
+    commitPenPoints(pts)
   }
 
   const commitPen = () => {
     const pen = penRef.current
     if (!pen) return
-    const { frameId, points } = pen
+    const { frameId, points, closed } = pen
     if (points.length >= 2) {
-      const xs = points.map((p) => p.x)
-      const ys = points.map((p) => p.y)
-      const minX = Math.min(...xs)
-      const minY = Math.min(...ys)
-      const layer = createLayer('rectangle', minX, minY)
+      const bb = computePathBounds(points)
+      const layer = createLayer('rectangle', 0, 0)
       layer.type = 'path'
       layer.name = '路径'
-      layer.width = Math.max(1, Math.max(...xs) - minX)
-      layer.height = Math.max(1, Math.max(...ys) - minY)
+      layer.x = bb.minX
+      layer.y = bb.minY
+      layer.width = Math.max(1, bb.maxX - bb.minX)
+      layer.height = Math.max(1, bb.maxY - bb.minY)
       layer.style = { opacity: 1, stroke: BLUE, strokeWidth: 2 }
-      layer.points = points.map((p) => ({ x: p.x - minX, y: p.y - minY }))
+      layer.points = points.map((p) => ({ ...p, x: p.x - bb.minX, y: p.y - bb.minY }))
+      layer.pathClosed = closed
       dispatch({ type: 'CREATE_LAYER', pageId: activePage.id, parentId: frameId, layer })
       dispatch({ type: 'SELECT_LAYERS', ids: [layer.id] })
     }
     penRef.current = null
     setPenPoints([])
+    setPenClosed(false)
     setPenPreview(null)
     dispatch({ type: 'SET_ACTIVE_TOOL', tool: 'select' })
+  }
+
+  /** 双击/回到起点：闭合路径并提交 */
+  const closePen = () => {
+    if (!penRef.current) return
+    penRef.current.closed = true
+    setPenClosed(true)
+    commitPen()
   }
 
   const cancelPen = () => {
     penRef.current = null
     setPenPoints([])
+    setPenClosed(false)
     setPenPreview(null)
   }
 
@@ -333,9 +368,14 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       return
     }
     if (penRef.current && isPenTool) {
-      const { frameId } = penRef.current
+      const { frameId, down } = penRef.current
       const { x, y } = toFrameCoord(frameId, e.clientX, e.clientY)
-      setPenPreview({ x, y })
+      if (down) {
+        // 正在放置锚点并拖拽：更新贝塞尔手柄
+        dragPenHandle(x, y)
+      } else {
+        setPenPreview({ x, y })
+      }
     }
   }
 
@@ -382,6 +422,10 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
       marqueeRef.current = null
       setMarquee(null)
       document.body.style.userSelect = ''
+    }
+    // 钢笔：结束当前锚点的拖拽（保留拖出的手柄；纯点击则该锚点无手柄=拐角）
+    if (penRef.current?.down && isPenTool) {
+      penRef.current.down = null
     }
     frameDragRef.current = null
   }
@@ -538,7 +582,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
               onPointerMove={onFramePointerMove}
               onPointerUp={onFramePointerUp}
               onPointerCancel={onFramePointerUp}
-              onDoubleClick={(e) => { if (isPenTool) { e.stopPropagation(); commitPen() } }}
+              onDoubleClick={(e) => { if (isPenTool) { e.stopPropagation(); closePen() } }}
             >
               {frame.children.map((child) => (
                 <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={isDrawTool || isClickTool || isPenTool} readOnly={readOnly} />
@@ -573,12 +617,22 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
               )}
               {penPoints.length > 0 && penRef.current?.frameId === frame.id && (
                 <svg className="pen-layer" width={frame.width} height={frame.height} style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
-                  {penPoints.map((p, i) => (
-                    <g key={i}>
-                      <circle cx={p.x} cy={p.y} r={3} fill={BLUE} />
-                      {i > 0 && <line x1={penPoints[i - 1].x} y1={penPoints[i - 1].y} x2={p.x} y2={p.y} stroke={BLUE} strokeWidth={1.5} />}
-                    </g>
-                  ))}
+                  <path d={pathToSvgD(penPoints, penClosed)} fill="none" stroke={BLUE} strokeWidth={1.5} strokeLinejoin="round" />
+                  {penPoints.map((p, i) => {
+                    const isLast = i === penPoints.length - 1
+                    const dragging = isLast && !!penRef.current?.down
+                    return (
+                      <g key={i}>
+                        <circle cx={p.x} cy={p.y} r={3} fill={BLUE} />
+                        {dragging && p.handleOut && (
+                          <>
+                            <line x1={p.x} y1={p.y} x2={p.x + p.handleOut.x} y2={p.y + p.handleOut.y} stroke="#8899aa" strokeWidth={1} strokeDasharray="3 2" />
+                            <circle cx={p.x + p.handleOut.x} cy={p.y + p.handleOut.y} r={2.5} fill="#fff" stroke={BLUE} strokeWidth={1.5} />
+                          </>
+                        )}
+                      </g>
+                    )
+                  })}
                   {penPreview && penPoints.length > 0 && (
                     <line x1={penPoints[penPoints.length - 1].x} y1={penPoints[penPoints.length - 1].y} x2={penPreview.x} y2={penPreview.y} stroke={BLUE} strokeWidth={1.5} strokeDasharray="4 3" />
                   )}

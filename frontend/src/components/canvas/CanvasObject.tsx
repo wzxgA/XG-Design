@@ -1,11 +1,13 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
-import type { AutoLayout, LayerNode } from '../../types/design'
+import type { AutoLayout, LayerNode, PathPoint } from '../../types/design'
 import { Icon } from '../common/brand'
 import { isComponentNode } from '../../utils/layers'
 import { renderComponentChildren } from '../../fixtures/component-library'
 import { renderChartSvg } from '../../utils/chart'
 import { backgroundCss, effectClasses } from '../../utils/style'
+import { pathToSvgD, computePathBounds } from '../../utils/path'
+import { PathEditor } from './PathEditor'
 import { usePreviewDemo } from './preview-demo'
 import { INTERACTIVE_COMPONENTS } from './preview-interactions'
 import { InteractiveControl } from './InteractiveControl'
@@ -41,7 +43,14 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
   const reorderRef = useRef<{ pointerX: number; pointerY: number; originX: number; originY: number; targetIndex: number | null } | null>(null)
   /** 拖拽视觉跟随偏移（仅本地渲染，不写数据） */
   const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null)
+  /** 路径编辑态：双击 path 图层进入锚点/手柄编辑 */
+  const [pathEditing, setPathEditing] = useState(false)
   const demo = usePreviewDemo()
+  // 取消选中时自动退出路径编辑态
+  useEffect(() => {
+    if (!state.selectedIds.includes(node.id)) setPathEditing(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.selectedIds, node.id])
   // 预览演示态（CO-4）：临时覆盖组件交互状态；disabled 视觉变淡
   const demoState = demo.enabled && isComponentNode(node)
     ? (demo.pressedId === node.id ? 'pressed' : demo.hoveredId === node.id ? 'hover' : 'default')
@@ -227,7 +236,43 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
       )
 
     case 'path':
-      return <CanvasPath node={node} style={style} outline={outline} fx={fx} base={base} />
+      if (pathEditing && !drawing && !readOnly) {
+        return (
+          <PathEditor
+            node={node}
+            scale={scale}
+            onCommit={(pts: PathPoint[], closed: boolean) => {
+              // 以编辑后的包围盒重新归一化：保持路径视觉位置不变，尺寸贴合新边界
+              const bb = computePathBounds(pts)
+              const rebased = pts.map((p) => ({ ...p, x: p.x - bb.minX, y: p.y - bb.minY }))
+              dispatch({
+                type: 'UPDATE_LAYER_PROPERTIES',
+                ids: [node.id],
+                patch: {
+                  points: rebased,
+                  pathClosed: closed,
+                  x: node.x + bb.minX,
+                  y: node.y + bb.minY,
+                  width: Math.max(1, bb.maxX - bb.minX),
+                  height: Math.max(1, bb.maxY - bb.minY),
+                },
+              })
+              setPathEditing(false)
+            }}
+            onCancel={() => setPathEditing(false)}
+          />
+        )
+      }
+      return (
+        <CanvasPath
+          node={node}
+          style={style}
+          outline={outline}
+          fx={fx}
+          base={base}
+          onEdit={() => { if (!drawing && !readOnly && !node.locked) setPathEditing(true) }}
+        />
+      )
 
     case 'text':
       return <CanvasText node={node} style={style} outline={outline} fx={fx} base={base} state={state} dispatch={dispatch} readOnly={readOnly} />
@@ -275,22 +320,28 @@ function computeReorderIndex(al: AutoLayout, siblings: LayerNode[], selfId: stri
   return idx
 }
 
-function CanvasPath({ node, style, outline, fx, base }: {
+function CanvasPath({ node, style, outline, fx, base, onEdit }: {
   node: LayerNode
   style: React.CSSProperties
   outline: string
   fx: string
   base: React.DOMAttributes<HTMLDivElement>
+  onEdit?: () => void
 }) {
   const pts = node.points ?? []
   if (pts.length === 0) return null
-  const poly = pts.map((p) => `${p.x},${p.y}`).join(' ')
+  const d = pathToSvgD(pts, node.pathClosed)
   return (
-    <div className={`canvas-path ${outline} ${fx}`} style={style} {...base}>
+    <div
+      className={`canvas-path ${outline} ${fx}`}
+      style={style}
+      {...base}
+      onDoubleClick={(e) => { if (onEdit) { e.stopPropagation(); onEdit() } }}
+    >
       <svg width={node.width} height={node.height} viewBox={`0 0 ${node.width} ${node.height}`} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-        <polyline
-          points={poly}
-          fill="none"
+        <path
+          d={d}
+          fill={node.style.fill ?? 'none'}
           stroke={node.style.stroke ?? BLUE}
           strokeWidth={node.style.strokeWidth ?? 2}
           strokeLinejoin="round"

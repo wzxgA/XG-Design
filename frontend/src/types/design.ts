@@ -79,6 +79,16 @@ export interface ComponentPropDef {
   dependsOn?: { key: string; equals: string[] }
 }
 
+/** 路径锚点：handleIn/handleOut 为相对锚点的贝塞尔控制点（undefined = 直线段） */
+export interface PathPoint {
+  x: number
+  y: number
+  /** 进入本锚点时的控制点（相对锚点偏移，可负） */
+  handleIn?: { x: number; y: number }
+  /** 离开本锚点时的控制点（相对锚点偏移，可负） */
+  handleOut?: { x: number; y: number }
+}
+
 export interface LayerNode {
   id: string
   type: LayerType
@@ -111,8 +121,10 @@ export interface LayerNode {
   chartShowAxis?: boolean
   /** 多系列数据；bar 单系列回退 chartBars */
   chartSeries?: number[][]
-  /** 钢笔路径锚点（相对图层左上角的画布坐标） */
-  points?: { x: number; y: number }[]
+  /** 钢笔路径锚点（相对图层左上角的画布坐标）；含贝塞尔手柄信息 */
+  points?: PathPoint[]
+  /** 路径是否闭合（首尾相连），默认 false（开放路径） */
+  pathClosed?: boolean
   /** 评论节点回复列表 */
   replies?: CommentReply[]
   /** 组件标记：该 group 为一体化组件（背景/文字作为整体编辑，子节点不单独选中） */
@@ -224,3 +236,4 @@ export type EditorAction =
   | { type: 'REDO' }
   | { type: 'APPLY_DESIGN'; layers: LayerNode[]; links?: import('../types/ai').AiProtoLink[] }
   | { type: 'APPLY_EDIT'; operations: import('../types/ai').EditOperation[] }
+  | { type: 'APPLY_BOOLEAN'; ids: string[]; mode: 'union' | 'subtract' | 'intersect' | 'exclude' }

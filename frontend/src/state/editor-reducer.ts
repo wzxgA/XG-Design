@@ -1,6 +1,8 @@
 import type { EditorAction, EditorState, LayerNode, DesignDocument, LayerStyle, HistoryState, PageNode } from '../types/design'
-import { layerId, ensureAiParent } from '../utils/layers'
+import { layerId, ensureAiParent, createLayer } from '../utils/layers'
 import { applyAutoLayout } from '../utils/layout'
+import { booleanPolygons } from '../utils/path-boolean'
+import type { ShapePoly } from '../utils/path-boolean'
 
 export const ZOOM_MIN = 25
 export const ZOOM_MAX = 200
@@ -54,6 +56,18 @@ function deleteIds(root: LayerNode[], ids: Set<string>): LayerNode[] {
     result.push({ ...node, children: deleteIds(node.children, ids) })
   }
   return result
+}
+
+/** 查找节点及其相对页面顶层的绝对坐标（祖先 x/y 累加，忽略旋转） */
+function findLayerAbs(root: LayerNode[], id: string, ox = 0, oy = 0): { node: LayerNode; absX: number; absY: number } | null {
+  for (const n of root) {
+    const absX = ox + n.x
+    const absY = oy + n.y
+    if (n.id === id) return { node: n, absX, absY }
+    const found = findLayerAbs(n.children, id, absX, absY)
+    if (found) return found
+  }
+  return null
 }
 
 /** 生成深拷贝节点并重新生成全部子节点 id（用于页面复制） */
@@ -541,6 +555,58 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         }
       }
       return withHistory(state, doc, { selectedIds: [] })
+    }
+
+    case 'APPLY_BOOLEAN': {
+      // 多选矢量形状做布尔运算：以第一个选中为准替换为结果路径，其余删除
+      if (action.ids.length < 2) return state
+      let doc = cloneDocument(state.document)
+      // 收集选中节点（含绝对坐标），仅支持 rectangle / path
+      const infos: { id: string; absX: number; absY: number; node: LayerNode }[] = []
+      for (const page of doc.pages) {
+        for (const id of action.ids) {
+          if (infos.some((i) => i.id === id)) continue
+          const found = findLayerAbs(page.children, id)
+          if (found && (found.node.type === 'rectangle' || found.node.type === 'path')) {
+            infos.push({ id, absX: found.absX, absY: found.absY, node: found.node })
+          }
+        }
+      }
+      if (infos.length < 2) return state
+      const shapes: ShapePoly[] = infos.map((i) =>
+        i.node.type === 'rectangle'
+          ? { type: 'rect', x: i.absX, y: i.absY, width: i.node.width, height: i.node.height }
+          : { type: 'path', x: i.absX, y: i.absY, width: i.node.width, height: i.node.height, points: i.node.points, closed: i.node.pathClosed },
+      )
+      const result = booleanPolygons(shapes, action.mode)
+      if (result.length < 3) return state
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      for (const p of result) {
+        if (p.x < minX) minX = p.x
+        if (p.y < minY) minY = p.y
+        if (p.x > maxX) maxX = p.x
+        if (p.y > maxY) maxY = p.y
+      }
+      const primary = infos[0]
+      // 结果坐标转回第一个选中的父级相对坐标
+      const parentOx = primary.absX - primary.node.x
+      const parentOy = primary.absY - primary.node.y
+      const resultNode = createLayer('path', minX - parentOx, minY - parentOy)
+      resultNode.type = 'path'
+      resultNode.name = '路径'
+      resultNode.width = Math.max(1, maxX - minX)
+      resultNode.height = Math.max(1, maxY - minY)
+      resultNode.points = result.map((p) => ({ x: p.x - minX, y: p.y - minY }))
+      resultNode.pathClosed = true
+      resultNode.style = { ...primary.node.style }
+      const primaryId = primary.id
+      const otherIds = new Set(infos.slice(1).map((i) => i.id))
+      doc = mapLayers(doc, new Set([primaryId]), () => resultNode)
+      doc = { ...doc, pages: doc.pages.map((p) => ({ ...p, children: deleteIds(p.children, otherIds) })) }
+      return withHistory(state, doc, { selectedIds: [primaryId] })
     }
 
     case 'ADD_COMMENT_REPLY': {
