@@ -387,13 +387,35 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return { ...state, history: { past: [], future: [] } }
 
     case 'APPLY_DESIGN': {
-      // 将 AI 生成的图层数组应用到当前页面：
-      // 1) ensureAiParent 兜底保证顶层单一父节点（frame/group）
-      // 2) 顶层 frame（画板语义）→ 页面根级与已有画板并列；顶层 group（组件/局部）→ 并入第一个画板
+      // 将 AI 生成的图层数组应用到文档：
+      // 1) ensureAiParent 兜底保证顶层父节点结构
+      // 2) 顶层多个 frame（AI 多界面）→ 每个 frame 新建一个 Page（当前页为空则替换空白页）
+      // 3) 单顶层 frame（画板）→ 页面根级与已有画板并列；单顶层 group（组件/局部）→ 并入第一个画板
       const doc = cloneDocument(state.document)
+      const layers = ensureAiParent(action.layers)
+
+      if (layers.length >= 2 && layers.every((n) => n.type === 'frame')) {
+        const activePage = doc.pages.find((p) => p.id === doc.activePageId)
+        const rest = [...layers]
+        if (activePage && activePage.children.length === 0) {
+          // 当前页为空：第一个界面替换空白页
+          const first = rest.shift()!
+          activePage.name = first.name || activePage.name
+          activePage.children = [first]
+        }
+        for (const f of rest) {
+          doc.pages.push({
+            id: `page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+            name: f.name || `页面 ${doc.pages.length + 1}`,
+            children: [f],
+          })
+        }
+        doc.activePageId = doc.pages[doc.pages.length - 1].id
+        return withHistory(state, doc, { selectedIds: [] })
+      }
+
       const page = doc.pages.find((p) => p.id === doc.activePageId)
       if (!page) return state
-      const layers = ensureAiParent(action.layers)
       const frame = page.children.find((n) => n.type === 'frame')
       const topType = layers[0]?.type
       if (frame && topType === 'group') {

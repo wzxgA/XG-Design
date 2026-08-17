@@ -89,6 +89,10 @@ export function ensureAiParent(layers: LayerNode[]): LayerNode[] {
   if (layers.length === 1 && (layers[0].type === 'frame' || layers[0].type === 'group')) {
     return layers
   }
+  // 多顶层 frame：AI 多界面/多页面输出，直接放行（前端按 frame 逐页建 Page）
+  if (layers.length >= 2 && layers.every((n) => n.type === 'frame')) {
+    return layers
+  }
   const frame = createLayer('frame', 0, 0)
   frame.name = 'AI 设计'
   frame.width = 1440

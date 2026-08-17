@@ -74,14 +74,24 @@ public class DesignToolCallback {
         return base + "。注意控制输出长度: 图层控制在 8 个以内、省略可选字段（rotation=0/visible=true/opacity=1/fontWeight=400 不写）、组件 children 留空 []、使用单行紧凑 JSON";
     }
 
-    /** 校验顶层结构：数组长度必须为 1，且元素 type 为 frame 或 group（页面用 frame，组件/局部用 group） */
+    /** 校验顶层结构：1 个 frame/group（单页/组件），或 2+ 个 frame（多界面/多页面，每 frame 一个页面） */
     private void validateTopLevel(JsonNode node) {
-        if (node.size() != 1) {
-            throw new IllegalArgumentException("layers 数组顶层必须恰好 1 个 frame 或 group 节点，当前有 " + node.size() + " 个。请用单个 frame（生成页面）或 group（生成组件/局部）包裹所有图层后重新生成。");
+        if (node.isEmpty()) {
+            throw new IllegalArgumentException("layers 顶层不能为空，请至少输出 1 个 frame 或 group 节点。");
         }
-        String type = node.get(0).path("type").asText("");
-        if (!"frame".equals(type) && !"group".equals(type)) {
-            throw new IllegalArgumentException("layers 顶层节点 type 必须为 frame 或 group，当前为 " + type + "。请用 frame（生成页面）或 group（生成组件/局部）包裹后重新生成。");
+        if (node.size() == 1) {
+            String type = node.get(0).path("type").asText("");
+            if (!"frame".equals(type) && !"group".equals(type)) {
+                throw new IllegalArgumentException("layers 顶层节点 type 必须为 frame 或 group，当前为 " + type + "。请用 frame（生成页面）或 group（生成组件/局部）包裹后重新生成。");
+            }
+            return;
+        }
+        // 2+ 顶层节点：多界面/多页面场景，必须全部是 frame（每个 frame 一个独立页面）
+        for (JsonNode n : node) {
+            String type = n.path("type").asText("");
+            if (!"frame".equals(type)) {
+                throw new IllegalArgumentException("顶层输出多个节点时，每个节点 type 必须为 frame（每个 frame 代表一个独立页面/界面，frame 的 name 用作页面名），当前包含 " + type + "。请全部改为 frame 后重新生成。");
+            }
         }
     }
 

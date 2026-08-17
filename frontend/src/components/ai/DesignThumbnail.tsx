@@ -42,6 +42,14 @@ export function DesignThumbnail({ layers, width = 300, height = 150 }: Props) {
   )
 }
 
+/** 顶层多个 frame（AI 多界面）时按 frame 拆分为多页（每页一个界面），否则单组 */
+export function splitFrames(layers: LayerNode[]): LayerNode[][] {
+  if (layers.length >= 2 && layers.every((n) => n.type === 'frame')) {
+    return layers.map((f) => [f])
+  }
+  return [layers]
+}
+
 interface FlatLayer extends LayerNode {
   absX: number
   absY: number

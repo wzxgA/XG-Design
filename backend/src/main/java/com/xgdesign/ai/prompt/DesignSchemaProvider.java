@@ -65,9 +65,9 @@ public final class DesignSchemaProvider {
             ```
 
             顶层结构（重要）:
-            - layers 数组顶层必须恰好一个节点，用 frame 或 group 包裹全部图层，禁止输出多个散开的顶层图层
-            - 生成完整页面 → 顶层用 frame（画板），其 children 放所有图层
-            - 生成组件/局部修改 → 顶层用 group，其 children 放图层
+            - 单个页面/组件：顶层输出 1 个 frame（完整页面）或 1 个 group（组件/局部修改），禁止输出多个散开的普通图层
+            - 多个独立界面/页面（如"登录页+首页+注册页"）：顶层输出多个 frame，每个 frame 代表一个独立页面（画板），frame 的 name 用作页面名
+            - 单页内多区块不要输出多个顶层 frame，应放在同一个 frame 的 children 内
 
             editDesign 工具操作指令格式（operationsJson 是 JSON 数组，每条一个操作）:
             - update: {"op":"update","id":"目标图层id","patch":{"style":{"fill":"#ff0000"},"content":"新文字"}}
