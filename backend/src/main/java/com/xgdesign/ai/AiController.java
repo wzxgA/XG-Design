@@ -53,7 +53,7 @@ public class AiController {
         return aiService.chat(request)
                 .onErrorResume(e -> Flux.just(
                         ServerSentEvent.<ChatStreamEvent>builder()
-                                .data(new ChatStreamEvent("error", e.getMessage(), null, null))
+                                .data(new ChatStreamEvent("error", e.getMessage(), null, null, null))
                                 .build()
                 ));
     }

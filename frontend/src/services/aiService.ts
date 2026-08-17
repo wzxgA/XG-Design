@@ -1,5 +1,5 @@
 import { api } from './http'
-import type { ChatMessage, ChatSession, ChatStreamEvent, ChatRequest, DesignSuggestion, EditOperation, EditSuggestion } from '../types/ai'
+import type { ChatMessage, ChatSession, ChatStreamEvent, ChatRequest, DesignSuggestion, EditOperation, EditSuggestion, AiProtoLink } from '../types/ai'
 import type { LayerNode } from '../types/design'
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
@@ -84,7 +84,7 @@ export const aiService = {
   },
 
   // --- 工具方法 ---
-  parseDesignSuggestion(json: string, description?: string): DesignSuggestion {
+  parseDesignSuggestion(json: string, description?: string, linksJson?: string): DesignSuggestion {
     const parsed = JSON.parse(json) as LayerNode[]
     // 防御：后端可能返回 null / 非数组，此时不生成设计建议
     if (!Array.isArray(parsed)) {
@@ -92,10 +92,24 @@ export const aiService = {
     }
     // 规范化：补齐 AI 生成 JSON 中可能缺失的 children / style 等字段，避免渲染崩溃
     const normalized = parsed.map(normalizeLayer)
+    const links = this.parseLinks(linksJson)
     return {
       documentJson: json,
       description: description ?? 'AI 生成的设计',
       parsedLayers: normalized,
+      links,
+    }
+  },
+
+  /** 解析后端回传的跳转声明 JSON（非法/缺失时回退空数组） */
+  parseLinks(linksJson?: string): AiProtoLink[] {
+    if (!linksJson || !linksJson.trim()) return []
+    try {
+      const arr = JSON.parse(linksJson) as AiProtoLink[]
+      if (!Array.isArray(arr)) return []
+      return arr.filter((l) => l && l.sourceLayerId && l.targetFrameId)
+    } catch {
+      return []
     }
   },
 

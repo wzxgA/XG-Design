@@ -118,7 +118,8 @@ public class AiService {
             // 6. 真实 LLM 调用
             AtomicReference<String> designRef = new AtomicReference<>();
             AtomicReference<String> descRef = new AtomicReference<>();
-            DesignToolCallback toolCallback = new DesignToolCallback(designRef, descRef, componentCatalog);
+            AtomicReference<String> linksRef = new AtomicReference<>();
+            DesignToolCallback toolCallback = new DesignToolCallback(designRef, descRef, linksRef, componentCatalog);
 
             // editDesign 工具：修改/删除/替换已有图层
             AtomicReference<String> editOpsRef = new AtomicReference<>();
@@ -147,7 +148,7 @@ public class AiService {
                         String design = designRef.get();
                         String editOps = editOpsRef.get();
                         if (design != null) {
-                            events.add(designEvent(design, descRef.get(), sid, mid));
+                            events.add(designEvent(design, descRef.get(), linksRef.get(), sid, mid));
                         }
                         if (editOps != null) {
                             events.add(editEvent(editOps, editDescRef.get(), sid, mid));
@@ -182,7 +183,7 @@ public class AiService {
 
         return Flux.just(
                 textEvent(mockText, sid, mid),
-                designEvent(mockDesign, mockDesc, sid, mid),
+                designEvent(mockDesign, mockDesc, null, sid, mid),
                 doneEvent(sid, mid)
         );
     }
@@ -281,31 +282,31 @@ public class AiService {
 
     private ServerSentEvent<ChatStreamEvent> textEvent(String text, String sessionId, String messageId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("text", text, sessionId, messageId))
+                .data(new ChatStreamEvent("text", text, sessionId, messageId, null))
                 .build();
     }
 
-    private ServerSentEvent<ChatStreamEvent> designEvent(String design, String description, String sessionId, String messageId) {
+    private ServerSentEvent<ChatStreamEvent> designEvent(String design, String description, String linksJson, String sessionId, String messageId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("design", design, sessionId, messageId))
+                .data(new ChatStreamEvent("design", design, sessionId, messageId, linksJson))
                 .build();
     }
 
     private ServerSentEvent<ChatStreamEvent> editEvent(String operations, String description, String sessionId, String messageId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("edit", operations, sessionId, messageId))
+                .data(new ChatStreamEvent("edit", operations, sessionId, messageId, null))
                 .build();
     }
 
     private ServerSentEvent<ChatStreamEvent> doneEvent(String sessionId, String messageId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("done", null, sessionId, messageId))
+                .data(new ChatStreamEvent("done", null, sessionId, messageId, null))
                 .build();
     }
 
     private ServerSentEvent<ChatStreamEvent> errorEvent(String message, String sessionId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("error", message, sessionId, null))
+                .data(new ChatStreamEvent("error", message, sessionId, null, null))
                 .build();
     }
 

@@ -69,12 +69,17 @@ public final class DesignSchemaProvider {
             - 多个独立界面/页面（如"登录页+首页+注册页"）：顶层输出多个 frame，每个 frame 代表一个独立页面（画板），frame 的 name 用作页面名
             - 单页内多区块不要输出多个顶层 frame，应放在同一个 frame 的 children 内
 
-            editDesign 工具操作指令格式（operationsJson 是 JSON 数组，每条一个操作）:
+             editDesign 工具操作指令格式（operationsJson 是 JSON 数组，每条一个操作）:
             - update: {"op":"update","id":"目标图层id","patch":{"style":{"fill":"#ff0000"},"content":"新文字"}}
               patch 只放需要改的字段；style 是浅合并（只改指定属性）
             - delete: {"op":"delete","id":"目标图层id"}
             - replace: {"op":"replace","id":"目标图层id","node":{...完整图层节点...}}
               node 必须含 type；若为组件节点需带 component/componentProps；替换后保留原 id
+
+            generateDesign 的 linksJson 示例（多界面跳转）:
+            ```json
+            [{"sourceLayerId": "btn-login", "targetFrameId": "frame-home", "transition": "instant"}]
+            ```
             """;
     }
 }

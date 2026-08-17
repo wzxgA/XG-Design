@@ -10,11 +10,20 @@ export interface ChatMessage {
   status: 'sending' | 'streaming' | 'done' | 'error'
 }
 
+/** AI 生成的原型跳转声明（targetFrameId 在应用时映射为真实 pageId） */
+export interface AiProtoLink {
+  sourceLayerId: string
+  targetFrameId: string
+  transition: 'instant' | 'dissolve' | 'slide'
+}
+
 /** AI 生成的设计建议 */
 export interface DesignSuggestion {
   documentJson: string
   description: string
   parsedLayers: import('./design').LayerNode[]
+  /** 原型跳转声明（历史消息反序列化后可能缺失） */
+  links?: AiProtoLink[]
 }
 
 /** AI 修改操作（editDesign 工具产生） */
@@ -46,6 +55,7 @@ export interface ChatStreamEvent {
   content: string
   sessionId: string
   messageId: string
+  linksJson?: string
 }
 
 /** 对话请求 */

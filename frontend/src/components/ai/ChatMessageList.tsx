@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
-import type { ChatMessage, EditOperation } from '../../types/ai'
+import type { AiProtoLink, ChatMessage, EditOperation } from '../../types/ai'
 import type { LayerNode } from '../../types/design'
 import { ChatMessageItem } from './ChatMessageItem'
 
 interface Props {
   messages: ChatMessage[]
   isStreaming: boolean
-  onApply?: (layers: LayerNode[]) => void
+  onApply?: (layers: LayerNode[], links?: AiProtoLink[]) => void
   onApplyEdit?: (operations: EditOperation[]) => void
 }
 

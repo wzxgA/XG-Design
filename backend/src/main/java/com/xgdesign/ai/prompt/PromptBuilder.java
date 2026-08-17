@@ -55,6 +55,8 @@ public class PromptBuilder {
         sb.append("\n");
         sb.append(SystemPrompts.EDIT_RULES);
         sb.append("\n");
+        sb.append(SystemPrompts.PROTO_LINK_RULES);
+        sb.append("\n");
         sb.append(getDocumentContext(request));
 
         String extra = properties.getSystemPromptExtra();

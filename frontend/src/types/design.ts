@@ -200,5 +200,5 @@ export type EditorAction =
   | { type: 'CLEAR_HISTORY' }
   | { type: 'UNDO' }
   | { type: 'REDO' }
-  | { type: 'APPLY_DESIGN'; layers: LayerNode[] }
+  | { type: 'APPLY_DESIGN'; layers: LayerNode[]; links?: import('../types/ai').AiProtoLink[] }
   | { type: 'APPLY_EDIT'; operations: import('../types/ai').EditOperation[] }

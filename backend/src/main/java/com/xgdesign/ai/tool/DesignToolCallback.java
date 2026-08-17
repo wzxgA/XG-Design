@@ -3,10 +3,14 @@ package com.xgdesign.ai.tool;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xgdesign.ai.prompt.AiComponentCatalog;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -24,27 +28,99 @@ public class DesignToolCallback {
 
     private final AtomicReference<String> designRef;
     private final AtomicReference<String> descriptionRef;
+    private final AtomicReference<String> linksRef;
     private final AiComponentCatalog componentCatalog;
     /** 本次请求内连续校验失败次数，≥2 次时输出更激进的精简指令 */
     private final AtomicInteger failCount = new AtomicInteger();
 
     public DesignToolCallback(AtomicReference<String> designRef, AtomicReference<String> descriptionRef,
-                              AiComponentCatalog componentCatalog) {
+                              AtomicReference<String> linksRef, AiComponentCatalog componentCatalog) {
         this.designRef = designRef;
         this.descriptionRef = descriptionRef;
+        this.linksRef = linksRef;
         this.componentCatalog = componentCatalog;
     }
 
-    @Tool(description = "生成或修改设计稿。当用户要求创建页面、组件或修改设计时调用此工具。layersJson 是图层数组的 JSON 字符串，每个图层包含 id/type/name/x/y/width/height/style/children 等属性。")
+    @Tool(description = "生成或修改设计稿。当用户要求创建页面、组件或修改设计时调用此工具。layersJson 是图层数组的 JSON 字符串，每个图层包含 id/type/name/x/y/width/height/style/children 等属性。若用户要求按钮/元素点击跳转到另一界面，用 linksJson 声明跳转关系。")
     public DesignResult generateDesign(
             @ToolParam(description = "图层数组的 JSON 字符串，例如 [{\"id\":\"layer-1\",\"type\":\"frame\",\"name\":\"容器\",\"x\":0,\"y\":0,\"width\":400,\"height\":600,\"style\":{\"fill\":\"#fff\"},\"children\":[]}]") String layersJson,
-            @ToolParam(description = "设计描述/标题，简要说明这个设计的内容") String description
+            @ToolParam(description = "设计描述/标题，简要说明这个设计的内容") String description,
+            @ToolParam(description = "原型跳转关系的 JSON 数组字符串（可选，默认空），每条: {\"sourceLayerId\":\"可点击节点id\",\"targetFrameId\":\"目标顶层frame的id\",\"transition\":\"instant|dissolve|slide\"}。只有多界面（多个顶层 frame）时可用") String linksJson
     ) {
         // 校验 JSON 合法性；截断、格式错误或组件名非法时抛明确异常，由 AiService 转为 SSE error 事件并让模型自愈
         validateLayersJson(layersJson);
+        String normalizedLinks = validateLinksJson(linksJson, layersJson);
         designRef.set(layersJson);
         descriptionRef.set(description);
-        return new DesignResult(layersJson, description);
+        linksRef.set(normalizedLinks);
+        return new DesignResult(layersJson, description, normalizedLinks);
+    }
+
+    /** 校验 linksJson：解析为数组、source/target 存在性校验；非法条目静默丢弃（避免重试循环），返回规范化 JSON 字符串 */
+    private String validateLinksJson(String linksJson, String layersJson) {
+        if (linksJson == null || linksJson.isBlank()) return "[]";
+        JsonNode parsed;
+        try {
+            parsed = MAPPER.readTree(linksJson);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("linksJson 格式错误，请改为合法 JSON 数组后重试: " + e.getOriginalMessage(), e);
+        }
+        if (!parsed.isArray()) {
+            throw new IllegalArgumentException("linksJson 必须是 JSON 数组，请修正后重试。");
+        }
+        // 收集全部节点 id 与顶层 frame id
+        JsonNode layers;
+        try {
+            layers = MAPPER.readTree(layersJson);
+        } catch (JsonProcessingException e) {
+            layers = MAPPER.createArrayNode();
+        }
+        java.util.Set<String> allIds = new HashSet<>();
+        Set<String> topFrameIds = new HashSet<>();
+        collectIds(layers, 0, allIds, topFrameIds);
+
+        com.fasterxml.jackson.databind.node.ArrayNode out = MAPPER.createArrayNode();
+        for (JsonNode link : parsed) {
+            if (!link.isObject()) continue;
+            String source = link.path("sourceLayerId").asText("");
+            String target = link.path("targetFrameId").asText("");
+            if (source.isBlank() || target.isBlank()) continue;
+            if (!allIds.contains(source)) continue;            // 源节点不存在 → 丢弃
+            if (!topFrameIds.contains(target)) continue;       // 目标不是顶层 frame → 丢弃
+            ObjectNode o = MAPPER.createObjectNode();
+            o.put("sourceLayerId", source);
+            o.put("targetFrameId", target);
+            String trans = link.path("transition").asText("instant");
+            if (!"dissolve".equals(trans) && !"slide".equals(trans)) trans = "instant";
+            o.put("transition", trans);
+            out.add(o);
+        }
+        try {
+            return MAPPER.writeValueAsString(out);
+        } catch (JsonProcessingException e) {
+            return "[]";
+        }
+    }
+
+    /** 收集全部节点 id（allIds）与顶层 frame id（topFrameIds） */
+    private void collectIds(JsonNode node, int depth, Set<String> allIds, Set<String> topFrameIds) {
+        if (node.isArray()) {
+            for (JsonNode child : node) {
+                collectIds(child, depth, allIds, topFrameIds);
+            }
+        } else if (node.isObject()) {
+            String id = node.path("id").asText("");
+            if (!id.isBlank()) {
+                allIds.add(id);
+                if (depth == 0 && "frame".equals(node.path("type").asText(""))) {
+                    topFrameIds.add(id);
+                }
+            }
+            JsonNode children = node.get("children");
+            if (children != null) {
+                collectIds(children, depth + 1, allIds, topFrameIds);
+            }
+        }
     }
 
     private void validateLayersJson(String layersJson) {
@@ -120,5 +196,5 @@ public class DesignToolCallback {
         }
     }
 
-    public record DesignResult(String documentJson, String description) {}
+    public record DesignResult(String documentJson, String description, String linksJson) {}
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAiStore, aiActions } from '../../state/ai-store'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode } from '../../types/design'
-import type { EditOperation } from '../../types/ai'
+import type { AiProtoLink, EditOperation } from '../../types/ai'
 import { ChatMessageList } from './ChatMessageList'
 import { ChatInput } from './ChatInput'
 import { SessionSidebar } from './SessionSidebar'
@@ -49,8 +49,8 @@ export function AiChatPanel({ state, dispatch, readOnly }: Props) {
     setInput('')
   }
 
-  const handleApply = (layers: LayerNode[]) => {
-    dispatch({ type: 'APPLY_DESIGN', layers })
+  const handleApply = (layers: LayerNode[], links?: AiProtoLink[]) => {
+    dispatch({ type: 'APPLY_DESIGN', layers, links })
   }
 
   const handleApplyEdit = (operations: EditOperation[]) => {

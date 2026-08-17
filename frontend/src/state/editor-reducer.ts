@@ -397,20 +397,36 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       if (layers.length >= 2 && layers.every((n) => n.type === 'frame')) {
         const activePage = doc.pages.find((p) => p.id === doc.activePageId)
         const rest = [...layers]
+        const frameToPage = new Map<string, string>()
         if (activePage && activePage.children.length === 0) {
           // 当前页为空：第一个界面替换空白页
           const first = rest.shift()!
           activePage.name = first.name || activePage.name
           activePage.children = [first]
+          frameToPage.set(first.id, activePage.id)
         }
         for (const f of rest) {
-          doc.pages.push({
-            id: `page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-            name: f.name || `页面 ${doc.pages.length + 1}`,
-            children: [f],
-          })
+          const pid = `page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+          doc.pages.push({ id: pid, name: f.name || `页面 ${doc.pages.length + 1}`, children: [f] })
+          frameToPage.set(f.id, pid)
         }
         doc.activePageId = doc.pages[doc.pages.length - 1].id
+        // 原型跳转：AI 声明的 targetFrameId → 真实 pageId，写入 prototypeLinks
+        const existing = new Set(doc.prototypeLinks.map((l) => `${l.sourceLayerId}|${l.targetPageId}`))
+        for (const l of action.links ?? []) {
+          const targetPageId = frameToPage.get(l.targetFrameId)
+          if (!targetPageId) continue
+          const key = `${l.sourceLayerId}|${targetPageId}`
+          if (existing.has(key)) continue
+          existing.add(key)
+          doc.prototypeLinks.push({
+            id: `link-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
+            sourceLayerId: l.sourceLayerId,
+            targetPageId,
+            trigger: 'click',
+            transition: l.transition,
+          })
+        }
         return withHistory(state, doc, { selectedIds: [] })
       }
 

@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import type { ChatMessage, EditOperation } from '../../types/ai'
+import type { AiProtoLink, ChatMessage, EditOperation } from '../../types/ai'
 import type { LayerNode } from '../../types/design'
 import { DesignPreviewCard } from './DesignPreviewCard'
 import { EditPreviewCard } from './EditPreviewCard'
 
 interface Props {
   message: ChatMessage
-  onApply?: (layers: LayerNode[]) => void
+  onApply?: (layers: LayerNode[], links?: AiProtoLink[]) => void
   onApplyEdit?: (operations: EditOperation[]) => void
 }
 

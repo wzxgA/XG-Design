@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import type { DesignSuggestion } from '../../types/ai'
+import type { AiProtoLink, DesignSuggestion } from '../../types/ai'
 import { DesignThumbnail, splitFrames } from './DesignThumbnail'
 import { DesignPreviewModal } from './DesignPreviewModal'
 
 interface Props {
   suggestion: DesignSuggestion
-  onApply?: (layers: DesignSuggestion['parsedLayers']) => void
+  onApply?: (layers: DesignSuggestion['parsedLayers'], links?: AiProtoLink[]) => void
 }
 
 export function DesignPreviewCard({ suggestion, onApply }: Props) {
@@ -33,7 +33,7 @@ export function DesignPreviewCard({ suggestion, onApply }: Props) {
         </button>
         <button
           className="ai-btn-apply"
-          onClick={() => onApply?.(suggestion.parsedLayers)}
+          onClick={() => onApply?.(suggestion.parsedLayers, suggestion.links)}
         >
           应用到画布
         </button>
@@ -44,7 +44,7 @@ export function DesignPreviewCard({ suggestion, onApply }: Props) {
           description={suggestion.description}
           onClose={() => setShowFullPreview(false)}
           onApply={() => {
-            onApply?.(suggestion.parsedLayers)
+            onApply?.(suggestion.parsedLayers, suggestion.links)
             setShowFullPreview(false)
           }}
         />

@@ -175,7 +175,7 @@ function onStreamEvent(event: ChatStreamEvent, streamingId: string) {
     })
   } else if (event.type === 'design') {
     try {
-      const suggestion = aiService.parseDesignSuggestion(event.content)
+      const suggestion = aiService.parseDesignSuggestion(event.content, undefined, event.linksJson)
       setState({
         messages: state.messages.map(m =>
           m.id === streamingId

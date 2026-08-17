@@ -7,10 +7,12 @@ package com.xgdesign.ai.dto;
  * @param content    type=text: 文本片段; type=design: LayerNode[] JSON; type=edit: 操作指令 JSON; type=error: 错误信息
  * @param sessionId  会话 ID
  * @param messageId  消息 ID
+ * @param linksJson  type=design 时的原型跳转声明 JSON 数组（可空）
  */
 public record ChatStreamEvent(
         String type,
         String content,
         String sessionId,
-        String messageId
+        String messageId,
+        String linksJson
 ) {}

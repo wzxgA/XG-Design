@@ -114,4 +114,13 @@ public final class SystemPrompts {
             4. 操作前参考"当前文档"上下文中的图层 id；若无文档上下文则提示用户先选中图层或附带上下文
             5. 选中图层信息见 selectedLayerId（前端已传），可直接对该 id 操作
             """;
+
+    public static final String PROTO_LINK_RULES = """
+            ## 原型跳转规则
+            1. 若用户要求按钮/元素点击后跳转到另一个界面（如"登录后跳转首页"），必须在 generateDesign 的 linksJson 参数中声明跳转关系，不要只在回复文字里说明
+            2. 跳转仅支持多界面场景（顶层多个 frame）；单 frame 内无法跳转
+            3. linksJson 是 JSON 数组，每条: {"sourceLayerId":"可点击节点id","targetFrameId":"目标顶层frame的id","transition":"instant|dissolve|slide"}
+            4. sourceLayerId 必须是 layersJson 中存在的可点击节点 id（按钮等）；targetFrameId 必须是另一个顶层 frame 的 id
+            5. transition 可选，默认 instant
+            """;
 }
