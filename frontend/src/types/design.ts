@@ -123,8 +123,29 @@ export interface LayerNode {
   componentState?: ComponentState
   /** 容器插槽绑定：slot key → 子节点 id 列表（插槽内容渲染进组件内占位区） */
   componentSlots?: Record<string, string[]>
+  /** Auto Layout 布局（仅 frame/group 有意义）；存在时子节点坐标由布局引擎重排 */
+  autoLayout?: AutoLayout
+  /** 子项：autoLayout 父内沿主轴填充剩余空间（FILL），默认 false（FIXED 保持自身宽/高） */
+  layoutGrow?: boolean
   style: LayerStyle
   children: LayerNode[]
+}
+
+/** Auto Layout 布局配置（数据层重排：布局结果写回子节点 x/y 与父尺寸） */
+export interface AutoLayout {
+  direction: 'horizontal' | 'vertical'
+  /** 子项间距（px） */
+  gap: number
+  paddingTop: number
+  paddingRight: number
+  paddingBottom: number
+  paddingLeft: number
+  /** 交叉轴对齐：stretch=子项在交叉轴拉伸填满父内容区 */
+  align: 'start' | 'center' | 'end' | 'stretch'
+  /** 主轴分布：space-between/around 时子项间距被空白分配覆盖 */
+  justify: 'start' | 'center' | 'end' | 'space-between' | 'space-around'
+  /** 主轴方向固定尺寸（false=hug 自适应内容，默认） */
+  mainFixed?: boolean
 }
 
 export interface PageNode {
@@ -192,6 +213,7 @@ export type EditorAction =
   | { type: 'GROUP_LAYERS'; ids: string[] }
   | { type: 'UNGROUP_LAYERS'; id: string }
   | { type: 'REORDER_LAYER'; id: string; direction: 'forward' | 'backward' }
+  | { type: 'REORDER_TO_INDEX'; id: string; targetIndex: number }
   | { type: 'RENAME_PAGE'; pageId: string; name: string }
   | { type: 'DELETE_PAGE'; pageId: string }
   | { type: 'DUPLICATE_PAGE'; pageId: string }

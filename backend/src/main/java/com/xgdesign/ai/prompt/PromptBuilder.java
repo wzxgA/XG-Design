@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * 动态构建系统提示词。
  */
@@ -36,6 +38,14 @@ public class PromptBuilder {
      * 结构: 角色定义 → 能力说明 → 设计系统 → 图层 Schema → 组件库 → 画布信息 → 行为规范 → 组件使用规则 → 当前文档上下文
      */
     public String buildSystemPrompt(ChatRequest request) {
+        return buildSystemPrompt(request, null);
+    }
+
+    /**
+     * 构建系统提示词；requestComponents 为前端随请求发送的组件 schema（含完整 props 契约），
+     * 优先用于生成富组件库片段；缺失时回退静态目录。
+     */
+    public String buildSystemPrompt(ChatRequest request, List<AiComponentCatalog.ComponentSpec> requestComponents) {
         StringBuilder sb = new StringBuilder();
         sb.append(SystemPrompts.ROLE_DEFINITION);
         sb.append("\n");
@@ -45,7 +55,11 @@ public class PromptBuilder {
         sb.append("\n");
         sb.append(DesignSchemaProvider.getLayerSchemaDescription());
         sb.append("\n");
-        sb.append(componentCatalog.buildPromptSection());
+        List<AiComponentCatalog.ComponentSpec> comps =
+                (requestComponents != null && !requestComponents.isEmpty())
+                        ? requestComponents
+                        : componentCatalog.loadAll();
+        sb.append(componentCatalog.buildPromptSection(comps));
         sb.append("\n");
         sb.append(SystemPrompts.CANVAS_INFO);
         sb.append("\n");

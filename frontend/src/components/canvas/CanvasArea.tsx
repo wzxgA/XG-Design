@@ -533,7 +533,7 @@ export function CanvasArea({ state, dispatch, readOnly = false }: Props) {
             </div>
             <div
               className={`selection-frame ${isDrawTool || isClickTool || isPenTool ? 'drawing' : ''}`}
-              style={{ background: frame.style.backgroundColor ?? frame.style.fill }}
+              style={{ background: frame.style.backgroundColor ?? frame.style.fill ?? '#ffffff' }}
               onPointerDown={(e) => onFramePointerDown(e, frame.id)}
               onPointerMove={onFramePointerMove}
               onPointerUp={onFramePointerUp}

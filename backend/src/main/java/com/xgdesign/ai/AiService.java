@@ -99,8 +99,9 @@ public class AiService {
             UUID sessionId = session.getId();
             UUID messageId = UUID.randomUUID();
 
-            // 2. 构建系统提示
-            String systemPrompt = promptBuilder.buildSystemPrompt(request);
+            // 2. 构建系统提示（优先用前端随请求发送的组件 schema，含完整 props 契约）
+            List<AiComponentCatalog.ComponentSpec> requestComponents = componentCatalog.parseSchema(request.componentSchema());
+            String systemPrompt = promptBuilder.buildSystemPrompt(request, requestComponents);
 
             // 3. 加载历史消息
             List<Message> history = loadHistory(sessionId);
@@ -119,12 +120,12 @@ public class AiService {
             AtomicReference<String> designRef = new AtomicReference<>();
             AtomicReference<String> descRef = new AtomicReference<>();
             AtomicReference<String> linksRef = new AtomicReference<>();
-            DesignToolCallback toolCallback = new DesignToolCallback(designRef, descRef, linksRef, componentCatalog);
+            DesignToolCallback toolCallback = new DesignToolCallback(designRef, descRef, linksRef, componentCatalog, requestComponents);
 
-            // editDesign 工具：修改/删除/替换已有图层
+            // editDesign 工具：修改/删除/替换/新增图层
             AtomicReference<String> editOpsRef = new AtomicReference<>();
             AtomicReference<String> editDescRef = new AtomicReference<>();
-            EditDesignCallback editToolCallback = new EditDesignCallback(editOpsRef, editDescRef, componentCatalog);
+            EditDesignCallback editToolCallback = new EditDesignCallback(editOpsRef, editDescRef, componentCatalog, requestComponents);
 
             StringBuilder aiReplyBuffer = new StringBuilder();
             String sid = sessionId.toString();

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
 import type { LayerNode, PrototypeLink, ComponentPropDef, ComponentState } from '../../types/design'
 import { GradientStyleEditor, EffectsEditor } from './EffectEditors'
+import { AutoLayoutEditor } from './AutoLayoutEditor'
 import { Icon } from '../common/brand'
 import { PropertyInput } from './PropertyInput'
 import { MIN_SIZE } from '../../utils/geometry'
@@ -881,6 +882,15 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
               <PropertyInput label="◒" value={selected.style.cornerRadius ?? 0} min={0} disabled={readOnly} onChange={(v) => patchStyle({ cornerRadius: v })} />
             </div>
           </Section>
+
+          <AutoLayoutEditor
+            node={selected}
+            document={state.document}
+            readOnly={readOnly}
+            patch={patch}
+            patchChild={patchChild}
+            dispatch={dispatch}
+          />
 
           {hasSchema && schemaTpl ? (
             <Section title="组件" hint="＋">

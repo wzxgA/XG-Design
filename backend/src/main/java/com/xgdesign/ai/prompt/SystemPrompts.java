@@ -52,7 +52,8 @@ public final class SystemPrompts {
 
     public static final String BEHAVIOR_RULES = """
             ## 行为规范
-            1. 当用户要求"设计/生成/创建"某个页面或组件时，调用 generateDesign 工具
+            1. 当用户要求"设计/生成/创建"某个**全新的**页面或组件时，调用 generateDesign 工具；
+               若画布上已有相关界面（当前文档非空），一律优先用 editDesign 在原有基础上修改，禁止重复生成整页
             2. 生成设计时，合理使用 frame 进行布局分组
             3. 颜色使用 hex 格式 (如 #1890ff)
             4. 尺寸使用数字 (单位为 px)
@@ -104,15 +105,28 @@ public final class SystemPrompts {
             3. 组件节点格式: {"type":"group","name":"按钮","component":"按钮","componentProps":{...},"x":..,"y":..,"width":..,"height":..,"children":[]}
             4. component 名称必须严格使用组件库清单中的名称，禁止自创；不确定时参考「组件库」片段的名称与关键词
             5. 每个组件只放必要的 componentProps，其余交给默认值；节点 width/height 必须与组件默认尺寸或 componentProps 中的 width/height 一致
+            6. 组件个性化：组件视觉（背景色、圆角、描边、文字颜色、字号、文案、数据等）只能通过 componentProps 修改，严格按「组件库」片段列出的 props key 填写；
+               组件节点的 style 与 children 会被渲染器忽略，禁止修改它们
+            7. componentProps 取值要符合「组件库」片段中的类型/范围/可选值（数值勿超出 min~max、select 用列出的枚举值、颜色用 hex）；
+               组件交互状态可用节点 componentState 设置: default/hover/pressed/disabled/loading/error（不写默认 default）
+            8. 修改组件时，update 的 componentProps 只放要改的 key，其余 key 保持不变（前端按 key 合并）
             """;
 
     public static final String EDIT_RULES = """
             ## 修改场景规则
-            1. 当用户要求"修改/调整/删除/替换"当前画布上的图层时，调用 editDesign 工具（不要用 generateDesign）
+            0. 工具选择优先级：只要"当前文档"已有相关界面/页面，涉及给已有界面调整、加元素、加模块（搜索框、导航、评论区、帖子卡片等）的需求，
+               一律调用 editDesign 工具原位修改，绝不要用 generateDesign 重新生成整页或新建页面；只有用户明确要求新建全新页面/组件时才用 generateDesign
+            1. 当用户要求"修改/调整/删除/替换/新增"当前画布上的图层或页面元素时，调用 editDesign 工具（不要用 generateDesign）
             2. update 操作的 patch 只放需要改的字段；style 是浅合并（只改指定属性，其余保留）
             3. replace 用于把普通图层换成组件（node 为组件节点），替换后保留原 id
-            4. 操作前参考"当前文档"上下文中的图层 id；若无文档上下文则提示用户先选中图层或附带上下文
-            5. 选中图层信息见 selectedLayerId（前端已传），可直接对该 id 操作
+            4. 往页面/画板里新增元素（如加 Logo、加导航栏、加按钮、加评论区、加搜索框）时用 insert 操作:
+              {"op":"insert","parentId":"目标容器id","node":{...新图层节点...}}
+              - parentId 优先用页面内 frame/group 图层的 id（品牌元素应插进画板 children）；若该页内容直接挂在页面顶层，也可用页面 id（形如 page-xxx）
+              - node 必须含 type 与 x/y/width/height（坐标相对父容器左上角），按需带 component/componentProps/style/content；新节点的 id 由系统自动生成，无需提供
+            5. 重要：所有操作的 id / parentId 都必须是"当前文档"上下文中真实存在的 id，不得臆造。
+              页面 id 形如 page-xxx，图层 id 形如 frame-xxx/layer-xxx 等；给每个界面加元素时，按各页面的实际 id 逐个 insert
+            6. 操作前参考"当前文档"上下文中的图层 id；若无文档上下文则提示用户先选中图层或附带上下文
+            7. 选中图层信息见 selectedLayerId（前端已传），可直接对该 id 操作
             """;
 
     public static final String PROTO_LINK_RULES = """

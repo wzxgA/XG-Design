@@ -131,6 +131,10 @@ export const aiService = {
         if (!op.id) throw new Error('replace 操作缺少 id')
         if (!op.node || !op.node.type) throw new Error('replace 操作缺少 node')
         return { ...op, node: normalizeLayer(op.node) }
+      } else if (op.op === 'insert') {
+        if (!op.parentId) throw new Error('insert 操作缺少 parentId')
+        if (!op.node || !op.node.type) throw new Error('insert 操作缺少 node')
+        return { ...op, node: normalizeLayer(op.node) }
       }
       throw new Error('未知操作类型: ' + (op as { op?: string }).op)
     })

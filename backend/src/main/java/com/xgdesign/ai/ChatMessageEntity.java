@@ -35,7 +35,7 @@ public class ChatMessageEntity {
     @Column(name = "design_description", length = 500)
     private String designDescription;
 
-    /** editDesign 工具产生的操作指令 JSON（update/delete/replace 数组） */
+    /** editDesign 工具产生的操作指令 JSON（update/delete/replace/insert 数组） */
     @Column(name = "edit_operations", columnDefinition = "TEXT")
     private String editOperations;
 

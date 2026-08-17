@@ -83,6 +83,7 @@ const WRITE_ACTIONS = new Set<EditorAction['type']>([
   'GROUP_LAYERS',
   'UNGROUP_LAYERS',
   'REORDER_LAYER',
+  'REORDER_TO_INDEX',
   'RENAME_PAGE',
   'DELETE_PAGE',
   'DUPLICATE_PAGE',

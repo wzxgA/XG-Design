@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { aiService } from '../services/aiService'
+import { buildComponentSchemaJson } from '../fixtures/component-library'
 import type { ChatMessage, ChatSession, ChatStreamEvent } from '../types/ai'
 
 // ===== 类型定义 =====
@@ -135,6 +136,7 @@ export const aiActions = {
           sessionId: state.currentSessionId ?? undefined,
           message,
           ...context,
+          componentSchema: buildComponentSchemaJson(),
         },
         (event) => onStreamEvent(event, aiMsgId)
       )

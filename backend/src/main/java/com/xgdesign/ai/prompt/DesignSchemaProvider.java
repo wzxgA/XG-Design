@@ -75,6 +75,9 @@ public final class DesignSchemaProvider {
             - delete: {"op":"delete","id":"目标图层id"}
             - replace: {"op":"replace","id":"目标图层id","node":{...完整图层节点...}}
               node 必须含 type；若为组件节点需带 component/componentProps；替换后保留原 id
+            - insert: {"op":"insert","parentId":"目标容器id","node":{...新图层节点...}}
+              parentId 为页面内 frame/group 图层 id（推荐，品牌元素插进画板 children）或页面 id（page-xxx，加到该页顶层）；
+              node 必须含 type 与 x/y/width/height（坐标相对父容器左上角）；新节点 id 由系统自动生成，无需提供
 
             generateDesign 的 linksJson 示例（多界面跳转）:
             ```json

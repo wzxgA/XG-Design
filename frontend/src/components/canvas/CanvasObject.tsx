@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
-import type { LayerNode } from '../../types/design'
+import type { AutoLayout, LayerNode } from '../../types/design'
 import { Icon } from '../common/brand'
 import { isComponentNode } from '../../utils/layers'
 import { renderComponentChildren } from '../../fixtures/component-library'
 import { renderChartSvg } from '../../utils/chart'
-import { backgroundOf, effectClasses } from '../../utils/style'
+import { backgroundCss, effectClasses } from '../../utils/style'
 import { usePreviewDemo } from './preview-demo'
 import { INTERACTIVE_COMPONENTS } from './preview-interactions'
 import { InteractiveControl } from './InteractiveControl'
@@ -20,6 +20,8 @@ interface Props {
   readOnly?: boolean
   /** 被动模式：不响应指针事件（组件子节点，交互由组件整体接管） */
   passive?: boolean
+  /** Auto Layout 父布局信息：子节点在父内拖拽改为调整顺序 */
+  layoutParent?: { al: AutoLayout; siblings: LayerNode[] }
 }
 
 function findBoard(state: EditorState): LayerNode | undefined {
@@ -32,9 +34,13 @@ function findBoard(state: EditorState): LayerNode | undefined {
  * 将 LayerNode 树按绝对坐标渲染为 HTML，隐藏节点不渲染，选中节点显示边框。
  * 支持拖拽移动对象（锁定节点不可移动）、Shift 多选、多选整体拖拽。
  */
-export function CanvasObject({ node, state, dispatch, drawing = false, readOnly = false, passive = false }: Props) {
+export function CanvasObject({ node, state, dispatch, drawing = false, readOnly = false, passive = false, layoutParent }: Props) {
   const startRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null)
   const movedRef = useRef(false)
+  /** Auto Layout 拖拽重排状态：记录起点与当前落点索引（指针相对父坐标） */
+  const reorderRef = useRef<{ pointerX: number; pointerY: number; originX: number; originY: number; targetIndex: number | null } | null>(null)
+  /** 拖拽视觉跟随偏移（仅本地渲染，不写数据） */
+  const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number } | null>(null)
   const demo = usePreviewDemo()
   // 预览演示态（CO-4）：临时覆盖组件交互状态；disabled 视觉变淡
   const demoState = demo.enabled && isComponentNode(node)
@@ -60,7 +66,10 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     width: node.width,
     height: node.height,
     opacity: node.style.opacity ?? 1,
-    transform: node.rotation ? `rotate(${node.rotation}deg)` : undefined,
+    transform: [
+      node.rotation ? `rotate(${node.rotation}deg)` : '',
+      dragOffset ? `translate(${dragOffset.dx}px, ${dragOffset.dy}px)` : '',
+    ].join(' ').trim() || undefined,
     cursor: node.locked ? 'default' : 'pointer',
     pointerEvents: passive ? 'none' : undefined,
   }
@@ -84,11 +93,27 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     dispatch({ type: 'SELECT_LAYERS', ids: targetIds })
     if (targetIds.length === 0) return
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    // Auto Layout 父内：拖拽改为调整顺序（不移动坐标）
+    if (layoutParent) {
+      reorderRef.current = { pointerX: e.clientX, pointerY: e.clientY, originX: node.x, originY: node.y, targetIndex: null }
+      setDragOffset({ dx: 0, dy: 0 })
+      return
+    }
     startRef.current = { pointerX: e.clientX, pointerY: e.clientY, x: node.x, y: node.y }
     movedRef.current = false
   }
 
   const onPointerMove = (e: React.PointerEvent) => {
+    const r = reorderRef.current
+    if (r && layoutParent) {
+      const dx = (e.clientX - r.pointerX) / scale
+      const dy = (e.clientY - r.pointerY) / scale
+      setDragOffset({ dx, dy })
+      const isH = layoutParent.al.direction === 'horizontal'
+      const mainPos = isH ? r.originX + dx : r.originY + dy
+      r.targetIndex = computeReorderIndex(layoutParent.al, layoutParent.siblings, node.id, mainPos)
+      return
+    }
     const start = startRef.current
     if (!start) return
     let dx = (e.clientX - start.pointerX) / scale
@@ -120,6 +145,16 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
   }
 
   const onPointerUp = () => {
+    const r = reorderRef.current
+    if (r && layoutParent) {
+      const selfIdx = layoutParent.siblings.findIndex((s) => s.id === node.id)
+      if (r.targetIndex != null && r.targetIndex !== selfIdx) {
+        dispatch({ type: 'REORDER_TO_INDEX', id: node.id, targetIndex: r.targetIndex })
+      }
+      reorderRef.current = null
+      setDragOffset(null)
+      return
+    }
     startRef.current = null
   }
 
@@ -130,8 +165,12 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     onPointerCancel: onPointerUp,
   }
 
-  // 组件节点可能不带落盘 children（如 AI 生成的 children: []），isComponentNode 命中即进入组件渲染分支
-  if (node.children.length > 0 || isComponent) {
+  // 组件节点可能不带落盘 children（如 AI 生成的 children: []），isComponentNode 命中即进入组件渲染分支；
+  // 空 group/frame（当色块用的容器）也按容器渲染，避免 return null 导致消失
+  if (node.type === 'group' || node.type === 'frame' || node.children.length > 0 || isComponent) {
+    // 非组件容器（group/frame）补画背景；组件视觉由模板 render 子节点承担，节点自身 style 不画
+    const containerBg = isComponent ? undefined : backgroundCss(node.style)
+    const containerStyle = containerBg ? { ...style, background: containerBg } : style
     // 预览交互模式（demo.enabled）：命中注册表的组件叠加 DOM 覆盖控件
     const spec = demo.enabled && isComponent ? INTERACTIVE_COMPONENTS[node.component ?? ''] : undefined
     // 开关视觉由覆盖 props 驱动：预览态内存值 > 节点 componentProps（未交互时保持默认）
@@ -153,11 +192,11 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     return (
       <div
         className={`canvas-group ${outline} ${fx}`}
-        style={dimmed ? { ...style, opacity: (Number(style.opacity ?? 1)) * 0.55 } : style}
+        style={dimmed ? { ...containerStyle, opacity: (Number(containerStyle.opacity ?? 1)) * 0.55 } : containerStyle}
         data-component-id={isComponent ? node.id : undefined}
         {...base}
       >
-        {children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} passive={passive || isComponent} />)}
+        {children.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} passive={passive || isComponent} layoutParent={node.autoLayout && !isComponent ? { al: node.autoLayout, siblings: children } : undefined} />)}
         {slotChildren.map((child) => <CanvasObject key={child.id} node={child} state={state} dispatch={dispatch} drawing={drawing} readOnly={readOnly} passive={passive || isComponent} />)}
         {spec && (
           <InteractiveControl
@@ -178,7 +217,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
           className={`canvas-rect ${outline} ${fx}`}
           style={{
             ...style,
-            background: backgroundOf(node.style) ?? (node.style.fill ?? RECT_FILL),
+            background: backgroundCss(node.style) ?? RECT_FILL,
             borderRadius: node.style.cornerRadius ?? 0,
             border: node.style.stroke ? `${node.style.strokeWidth ?? 1}px solid ${node.style.stroke}` : undefined,
             boxShadow: node.style.shadow,
@@ -218,6 +257,22 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     default:
       return null
   }
+}
+
+/** Auto Layout 拖拽落点索引：按主轴方向比较 mainPos 落在哪个兄弟之前（返回插入到该索引前） */
+function computeReorderIndex(al: AutoLayout, siblings: LayerNode[], selfId: string, mainPos: number): number {
+  const isH = al.direction === 'horizontal'
+  const selfIdx = siblings.findIndex((s) => s.id === selfId)
+  let idx = siblings.length - 1
+  for (let i = 0; i < siblings.length; i++) {
+    if (i === selfIdx) continue
+    const m = isH ? siblings[i].x + siblings[i].width / 2 : siblings[i].y + siblings[i].height / 2
+    if (m > mainPos) {
+      idx = i
+      break
+    }
+  }
+  return idx
 }
 
 function CanvasPath({ node, style, outline, fx, base }: {
@@ -260,7 +315,7 @@ function CanvasImage({ node, style, outline, fx, base }: {
       className={`canvas-image ${outline} ${fx}`}
       style={{
         ...style,
-        background: src ? undefined : (node.style.fill ?? IMAGE_PLACEHOLDER),
+        background: src ? undefined : (backgroundCss(node.style) ?? IMAGE_PLACEHOLDER),
         borderRadius: node.style.cornerRadius ?? 0,
         overflow: node.style.cornerRadius ? 'hidden' : undefined,
       }}

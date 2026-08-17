@@ -58,12 +58,15 @@ interface FlatLayer extends LayerNode {
 function flatten(layers: LayerNode[], ox = 0, oy = 0): FlatLayer[] {
   const result: FlatLayer[] = []
   for (const n of layers) {
-    result.push({ ...n, absX: ox + n.x, absY: oy + n.y })
+    const comp = isComponentNode(n)
+    // 组件节点自身不绘制（视觉由模板 render 子节点承担），与画布/导出保持一致；
+    // 否则组件节点自带的 style.fill 会画成一个背景矩形，导致缩略图与画布不一致
+    if (!comp) {
+      result.push({ ...n, absX: ox + n.x, absY: oy + n.y })
+    }
     // AI 生成的 JSON 可能省略 children 字段，递归时兜底为 []
     // 组件节点展开实时子节点（renderComponentChildren 返回 null 时回退落盘 children）
-    const children = isComponentNode(n)
-      ? (renderComponentChildren(n) ?? n.children ?? [])
-      : (n.children ?? [])
+    const children = comp ? (renderComponentChildren(n) ?? n.children ?? []) : (n.children ?? [])
     result.push(...flatten(children, ox + n.x, oy + n.y))
   }
   return result
@@ -87,7 +90,8 @@ function renderNode(node: FlatLayer, scale: number, offsetX: number, offsetY: nu
   const w = node.width * scale
   const h = node.height * scale
   const gradient = svgGradientOf(node.style, `xg-thumb-g-${idx}`)
-  const fill = gradient?.url ?? node.style?.fill ?? node.style?.backgroundColor ?? 'transparent'
+  // 填充优先级与画布/导出统一：渐变 → backgroundColor → fill
+  const fill = gradient?.url ?? node.style?.backgroundColor ?? node.style?.fill ?? 'transparent'
   const radius = node.style?.cornerRadius ? node.style.cornerRadius * scale : 0
 
   if (node.type === 'text') {

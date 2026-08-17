@@ -10,6 +10,7 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,18 +31,22 @@ public class DesignToolCallback {
     private final AtomicReference<String> descriptionRef;
     private final AtomicReference<String> linksRef;
     private final AiComponentCatalog componentCatalog;
+    /** 前端随请求发送的组件 schema（含完整 props 契约）；为空时回退静态目录做白名单校验 */
+    private final List<AiComponentCatalog.ComponentSpec> requestComponents;
     /** 本次请求内连续校验失败次数，≥2 次时输出更激进的精简指令 */
     private final AtomicInteger failCount = new AtomicInteger();
 
     public DesignToolCallback(AtomicReference<String> designRef, AtomicReference<String> descriptionRef,
-                              AtomicReference<String> linksRef, AiComponentCatalog componentCatalog) {
+                              AtomicReference<String> linksRef, AiComponentCatalog componentCatalog,
+                              List<AiComponentCatalog.ComponentSpec> requestComponents) {
         this.designRef = designRef;
         this.descriptionRef = descriptionRef;
         this.linksRef = linksRef;
         this.componentCatalog = componentCatalog;
+        this.requestComponents = requestComponents;
     }
 
-    @Tool(description = "生成或修改设计稿。当用户要求创建页面、组件或修改设计时调用此工具。layersJson 是图层数组的 JSON 字符串，每个图层包含 id/type/name/x/y/width/height/style/children 等属性。若用户要求按钮/元素点击跳转到另一界面，用 linksJson 声明跳转关系。")
+    @Tool(description = "生成全新设计稿（新页面/新组件/新独立界面）。当用户要求从零创建页面、组件或独立界面时调用此工具。对已有画布内容的修改、增删、加元素/加模块请改用 editDesign 工具。layersJson 是图层数组的 JSON 字符串，每个图层包含 id/type/name/x/y/width/height/style/children 等属性。若用户要求按钮/元素点击跳转到另一界面，用 linksJson 声明跳转关系。")
     public DesignResult generateDesign(
             @ToolParam(description = "图层数组的 JSON 字符串，例如 [{\"id\":\"layer-1\",\"type\":\"frame\",\"name\":\"容器\",\"x\":0,\"y\":0,\"width\":400,\"height\":600,\"style\":{\"fill\":\"#fff\"},\"children\":[]}]") String layersJson,
             @ToolParam(description = "设计描述/标题，简要说明这个设计的内容") String description,
@@ -187,6 +192,11 @@ public class DesignToolCallback {
                 }
                 if (!componentCatalog.isValidComponentName(name)) {
                     throw new IllegalArgumentException("组件名 \"" + name + "\" 不在组件库中，相近可用组件: " + componentCatalog.suggestSimilarText(name) + "。请改用上述名称重新生成。");
+                }
+                // componentProps 契约校验（key 白名单 / select 枚举 / 数值范围），失败由上层转错误事件让模型自愈
+                AiComponentCatalog.ComponentSpec spec = componentCatalog.findSpec(requestComponents, name);
+                if (spec != null) {
+                    componentCatalog.validateComponentProps(spec, node);
                 }
             }
             JsonNode children = node.get("children");

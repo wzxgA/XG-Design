@@ -30,25 +30,30 @@ export function EditPreviewCard({ operations, description, onApply }: Props) {
 
 /** 生成单条操作的摘要文字 */
 function opLabel(op: EditOperation): string {
-  if (op.op === 'update') {
-    const fields: string[] = []
-    const p = op.patch
-    if (p.style) fields.push(...Object.keys(p.style).map(styleLabel))
-    if (p.content !== undefined) fields.push('内容')
-    if (p.name !== undefined) fields.push('名称')
-    if (p.width !== undefined || p.height !== undefined) fields.push('尺寸')
-    if (p.x !== undefined || p.y !== undefined) fields.push('位置')
-    return `修改 ${op.id.slice(0, 12)}${fields.length ? '：' + fields.join('、') : ''}`
+  switch (op.op) {
+    case 'update': {
+      const fields: string[] = []
+      const p = op.patch
+      if (p.style) fields.push(...Object.keys(p.style).map(styleLabel))
+      if (p.content !== undefined) fields.push('内容')
+      if (p.name !== undefined) fields.push('名称')
+      if (p.width !== undefined || p.height !== undefined) fields.push('尺寸')
+      if (p.x !== undefined || p.y !== undefined) fields.push('位置')
+      return `修改 ${op.id.slice(0, 12)}${fields.length ? '：' + fields.join('、') : ''}`
+    }
+    case 'delete':
+      return `删除 ${op.id.slice(0, 12)}`
+    case 'replace': {
+      const node = op.node as LayerNode
+      const target = node.component ? `组件「${node.component}」` : node.type
+      return `替换 ${op.id.slice(0, 12)} → ${target}`
+    }
+    case 'insert': {
+      const node = op.node as LayerNode
+      const target = node.component ? `组件「${node.component}」` : node.type
+      return `新增 ${target} → ${op.parentId.slice(0, 12)}`
+    }
   }
-  if (op.op === 'delete') {
-    return `删除 ${op.id.slice(0, 12)}`
-  }
-  if (op.op === 'replace') {
-    const node = op.node as LayerNode
-    const target = node.component ? `组件「${node.component}」` : node.type
-    return `替换 ${op.id.slice(0, 12)} → ${target}`
-  }
-  return op.op
 }
 
 function styleLabel(key: string): string {

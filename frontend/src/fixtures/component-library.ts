@@ -657,6 +657,30 @@ function simpleTemplate(name: string, short: string, description: string, catego
   return { name, short, description, category, build: buildFn }
 }
 
+/**
+ * 生成组件库 schema 载荷：把 COMPONENT_TEMPLATES 的可配置 props（key/类型/默认值/范围/选项）序列化为紧凑 JSON。
+ * 随每次 AI 对话请求发送，作为后端提示词构建与 componentProps 校验的单一数据源，避免目录与模板失同步。
+ */
+export function buildComponentSchemaJson(): string {
+  const payload = {
+    components: COMPONENT_TEMPLATES.map((t) => ({
+      name: t.name,
+      keywords: t.keywords ?? [],
+      note: t.description,
+      props: (t.props ?? []).map((p) => {
+        const o: Record<string, unknown> = { key: p.key, type: p.type }
+        if (p.label) o.label = p.label
+        if (p.default !== undefined) o.default = p.default
+        if (p.min !== undefined) o.min = p.min
+        if (p.max !== undefined) o.max = p.max
+        if (p.options?.length) o.options = p.options.map((x) => x.value)
+        return o
+      }),
+    })),
+  }
+  return JSON.stringify(payload)
+}
+
 export function buildComponent(name: string, x: number, y: number): LayerNode {
   const tpl = COMPONENT_TEMPLATES.find((t) => t.name === name)
     ?? loadCustomComponents().find((t) => t.name === name)

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -25,9 +26,13 @@ import java.util.StringJoiner;
 @Component
 public class AiComponentCatalog {
 
-    /** 组件规格（与前端 COMPONENT_TEMPLATES 中有 render 函数的可配置组件一一对应） */
+    /** 组件属性定义（key/类型/默认值/范围/选项；来自前端 COMPONENT_TEMPLATES 的 props schema） */
+    public record PropDef(String key, String label, String type, Object defaultValue,
+                          Number min, Number max, List<String> options) {}
+
+    /** 组件规格（静态目录仅含 props 字符串列表；请求 schema 提供完整 propDefs） */
     public record ComponentSpec(String name, List<String> keywords, List<String> props,
-                                int width, int height, String note) {}
+                                List<PropDef> propDefs, int width, int height, String note) {}
 
     private final ObjectMapper objectMapper;
     private final Resource catalogResource;
@@ -40,26 +45,51 @@ public class AiComponentCatalog {
         this.catalogResource = catalogResource;
     }
 
-    /** 生成提示词「组件库」片段；目录为空时返回空字符串 */
+    /** 生成提示词「组件库」片段（静态目录）；目录为空时返回空字符串 */
     public String buildPromptSection() {
-        List<ComponentSpec> list = ensureLoaded();
-        if (list.isEmpty()) return "";
+        return buildPromptSection(ensureLoaded());
+    }
+
+    /** 基于指定组件列表生成提示词「组件库」片段；带 propDefs（请求 schema）时输出完整个性化 schema */
+    public String buildPromptSection(List<ComponentSpec> list) {
+        if (list == null || list.isEmpty()) return "";
         StringBuilder sb = new StringBuilder("## 组件库\n");
         sb.append("设计时优先使用以下组件，节点格式: {\"type\":\"group\",\"name\":\"组件名\",\"component\":\"组件名\",\"componentProps\":{...},\"x\":..,\"y\":..,\"width\":..,\"height\":..,\"children\":[]}\n");
         sb.append("component 名称必须严格使用下列清单，禁止自创；componentProps 只放需要的属性，其余用默认值；\n");
-        sb.append("节点 width/height 必须与组件默认尺寸或 componentProps 中 width/height 一致。\n");
+        sb.append("组件视觉（背景色、圆角、描边、文字颜色、字号等）只能通过 componentProps 修改，组件节点的 style 与 children 会被渲染器忽略，不要修改它们；\n");
+        sb.append("若 componentProps 含 width/height，节点 width/height 必须与之一致；组件交互状态可用节点 componentState 设置: default/hover/pressed/disabled/loading/error。\n");
         for (ComponentSpec s : list) {
-            sb.append("- ").append(s.name()).append(" (").append(s.width()).append("x").append(s.height()).append("): ");
-            sb.append(s.note() == null || s.note().isBlank() ? "无描述" : s.note()).append("。");
+            sb.append("- ").append(s.name()).append(": ");
+            sb.append(s.note() == null || s.note().isBlank() ? "无描述" : s.note());
             if (s.keywords() != null && !s.keywords().isEmpty()) {
-                sb.append(" 关键词: ").append(String.join(", ", s.keywords())).append("。");
+                sb.append("。关键词: ").append(String.join(", ", s.keywords()));
             }
-            if (s.props() != null && !s.props().isEmpty()) {
-                sb.append(" 可配置: ").append(String.join(", ", s.props()));
+            if (s.propDefs() != null && !s.propDefs().isEmpty()) {
+                sb.append("。可配置:");
+                for (PropDef d : s.propDefs()) {
+                    sb.append(" ").append(propPrompt(d)).append(";");
+                }
+            } else if (s.props() != null && !s.props().isEmpty()) {
+                sb.append("。可配置: ").append(String.join(", ", s.props()));
             }
             sb.append("\n");
         }
         return sb.toString();
+    }
+
+    /** 单个 prop 的紧凑描述: key(类型 [默认x] [min~max] [可选a/b]) */
+    private String propPrompt(PropDef d) {
+        StringBuilder b = new StringBuilder(d.key()).append("(").append(d.type());
+        if (d.defaultValue() != null) b.append(" 默认").append(d.defaultValue());
+        if (d.min() != null || d.max() != null) {
+            b.append(" ").append(d.min() == null ? "-∞" : d.min())
+             .append("~").append(d.max() == null ? "∞" : d.max());
+        }
+        if (d.options() != null && !d.options().isEmpty()) {
+            b.append(" 可选[").append(String.join("/", d.options())).append("]");
+        }
+        b.append(")");
+        return b.toString();
     }
 
     /** 组件名白名单校验 */
@@ -145,6 +175,7 @@ public class AiComponentCatalog {
                         name,
                         keywords,
                         props,
+                        null,
                         n.path("width").asInt(0),
                         n.path("height").asInt(0),
                         n.path("note").asText("")
@@ -162,5 +193,128 @@ public class AiComponentCatalog {
             }
         }
         return list;
+    }
+
+    // ==================== 请求 schema 支持（前端随请求发送的组件 props 契约） ====================
+
+    /** 返回当前加载的静态组件列表 */
+    public List<ComponentSpec> loadAll() {
+        return ensureLoaded();
+    }
+
+    /** 解析前端随请求发送的组件 schema JSON，返回带完整 propDefs 的组件列表；缺失/非法时返回空列表（回退静态目录） */
+    public List<ComponentSpec> parseSchema(String schemaJson) {
+        if (schemaJson == null || schemaJson.isBlank()) return List.of();
+        try {
+            return parseRich(objectMapper.readTree(schemaJson));
+        } catch (Exception e) {
+            System.err.println("[AiComponentCatalog] 请求组件 schema 解析失败，回退静态目录: " + e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** 在组件列表中按名称查找（供 props 校验使用） */
+    public ComponentSpec findSpec(List<ComponentSpec> list, String name) {
+        if (list == null || name == null) return null;
+        for (ComponentSpec s : list) if (name.equals(s.name())) return s;
+        return null;
+    }
+
+    /**
+     * 校验组件节点的 componentProps：key 必须存在于 schema、select 取值必须合法、数值必须在范围内。
+     * 仅当组件带 propDefs（请求 schema）时严格校验；无 schema 时不做 props 校验（兼容旧客户端）。
+     * 校验失败抛 IllegalArgumentException，由上层转成 SSE error 事件让模型自愈。
+     */
+    public void validateComponentProps(ComponentSpec spec, JsonNode node) {
+        if (spec == null || spec.propDefs() == null || spec.propDefs().isEmpty()) return;
+        JsonNode props = node.get("componentProps");
+        if (props == null || !props.isObject() || props.isEmpty()) return;
+        Map<String, PropDef> defs = new HashMap<>();
+        for (PropDef d : spec.propDefs()) defs.put(d.key(), d);
+        java.util.Iterator<Map.Entry<String, JsonNode>> it = props.fields();
+        while (it.hasNext()) {
+            Map.Entry<String, JsonNode> e = it.next();
+            String key = e.getKey();
+            JsonNode val = e.getValue();
+            PropDef def = defs.get(key);
+            if (def == null) {
+                throw new IllegalArgumentException("组件 \"" + spec.name() + "\" 的 componentProps 包含未知属性 \"" + key
+                        + "\"，可用属性: " + String.join(", ", defs.keySet()));
+            }
+            if ("select".equals(def.type()) && def.options() != null && !def.options().isEmpty()
+                    && val.isTextual() && !def.options().contains(val.asText())) {
+                throw new IllegalArgumentException("组件 \"" + spec.name() + "\" 的 " + key + " 取值 \"" + val.asText()
+                        + "\" 非法，可选值: " + String.join(", ", def.options()));
+            }
+            if (("number".equals(def.type()) || "slider".equals(def.type())) && (def.min() != null || def.max() != null)) {
+                Double v = numericValue(val);
+                if (v != null) {
+                    if (def.min() != null && v < def.min().doubleValue()) {
+                        throw new IllegalArgumentException("组件 \"" + spec.name() + "\" 的 " + key + " 取值 " + v + " 小于最小值 " + def.min());
+                    }
+                    if (def.max() != null && v > def.max().doubleValue()) {
+                        throw new IllegalArgumentException("组件 \"" + spec.name() + "\" 的 " + key + " 取值 " + v + " 大于最大值 " + def.max());
+                    }
+                }
+            }
+        }
+    }
+
+    private Double numericValue(JsonNode val) {
+        if (val.isNumber()) return val.asDouble();
+        if (val.isTextual()) {
+            try {
+                return Double.parseDouble(val.asText().trim());
+            } catch (NumberFormatException ignored) {
+                // 非数值字符串不校验范围
+            }
+        }
+        return null;
+    }
+
+    /** 解析请求 schema（props 为对象数组，含 key/type/default/min/max/options） */
+    private List<ComponentSpec> parseRich(JsonNode root) {
+        List<ComponentSpec> list = new ArrayList<>();
+        JsonNode comps = root.get("components");
+        if (comps == null || !comps.isArray()) return list;
+        for (JsonNode n : comps) {
+            String name = n.path("name").asText(null);
+            if (name == null || name.isBlank()) continue;
+            List<String> keywords = textList(n.get("keywords"));
+            List<PropDef> propDefs = parsePropDefs(n.get("props"));
+            List<String> props = new ArrayList<>();
+            for (PropDef d : propDefs) props.add(d.key());
+            list.add(new ComponentSpec(name, keywords, props, propDefs,
+                    n.path("width").asInt(0), n.path("height").asInt(0), n.path("note").asText("")));
+        }
+        return list;
+    }
+
+    private List<PropDef> parsePropDefs(JsonNode arr) {
+        List<PropDef> out = new ArrayList<>();
+        if (arr == null || !arr.isArray()) return out;
+        for (JsonNode p : arr) {
+            String key = p.path("key").asText(null);
+            if (key == null || key.isBlank()) continue;
+            out.add(new PropDef(
+                    key,
+                    p.path("label").asText(""),
+                    p.path("type").asText("text"),
+                    plainValue(p.get("default")),
+                    p.has("min") ? p.get("min").numberValue() : null,
+                    p.has("max") ? p.get("max").numberValue() : null,
+                    textList(p.get("options"))
+            ));
+        }
+        return out;
+    }
+
+    /** JsonNode → 适合提示词展示的普通值 */
+    private Object plainValue(JsonNode v) {
+        if (v == null || v.isNull()) return null;
+        if (v.isTextual()) return v.asText();
+        if (v.isNumber()) return v.numberValue();
+        if (v.isBoolean()) return v.asBoolean();
+        return v.toString();
     }
 }

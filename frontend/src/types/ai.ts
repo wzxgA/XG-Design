@@ -31,6 +31,8 @@ export type EditOperation =
   | { op: 'update'; id: string; patch: Partial<import('./design').LayerNode> & { style?: Partial<import('./design').LayerStyle> } }
   | { op: 'delete'; id: string }
   | { op: 'replace'; id: string; node: import('./design').LayerNode }
+  /** 新增子元素：parentId 为容器图层（frame/group）id 或页面 id（page-xxx）；新节点 id 由系统自动生成 */
+  | { op: 'insert'; parentId: string; node: import('./design').LayerNode }
 
 /** AI 修改操作建议 */
 export interface EditSuggestion {
@@ -66,4 +68,6 @@ export interface ChatRequest {
   documentTitle?: string
   currentDocument?: string
   selectedLayerId?: string
+  /** 组件库完整 schema JSON（由前端 COMPONENT_TEMPLATES 序列化），供 AI 提示词与后端 componentProps 校验 */
+  componentSchema?: string
 }

@@ -11,5 +11,6 @@ public record ChatRequest(
         String documentId,
         String documentTitle,
         String currentDocument,
-        String selectedLayerId
+        String selectedLayerId,
+        String componentSchema
 ) {}

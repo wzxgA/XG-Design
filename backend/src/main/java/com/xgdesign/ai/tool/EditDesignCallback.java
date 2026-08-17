@@ -7,13 +7,14 @@ import com.xgdesign.ai.prompt.AiComponentCatalog;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 设计修改工具（Function Calling）。
  * <p>
  * AI 调用 {@code editDesign} 方法修改当前画布上已有图层。工具接收操作指令数组的 JSON 字符串，
- * 每条指令为 update/delete/replace 之一。与 {@link DesignToolCallback}（全量生成）并列，
+ * 每条指令为 update/delete/replace/insert 之一。与 {@link DesignToolCallback}（全量生成）并列，
  * LLM 按用户意图选择。
  * <p>
  * 每次对话请求创建新实例，避免并发会话共享状态。
@@ -25,17 +26,21 @@ public class EditDesignCallback {
     private final AtomicReference<String> operationsRef;
     private final AtomicReference<String> descriptionRef;
     private final AiComponentCatalog componentCatalog;
+    /** 前端随请求发送的组件 schema（含完整 props 契约）；为空时仅做组件名白名单校验 */
+    private final List<AiComponentCatalog.ComponentSpec> requestComponents;
 
     public EditDesignCallback(AtomicReference<String> operationsRef, AtomicReference<String> descriptionRef,
-                              AiComponentCatalog componentCatalog) {
+                              AiComponentCatalog componentCatalog,
+                              List<AiComponentCatalog.ComponentSpec> requestComponents) {
         this.operationsRef = operationsRef;
         this.descriptionRef = descriptionRef;
         this.componentCatalog = componentCatalog;
+        this.requestComponents = requestComponents;
     }
 
-    @Tool(description = "修改/删除/替换当前画布上已有图层。当用户要求修改、调整、删除或替换画布上的图层时调用此工具，不要用 generateDesign。operationsJson 是操作指令数组的 JSON 字符串。")
+    @Tool(description = "在已有画布上原位修改：调整、删除、替换或新增元素/模块（如给已有界面加搜索框、导航栏、评论区、帖子卡片）。当用户要求修改已有界面或给已有界面增加内容时调用此工具；只有创建全新独立页面/组件时才用 generateDesign。operationsJson 是操作指令数组的 JSON 字符串。")
     public EditResult editDesign(
-            @ToolParam(description = "操作指令数组的 JSON 字符串，例如 [{\"op\":\"update\",\"id\":\"layer-1\",\"patch\":{\"style\":{\"fill\":\"#ff0000\"}}},{\"op\":\"delete\",\"id\":\"layer-2\"},{\"op\":\"replace\",\"id\":\"old-btn\",\"node\":{\"type\":\"group\",\"name\":\"按钮\",\"component\":\"按钮\",\"componentProps\":{\"text\":\"提交\"},\"x\":0,\"y\":0,\"width\":140,\"height\":40,\"children\":[]}}]") String operationsJson,
+            @ToolParam(description = "操作指令数组的 JSON 字符串，例如 [{\"op\":\"update\",\"id\":\"layer-1\",\"patch\":{\"style\":{\"fill\":\"#ff0000\"}}},{\"op\":\"delete\",\"id\":\"layer-2\"},{\"op\":\"replace\",\"id\":\"old-btn\",\"node\":{\"type\":\"group\",\"name\":\"按钮\",\"component\":\"按钮\",\"componentProps\":{\"text\":\"提交\"},\"x\":0,\"y\":0,\"width\":140,\"height\":40,\"children\":[]}},{\"op\":\"insert\",\"parentId\":\"frame-1\",\"node\":{\"type\":\"text\",\"name\":\"Logo\",\"content\":\"B\",\"x\":24,\"y\":20,\"width\":40,\"height\":40,\"children\":[]}}]") String operationsJson,
             @ToolParam(description = "修改说明，简要描述做了哪些修改") String description
     ) {
         validateOperationsJson(operationsJson);
@@ -92,7 +97,23 @@ public class EditDesignCallback {
                 // 组件白名单校验（复用）
                 validateComponentInNode(node);
             }
-            default -> throw new IllegalArgumentException("未知操作类型: " + type + "（仅支持 update/delete/replace）");
+            case "insert" -> {
+                String parentId = op.path("parentId").asText("");
+                if (parentId.isBlank()) {
+                    throw new IllegalArgumentException("insert 操作缺少 parentId（目标容器图层 id 或页面 id）");
+                }
+                JsonNode node = op.get("node");
+                if (node == null || !node.isObject()) {
+                    throw new IllegalArgumentException("insert 操作缺少 node 对象 (parentId: " + parentId + ")");
+                }
+                String nodeType = node.path("type").asText("");
+                if (nodeType.isBlank()) {
+                    throw new IllegalArgumentException("insert 的 node 缺少 type 字段 (parentId: " + parentId + ")");
+                }
+                // 组件白名单校验（复用）
+                validateComponentInNode(node);
+            }
+            default -> throw new IllegalArgumentException("未知操作类型: " + type + "（仅支持 update/delete/replace/insert）");
         }
     }
 
@@ -107,6 +128,11 @@ public class EditDesignCallback {
             }
             if (!componentCatalog.isValidComponentName(name)) {
                 throw new IllegalArgumentException("组件名 \"" + name + "\" 不在组件库中，可用组件: " + componentCatalog.componentNames());
+            }
+            // componentProps 契约校验（key 白名单 / select 枚举 / 数值范围），失败由上层转错误事件让模型自愈
+            AiComponentCatalog.ComponentSpec spec = componentCatalog.findSpec(requestComponents, name);
+            if (spec != null) {
+                componentCatalog.validateComponentProps(spec, node);
             }
         }
         JsonNode children = node.get("children");
