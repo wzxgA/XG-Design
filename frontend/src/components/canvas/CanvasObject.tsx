@@ -193,7 +193,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
       : spec?.kind === 'text' ? { placeholder: '' }
       : undefined
     // 组件优先用 componentProps + 模板 render 实时计算子节点（fallback 到落盘的 node.children）
-    const rawChildren = isComponent ? (renderComponentChildren(node, demoState, overrides) ?? node.children) : node.children
+    const rawChildren = isComponent ? (renderComponentChildren(node, demoState, overrides, state.document.masterOverrides) ?? node.children) : node.children
     // 交互模式下输入类组件去掉占位 text 节点，避免与输入内容重叠
     const children = spec?.kind === 'text' ? rawChildren.filter((c) => c.type !== 'text') : rawChildren
     const dimmed = isComponent && (demoState ?? node.componentState ?? 'default') === 'disabled'

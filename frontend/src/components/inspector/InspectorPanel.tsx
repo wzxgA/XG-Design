@@ -10,7 +10,7 @@ import { MIN_SIZE } from '../../utils/geometry'
 import { exportPageAsPng } from '../../utils/export'
 import { toCss, toJson, checkLayer } from '../../utils/inspect'
 import { compressImageFile } from '../../utils/image'
-import { COMPONENT_TEMPLATES, defaultProps } from '../../fixtures/component-library'
+import { COMPONENT_TEMPLATES, defaultProps, getEffectiveProp, countTemplateInstances } from '../../fixtures/component-library'
 import type { ComponentTemplate } from '../../fixtures/component-library'
 import { DEFAULT_CHART_COLORS } from '../../utils/chart'
 import { CHART_MAX_POINTS, CHART_MAX_SERIES, CHART_MAX_COLORS, RADIUS_MAX, FONT_SIZE_MIN, FEEDBACK_DELAY } from '../../constants/limits'
@@ -623,19 +623,73 @@ function ChartEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: 
  * 按模板 props 声明自动生成控件，变更写入 componentProps；
  * width/height 等尺寸类 prop 同时同步到节点本体，保证组件尺寸一致。
  */
-function SchemaForm({ tpl, node, dispatch, readOnly }: {
+export function SchemaForm({ tpl, node, state, dispatch, readOnly }: {
   tpl: ComponentTemplate
   node: LayerNode
+  state: EditorState
   dispatch: EditorDispatch
   readOnly: boolean
 }) {
-  const values = { ...defaultProps(tpl), ...(node.componentProps ?? {}) }
+  const isMaster = state.masterEdit?.componentName === tpl.name
+  const masterCommit = (state.document.masterOverrides ?? {})[tpl.name] ?? {}
+  const draft = (isMaster ? state.masterEdit?.draft : undefined) ?? {}
+  const values = isMaster
+    ? { ...defaultProps(tpl), ...masterCommit, ...draft }
+    : { ...defaultProps(tpl), ...(node.componentProps ?? {}), ...(node.instanceOverrides ?? {}) }
+  const stateName = node.componentState ?? 'default'
+  /** 是否被"实例级覆盖"（用户手动调整，区别于模板/变体/状态继承值）；主组件模式下为"是否被本次草稿覆盖" */
+  const isOverridden = (key: string) => isMaster ? (key in draft) : getEffectiveProp(node, tpl, stateName, key).overlapped
   const set = (key: string, value: unknown) => {
-    const next = { ...values, [key]: value }
-    const patch: Record<string, unknown> = { componentProps: next }
+    if (isMaster) {
+      // 主组件编辑：只写入本次草稿，点"完成编辑"才统一提交到所有实例
+      dispatch({ type: 'SET_MASTER_EDIT_DRAFT', componentName: tpl.name, key, value })
+      return
+    }
+    const { inherited } = getEffectiveProp(node, tpl, stateName, key)
+    const patch: Record<string, unknown> = { instanceOverrides: { ...(node.instanceOverrides ?? {}), [key]: value } }
     if (key === 'width') patch.width = Number(value)
     if (key === 'height') patch.height = Number(value)
+    // 值等于继承值时，无需覆盖（避免污染覆盖集合）——仅当传播的原始值确实不同才留存
+    if (JSON.stringify(value) === JSON.stringify(inherited)) {
+      const next = { ...(node.instanceOverrides ?? {}) }
+      delete next[key]
+      patch.instanceOverrides = next
+    }
     dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
+  }
+  /** 重置某字段为模板/变体/状态继承值 */
+  const resetOverride = (key: string) => {
+    if (isMaster) {
+      // 主组件编辑：仅从草稿移除该项（value=undefined 表示删除草稿键），恢复为已提交/模板默认
+      dispatch({ type: 'SET_MASTER_EDIT_DRAFT', componentName: tpl.name, key })
+      return
+    }
+    const next = { ...(node.instanceOverrides ?? {}) }
+    delete next[key]
+    const patch: Record<string, unknown> = { instanceOverrides: next }
+    const inherited = getEffectiveProp(node, tpl, stateName, key).inherited
+    if (key === 'width' && inherited !== undefined) patch.width = Number(inherited)
+    if (key === 'height' && inherited !== undefined) patch.height = Number(inherited)
+    // 旧数据兼容：componentProps 里的覆盖历史一并清除该键，回退到模板默认
+    if (node.componentProps && key in node.componentProps) {
+      const cp = { ...node.componentProps }
+      delete cp[key]
+      patch.componentProps = cp
+    }
+    dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
+  }
+  /** 每个 schema 字段行：继承值不显示徽标；被覆盖的显示徽标 + 重置按钮 */
+  const renderRow = (label: string, key: string, control: ReactNode) => {
+    const overridden = isOverridden(key)
+    return (
+      <div className={`style-line schema-prop-row${overridden ? ' overridden' : ''}`}>
+        <span className="style-label">{label}</span>
+        {control}
+        {overridden && !readOnly && (
+          <button className="schema-reset-btn" title={isMaster ? '重置为主组件默认' : '重置为模板默认'} onClick={() => resetOverride(key)}>⟲</button>
+        )}
+      </div>
+    )
   }
   const renderControl = (p: ComponentPropDef) => {
     switch (p.type) {
@@ -853,16 +907,25 @@ function SchemaForm({ tpl, node, dispatch, readOnly }: {
     if (next.height !== undefined) patch.height = Number(next.height)
     dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
   }
+  const instanceCount = countTemplateInstances(state.document.pages.flatMap((p) => p.children), tpl.name)
   return (
     <div className="schema-form">
-      {tpl.themes && tpl.themes.length > 0 && (
+      <div className={`instance-linkage${isMaster ? ' master-editing' : ''}`}>
+        <span className="instance-linkage-name" title={`主组件「${tpl.name}」`}>{tpl.name}</span>
+        {isMaster ? (
+          <span className="instance-linkage-count master-edit-hint">正在编辑主组件 · 改动将影响所有实例</span>
+        ) : (
+          <span className="instance-linkage-count">{instanceCount} 个实例引用本主组件</span>
+        )}
+      </div>
+      {!isMaster && tpl.themes && tpl.themes.length > 0 && (
         <div className="schema-themes">
           {tpl.themes.map((t) => (
             <button key={t.name} className="theme-chip" disabled={readOnly} onClick={() => applyTheme(t.props)}>{t.name}</button>
           ))}
         </div>
       )}
-      {tpl.states && tpl.states.length > 0 && (
+      {!isMaster && tpl.states && tpl.states.length > 0 && (
         <div className="style-line">
           <span className="style-label">状态</span>
           <select
@@ -876,16 +939,16 @@ function SchemaForm({ tpl, node, dispatch, readOnly }: {
           </select>
         </div>
       )}
-      {tpl.slots && tpl.slots.length > 0 && (
+      {!isMaster && tpl.slots && tpl.slots.length > 0 && (
         <div className="style-line schema-slots-note">
           <span className="style-label">插槽</span>
           <em>{tpl.slots.map((s) => s.label).join('、')}</em>
         </div>
       )}
-      {tpl.variantProps && tpl.variantProps.length > 0 && (
+      {!isMaster && tpl.variantProps && tpl.variantProps.length > 0 && (
         <div className="schema-group-label">变体</div>
       )}
-      {tpl.variantProps?.map((vp) => {
+      {!isMaster && tpl.variantProps?.map((vp) => {
         const sel = node.variantSelection ?? {}
         const current = sel[vp.key] ?? tpl.variants?.find((v) => v.props[vp.key] !== undefined && Object.keys(v.props).length === 1)?.props[vp.key]
           ?? vp.default
@@ -928,9 +991,8 @@ function SchemaForm({ tpl, node, dispatch, readOnly }: {
         <div key={g}>
           {groups.size > 1 && <div className="schema-group-label">{g}</div>}
           {defs.map((p) => (
-            <div key={p.key} className="style-line">
-              <span className="style-label">{p.label}</span>
-              {renderControl(p)}
+            <div key={p.key}>
+              {renderRow(p.label, p.key, renderControl(p))}
             </div>
           ))}
         </div>
@@ -1125,7 +1187,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
 
           {hasSchema && schemaTpl ? (
             <Section title="组件" hint="＋">
-              <SchemaForm tpl={schemaTpl} node={selected} dispatch={dispatch} readOnly={readOnly} />
+              <SchemaForm tpl={schemaTpl} node={selected} state={state} dispatch={dispatch} readOnly={readOnly} />
             </Section>
           ) : (
             componentChildren && (componentChildren.bgRect || componentChildren.textNodes.length > 0) && (

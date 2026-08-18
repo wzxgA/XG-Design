@@ -153,6 +153,14 @@ export interface PathPoint {
   handleOut?: { x: number; y: number }
 }
 
+/** 主组件联动信息：实例引用主组件名 + 当前实例化计数（纯展示，为可视化主组件编辑铺地） */
+export interface InstanceOfInfo {
+  /** 主组件（模板）名 */
+  componentName: string
+  /** 该主组件当前被实例化的数量 */
+  instanceCount: number
+}
+
 export interface LayerNode {
   id: string
   type: LayerType
@@ -201,6 +209,8 @@ export interface LayerNode {
   variantSelection?: Record<string, string>
   /** 实例级覆盖：用户在画布上对该实例的手动调整（不写回主组件，优先级最高） */
   instanceOverrides?: Record<string, unknown>
+  /** 主组件联动信息：实例引用主组件名 + 实例计数（纯展示，为可视化主组件编辑铺地） */
+  instanceOf?: InstanceOfInfo
   /** 容器插槽绑定：slot key → 子节点 id 列表（插槽内容渲染进组件内占位区） */
   componentSlots?: Record<string, string[]>
   /** Auto Layout 布局（仅 frame/group 有意义）；存在时子节点坐标由布局引擎重排 */
@@ -278,6 +288,8 @@ export interface DesignDocument {
   pages: PageNode[]
   activePageId: string
   prototypeLinks: PrototypeLink[]
+  /** 主组件级默认值覆盖：组件名 → { 属性键: 值 }，作为模板 default 之上的"主组件"层（随文档持久化） */
+  masterOverrides?: Record<string, Record<string, unknown>>
   updatedAt: number
 }
 
@@ -295,6 +307,8 @@ export interface EditorState {
   leftPanelTab: LeftPanelTab
   inspectorTab: InspectorTab
   history: HistoryState
+  /** 主组件编辑模式：当前正在编辑的主组件名 + 本次未提交草稿（UI 态，不入文档/历史；提交才写 masterOverrides） */
+  masterEdit?: { componentName: string; draft?: Record<string, unknown> }
 }
 
 export type EditorAction =
@@ -330,6 +344,13 @@ export type EditorAction =
   | { type: 'ADD_COMMENT_REPLY'; commentId: string; reply: CommentReply }
   | { type: 'DELETE_COMMENT_REPLY'; commentId: string; replyId: string }
   | { type: 'CLEAR_HISTORY' }
+  | { type: 'SET_MASTER_OVERRIDE'; componentName: string; key: string; value: unknown }
+  | { type: 'RESET_MASTER_OVERRIDE'; componentName: string; key: string }
+  | { type: 'SET_MASTER_EDIT_DRAFT'; componentName: string; key: string; value?: unknown }
+  | { type: 'SET_MASTER_EDIT_DRAFT_ALL'; componentName: string; draft: Record<string, unknown> }
+  | { type: 'ENTER_MASTER_EDIT'; componentName: string }
+  | { type: 'COMMIT_MASTER_EDIT'; componentName: string }
+  | { type: 'EXIT_MASTER_EDIT' }
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'APPLY_DESIGN'; layers: LayerNode[]; links?: import('../types/ai').AiProtoLink[] }

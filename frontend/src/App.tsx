@@ -11,6 +11,7 @@ import { AiChatPanel } from './components/ai/AiChatPanel'
 import { PANEL_MIN_LEFT, PANEL_MAX_LEFT, PANEL_MIN_RIGHT, PANEL_MAX_RIGHT } from './constants/limits'
 import { ProjectsPage } from './components/projects/ProjectsPage'
 import { ShareModal } from './components/share/ShareModal'
+import { MasterComponentModal } from './components/master/MasterComponentModal'
 import { AuthPage } from './components/auth/AuthPage'
 import { ConfirmDialog } from './components/common/ConfirmDialog'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -276,6 +277,7 @@ function Editor({ route, user, onUserChange }: {
       </div>
       {previewing && <PreviewOverlay state={state} onClose={() => setPreviewing(false)} />}
       {shareOpen && !readOnly && <ShareModal projectId={state.document.id} onClose={() => setShareOpen(false)} />}
+      {!readOnly && <MasterComponentModal state={state} dispatch={guardedDispatch} readOnly={readOnly} />}
       {loading && (
         <div className="editor-loading">
           <div className="editor-loading-spinner" />

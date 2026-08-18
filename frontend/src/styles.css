@@ -163,6 +163,32 @@ button { font: inherit; border: 0; background: none; color: inherit; cursor: poi
 .schema-group-label { font-size: 9px; color: #9aa5aa; text-transform: uppercase; letter-spacing: .5px; margin: 8px 0 2px; }
 .schema-checkbox { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #56636a; cursor: pointer; }
 .schema-checkbox input { accent-color: var(--blue); }
+/* 主组件 ⇄ 实例 联动信息区 */
+.instance-linkage { display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; margin-bottom: 6px; background: #fafbfc; border: 1px solid var(--border); border-radius: 6px; }
+.instance-linkage-name { font-size: 12px; font-weight: 600; color: #263038; }
+.instance-linkage-count { font-size: 10px; color: #9aa5aa; }
+/* 主组件编辑模式 */
+.instance-linkage.master-editing { border-color: var(--blue); background: #f0f6ff; }
+.instance-linkage.master-editing .instance-linkage-name { color: var(--blue); }
+.master-edit-hint { color: var(--blue); }
+.master-exit-btn { margin-top: 4px; align-self: flex-start; font-size: 11px; padding: 2px 10px; border: 1px solid var(--blue); border-radius: 12px; background: var(--blue); color: #fff; cursor: pointer; }
+.master-exit-btn:not(:disabled):hover { background: #4a7ef5; }
+/* 主组件编辑对话框 */
+.master-modal-note { padding: 8px 18px 0; font-size: 10px; color: #8a969b; }
+.master-modal-footer { flex-shrink: 0; display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid #eef1f2; }
+.master-modal-footer .btn-primary { border-color: var(--blue); background: var(--blue); color: #fff; }
+.master-modal-footer .btn-primary:hover { border-color: #3d82ea; background: #3d82ea; }
+.master-restore-btn { margin-right: auto; font-size: 11px; padding: 3px 12px; border: 1px solid #e2e7ea; border-radius: 12px; background: #fff; color: #c0392b; cursor: pointer; }
+.master-restore-btn:hover { border-color: #c0392b; background: #fdf2f0; }
+/* 主组件实时预览 */
+.master-preview-stage { display: flex; justify-content: center; align-items: center; padding: 14px 18px 8px; }
+.master-preview-wrap { position: relative; max-width: 100%; overflow: auto; border: 1px dashed #d4dade; border-radius: 8px; background-color: #fff; background-image: linear-gradient(45deg, #f1f3f5 25%, transparent 25%, transparent 75%, #f1f3f5 75%), linear-gradient(45deg, #f1f3f5 25%, transparent 25%, transparent 75%, #f1f3f5 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
+/* 实例级覆盖：被覆盖行高亮 + 重置徽标按钮 */
+.schema-prop-row.overridden { position: relative; padding-right: 20px; }
+.schema-prop-row.overridden .style-label { color: var(--blue); font-weight: 600; }
+.schema-reset-btn { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; line-height: 13px; text-align: center; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; background: #fff; color: var(--blue); cursor: pointer; padding: 0; }
+.schema-reset-btn:hover { border-color: var(--blue); background: #f4f9ff; }
+.schema-form .style-line.schema-prop-row { min-height: 26px; }
 .schema-themes { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
 .theme-chip { font-size: 10px; padding: 2px 9px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: #56636a; cursor: pointer; }
 .theme-chip:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); background: #f4f9ff; }

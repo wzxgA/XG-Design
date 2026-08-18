@@ -436,6 +436,60 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case 'CLEAR_HISTORY':
       return { ...state, history: { past: [], future: [] } }
 
+    case 'SET_MASTER_OVERRIDE': {
+      const mo = { ...(state.document.masterOverrides ?? {}) }
+      mo[action.componentName] = { ...(mo[action.componentName] ?? {}), [action.key]: action.value }
+      return withHistory(state, { ...state.document, masterOverrides: mo })
+    }
+
+    case 'RESET_MASTER_OVERRIDE': {
+      const mo = { ...(state.document.masterOverrides ?? {}) }
+      const entry = { ...(mo[action.componentName] ?? {}) }
+      delete entry[action.key]
+      if (Object.keys(entry).length === 0) delete mo[action.componentName]
+      else mo[action.componentName] = entry
+      return withHistory(state, { ...state.document, masterOverrides: mo })
+    }
+
+    case 'SET_MASTER_EDIT_DRAFT': {
+      const me = state.masterEdit
+      if (!me || me.componentName !== action.componentName) return state
+      const draft = { ...(me.draft ?? {}) }
+      if (action.value === undefined) delete draft[action.key]
+      else draft[action.key] = action.value
+      return { ...state, masterEdit: { ...me, draft } }
+    }
+
+    case 'SET_MASTER_EDIT_DRAFT_ALL': {
+      const me = state.masterEdit
+      if (!me || me.componentName !== action.componentName) return state
+      return { ...state, masterEdit: { ...me, draft: action.draft } }
+    }
+
+    case 'ENTER_MASTER_EDIT':
+      return { ...state, masterEdit: { componentName: action.componentName, draft: {} } }
+
+    case 'SET_MASTER_EDIT_DRAFT': {
+      const me = state.masterEdit
+      if (!me || me.componentName !== action.componentName) return state
+      const draft = { ...(me.draft ?? {}) }
+      if (action.value === undefined) delete draft[action.key]
+      else draft[action.key] = action.value
+      return { ...state, masterEdit: { ...me, draft } }
+    }
+
+    case 'COMMIT_MASTER_EDIT': {
+      const me = state.masterEdit
+      if (!me || me.componentName !== action.componentName) return state
+      const draft = me.draft ?? {}
+      if (Object.keys(draft).length === 0) return { ...state, masterEdit: undefined }
+      const mo = { ...(state.document.masterOverrides ?? {}), [action.componentName]: { ...(state.document.masterOverrides ?? {})[action.componentName], ...draft } }
+      return withHistory({ ...state, masterEdit: undefined }, { ...state.document, masterOverrides: mo })
+    }
+
+    case 'EXIT_MASTER_EDIT':
+      return { ...state, masterEdit: undefined }
+
     case 'APPLY_DESIGN': {
       // 将 AI 生成的图层数组应用到文档：
       // 1) ensureAiParent 兜底保证顶层父节点结构

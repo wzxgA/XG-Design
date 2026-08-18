@@ -156,11 +156,14 @@ export function defaultProps(tpl: ComponentTemplate): Record<string, unknown> {
  * @param overrideState 预览演示态临时覆盖 componentState（画布编辑态传 undefined 用节点自带状态）
  * @param overrides 预览交互态覆盖 props（如开关的 on），优先级最高（内存值不落盘）
  */
-export function renderComponentChildren(node: LayerNode, overrideState?: string, overrides?: Record<string, unknown>): LayerNode[] | null {
-  if (!node.component) return null
-  const tpl = COMPONENT_TEMPLATES.find((t) => t.name === node.component)
-  if (!tpl?.render) return null
-  let props = { ...defaultProps(tpl), ...(node.componentProps ?? {}) }
+/** 计算"继承值"：模板 default → componentProps（旧数据）→ 主组件 masterOverrides → 变体 overrides → 状态 props（不含实例覆盖与外部 overrides） */
+function computeInheritedProps(
+  node: LayerNode,
+  tpl: ComponentTemplate,
+  stateName: string,
+  masterOverrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  let props = { ...defaultProps(tpl), ...(node.componentProps ?? {}), ...masterOverrides }
   // 变体覆盖：按 variantSelection 匹配组件集中**所有**命中的变体（支持按维度拆分），overrides 依次合并
   if (tpl.variants?.length) {
     const sel = node.variantSelection ?? {}
@@ -170,11 +173,51 @@ export function renderComponentChildren(node: LayerNode, overrideState?: string,
       if (keys.every((k) => sel[k] === v.props[k]) && v.overrides) props = { ...props, ...v.overrides }
     }
   }
-  // 状态覆盖（CO-4）：显式状态 > default；状态 props 覆盖后合并，并注入 __state 供 render 内部判断
-  const stateName = overrideState ?? node.componentState ?? 'default'
+  // 状态覆盖（CO-4）：显式状态 > default；状态 props 覆盖后合并
   const st = tpl.states?.find((s) => s.name === stateName)
   if (st) props = { ...props, ...st.props }
-  // 实例覆盖（用户在该实例上的手动调整）优先级最高（仅低于预览交互态内存值）
+  return props
+}
+
+/**
+ * 计算某 prop 的"继承值"与"是否被实例覆盖"。
+ * incoming 代表外部临时覆盖（如预览交互态），未传则只比较实例覆盖。
+ */
+export function getEffectiveProp(
+  node: LayerNode,
+  tpl: ComponentTemplate,
+  stateName: string,
+  key: string,
+  incoming: Record<string, unknown> = {},
+  masterOverrides: Record<string, unknown> = {},
+): { overlapped: boolean; effective: unknown; inherited: unknown } {
+  const inherited = computeInheritedProps(node, tpl, stateName, masterOverrides)[key]
+  const overlapped = key in (node.instanceOverrides ?? {}) || key in incoming
+  const effective = (node.instanceOverrides ?? {})[key] ?? incoming[key] ?? inherited
+  return { overlapped, effective, inherited }
+}
+
+/** 统计整个文档中引用某主组件的实例数量（递归遍历所有页面与层级） */
+export function countTemplateInstances(nodes: LayerNode[], componentName: string): number {
+  let count = 0
+  const walk = (list: LayerNode[]) => {
+    for (const n of list) {
+      if (n.component === componentName) count++
+      if (n.children) walk(n.children)
+    }
+  }
+  walk(nodes)
+  return count
+}
+
+export function renderComponentChildren(node: LayerNode, overrideState?: string, overrides?: Record<string, unknown>, masterOverrides?: Record<string, unknown>): LayerNode[] | null {
+  if (!node.component) return null
+  const tpl = COMPONENT_TEMPLATES.find((t) => t.name === node.component)
+  if (!tpl?.render) return null
+  const stateName = overrideState ?? node.componentState ?? 'default'
+  const master = (masterOverrides?.[node.component] ?? {}) as Record<string, unknown>
+  let props = computeInheritedProps(node, tpl, stateName, master)
+  // 实例覆盖（用户在该实例上的手动调整，仅低于预览交互态内存值）
   props = { ...props, ...(node.instanceOverrides ?? {}), ...(overrides ?? {}) }
   props = { ...props, __state: stateName }
   const rendered = tpl.render(props)
