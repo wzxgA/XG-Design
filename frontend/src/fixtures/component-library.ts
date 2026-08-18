@@ -1,4 +1,4 @@
-import type { ChartType, ComponentPropDef, ComponentState, LayerNode } from '../types/design'
+import type { ChartType, ComponentPropDef, ComponentState, LayerNode, VariantDef, VariantPropDef } from '../types/design'
 import { layerId } from '../utils/layers'
 import { DEFAULT_CHART_COLORS } from '../utils/chart'
 import { loadCustomComponents } from '../utils/customComponents'
@@ -20,6 +20,10 @@ export interface ComponentTemplate {
   themes?: { name: string; props: Record<string, unknown> }[]
   /** 交互状态预设：渲染时按 componentState 覆盖 props（default 优先） */
   states?: { name: ComponentState; props: Record<string, unknown> }[]
+  /** 变体属性（组件集"维"）：声明后组件即升级为组件集，Inspector 显示变体下拉 */
+  variantProps?: VariantPropDef[]
+  /** 组件集内所有变体组合 */
+  variants?: VariantDef[]
   /** 缩放约束（CO-6）：最小尺寸 / 等比锁定 */
   resize?: { minWidth?: number; minHeight?: number; lockRatio?: boolean }
   /** 容器插槽声明（CO-6）：组件内可嵌入外部内容 */
@@ -150,16 +154,71 @@ export function defaultProps(tpl: ComponentTemplate): Record<string, unknown> {
  * 按组件节点的 componentProps 实时计算渲染子节点列表。
  * 模板有 render 时返回 render 结果（group）的 children；否则返回 null（调用方回退 node.children）。
  * @param overrideState 预览演示态临时覆盖 componentState（画布编辑态传 undefined 用节点自带状态）
+ * @param overrides 预览交互态覆盖 props（如开关的 on），优先级最高（内存值不落盘）
  */
-export function renderComponentChildren(node: LayerNode, overrideState?: string): LayerNode[] | null {
+/** 计算"继承值"：模板 default → componentProps（旧数据）→ 主组件 masterOverrides → 变体 overrides → 状态 props（不含实例覆盖与外部 overrides） */
+function computeInheritedProps(
+  node: LayerNode,
+  tpl: ComponentTemplate,
+  stateName: string,
+  masterOverrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  let props = { ...defaultProps(tpl), ...(node.componentProps ?? {}), ...masterOverrides }
+  // 变体覆盖：按 variantSelection 匹配组件集中**所有**命中的变体（支持按维度拆分），overrides 依次合并
+  if (tpl.variants?.length) {
+    const sel = node.variantSelection ?? {}
+    for (const v of tpl.variants) {
+      const keys = Object.keys(v.props)
+      if (keys.length === 0) continue
+      if (keys.every((k) => sel[k] === v.props[k]) && v.overrides) props = { ...props, ...v.overrides }
+    }
+  }
+  // 状态覆盖（CO-4）：显式状态 > default；状态 props 覆盖后合并
+  const st = tpl.states?.find((s) => s.name === stateName)
+  if (st) props = { ...props, ...st.props }
+  return props
+}
+
+/**
+ * 计算某 prop 的"继承值"与"是否被实例覆盖"。
+ * incoming 代表外部临时覆盖（如预览交互态），未传则只比较实例覆盖。
+ */
+export function getEffectiveProp(
+  node: LayerNode,
+  tpl: ComponentTemplate,
+  stateName: string,
+  key: string,
+  incoming: Record<string, unknown> = {},
+  masterOverrides: Record<string, unknown> = {},
+): { overlapped: boolean; effective: unknown; inherited: unknown } {
+  const inherited = computeInheritedProps(node, tpl, stateName, masterOverrides)[key]
+  const overlapped = key in (node.instanceOverrides ?? {}) || key in incoming
+  const effective = (node.instanceOverrides ?? {})[key] ?? incoming[key] ?? inherited
+  return { overlapped, effective, inherited }
+}
+
+/** 统计整个文档中引用某主组件的实例数量（递归遍历所有页面与层级） */
+export function countTemplateInstances(nodes: LayerNode[], componentName: string): number {
+  let count = 0
+  const walk = (list: LayerNode[]) => {
+    for (const n of list) {
+      if (n.component === componentName) count++
+      if (n.children) walk(n.children)
+    }
+  }
+  walk(nodes)
+  return count
+}
+
+export function renderComponentChildren(node: LayerNode, overrideState?: string, overrides?: Record<string, unknown>, masterOverrides?: Record<string, unknown>): LayerNode[] | null {
   if (!node.component) return null
   const tpl = COMPONENT_TEMPLATES.find((t) => t.name === node.component)
   if (!tpl?.render) return null
-  let props = { ...defaultProps(tpl), ...(node.componentProps ?? {}) }
-  // 状态覆盖（CO-4）：显式状态 > default；状态 props 覆盖后合并，并注入 __state 供 render 内部判断
   const stateName = overrideState ?? node.componentState ?? 'default'
-  const st = tpl.states?.find((s) => s.name === stateName)
-  if (st) props = { ...props, ...st.props }
+  const master = (masterOverrides?.[node.component] ?? {}) as Record<string, unknown>
+  let props = computeInheritedProps(node, tpl, stateName, master)
+  // 实例覆盖（用户在该实例上的手动调整，仅低于预览交互态内存值）
+  props = { ...props, ...(node.instanceOverrides ?? {}), ...(overrides ?? {}) }
   props = { ...props, __state: stateName }
   const rendered = tpl.render(props)
   return rendered.children
@@ -194,6 +253,20 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       { name: '危险', props: { bg: '#ea4335', color: WHITE, borderColor: '' } },
       { name: '幽灵', props: { bg: WHITE, color: BLUE, borderColor: BLUE } },
     ],
+    // 组件集：type/size 两维变体（外观维；交互状态仍走 states 机制）
+    variantProps: [
+      { key: 'type', label: '类型', values: ['primary', 'secondary', 'outline', 'danger'], default: 'primary' },
+      { key: 'size', label: '尺寸', values: ['sm', 'md', 'lg'], default: 'md' },
+    ],
+    variants: [
+      { id: 'primary', name: '主色', props: { type: 'primary' }, overrides: { bg: BLUE, color: WHITE, borderColor: '' } },
+      { id: 'secondary', name: '次要', props: { type: 'secondary' }, overrides: { bg: '#f4f6f7', color: INK, borderColor: '' } },
+      { id: 'outline', name: '幽灵', props: { type: 'outline' }, overrides: { bg: WHITE, color: BLUE, borderColor: BLUE } },
+      { id: 'danger', name: '危险', props: { type: 'danger' }, overrides: { bg: '#ea4335', color: WHITE, borderColor: '' } },
+      { id: 'size-sm', name: '小', props: { size: 'sm' }, overrides: { width: 96, height: 32 } },
+      { id: 'size-md', name: '中', props: { size: 'md' }, overrides: { width: 140, height: 40 } },
+      { id: 'size-lg', name: '大', props: { size: 'lg' }, overrides: { width: 184, height: 48 } },
+    ],
     states: [
       { name: 'hover', props: { bg: '#3d7de0' } },
       { name: 'pressed', props: { bg: '#3570c4' } },
@@ -204,15 +277,17 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     render: (p) => {
       const g = p.bgGradient as { enabled?: boolean; from?: string; to?: string; angle?: number } | undefined
       const loading = p.__state === 'loading'
-      return group(Number(p.width), 40, '按钮', [
-        rect(0, 0, Number(p.width), 40, {
+      const w = Number(p.width ?? 140)
+      const h = Number(p.height ?? 40)
+      return group(w, h, '按钮', [
+        rect(0, 0, w, h, {
           fill: String(p.bg ?? ''),
           fillGradient: g?.enabled ? { from: g.from ?? WHITE, to: g.to ?? BLUE, angle: g.angle ?? 0 } : undefined,
           cornerRadius: Number(p.radius ?? 0),
           stroke: p.borderColor ? String(p.borderColor) : undefined,
           strokeWidth: p.borderColor ? 1 : undefined,
         }),
-        text(0, 10, Number(p.width), loading ? `⟳ ${String(p.text ?? '按钮')}` : String(p.text ?? '按钮'), { color: String(p.color ?? WHITE), fontWeight: 600, textAlign: 'center' }),
+        text(0, h / 2 - 10, w, loading ? `⟳ ${String(p.text ?? '按钮')}` : String(p.text ?? '按钮'), { color: String(p.color ?? WHITE), fontWeight: 600, textAlign: 'center' }),
       ])
     },
     build: (x, y) => {
@@ -221,6 +296,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
         text(0, 10, 140, '按钮', { color: WHITE, fontWeight: 600, textAlign: 'center' }),
       ])
       g.x = x; g.y = y
+      g.variantSelection = { type: 'primary', size: 'md' }
       return g
     },
   },
@@ -489,15 +565,50 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       g.x = x; g.y = y
       return g
     }),
-  simpleTemplate('搜索框', '搜索', '带放大镜图标的搜索输入区域', '表单',
-    (x, y) => {
+  {
+    name: '搜索框',
+    short: '搜索',
+    description: '带圆角与放大镜图标的搜索输入区域，可输入关键词',
+    category: '表单',
+    keywords: ['search', '搜索', '查询', 'input'],
+    props: [
+      { key: 'placeholder', label: '占位文字', type: 'text', default: '搜索…' },
+      { key: 'bg', label: '背景色', type: 'color', default: '#f4f6f7' },
+      { key: 'borderColor', label: '边框色', type: 'color', default: '#e3e8ea' },
+      { key: 'color', label: '图标/文字色', type: 'color', default: '#a8b1b5' },
+      { key: 'radius', label: '圆角', type: 'slider', min: 0, max: 24, default: 16 },
+      { key: 'width', label: '宽度', type: 'number', min: 120, max: 480, default: 220 },
+    ],
+    render: (p) => {
+      const w = Number(p.width ?? 220)
+      const color = String(p.color ?? '#a8b1b5')
+      const handle = rect(21, 19, 5, 5, { fill: color })
+      handle.rotation = 45
+      return group(w, 32, '搜索框', [
+        rect(0, 0, w, 32, {
+          fill: String(p.bg ?? '#f4f6f7'),
+          cornerRadius: Number(p.radius ?? 16),
+          stroke: p.borderColor ? String(p.borderColor) : undefined,
+          strokeWidth: p.borderColor ? 1 : undefined,
+        }),
+        rect(10, 8, 14, 14, { fill: 'transparent', stroke: color, strokeWidth: 2, cornerRadius: 7 }),
+        handle,
+        text(32, 8, w - 44, String(p.placeholder ?? '搜索…'), { color }),
+      ])
+    },
+    build: (x, y) => {
+      const handle = rect(21, 19, 5, 5, { fill: '#a8b1b5' })
+      handle.rotation = 45
       const g = group(220, 32, '搜索框', [
         rect(0, 0, 220, 32, { fill: '#f4f6f7', cornerRadius: 16, stroke: '#e3e8ea', strokeWidth: 1 }),
-        text(12, 8, 190, '搜索…', { color: '#a8b1b5', fontSize: 11 }),
+        rect(10, 8, 14, 14, { fill: 'transparent', stroke: '#a8b1b5', strokeWidth: 2, cornerRadius: 7 }),
+        handle,
+        text(32, 8, 176, '搜索…', { color: '#a8b1b5', fontSize: 11 }),
       ])
       g.x = x; g.y = y
       return g
-    }),
+    },
+  },
   simpleTemplate('下拉选择', '下拉', '点击展开选项列表的选择控件', '表单',
     (x, y) => {
       const g = group(180, 36, '下拉选择', [
@@ -618,6 +729,36 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
 /** 无 schema 的简单模板工厂（检视面板走旧 bgRect/textNodes 兼容逻辑） */
 function simpleTemplate(name: string, short: string, description: string, category: string, buildFn: (x: number, y: number) => LayerNode): ComponentTemplate {
   return { name, short, description, category, build: buildFn }
+}
+
+/**
+ * 生成组件库 schema 载荷：把内置 COMPONENT_TEMPLATES 与自定义组件（loadCustomComponents）的可配置
+ * props（key/类型/默认值/范围/选项）序列化为紧凑 JSON。
+ * 随每次 AI 对话请求发送，作为后端提示词构建与 componentProps 校验的单一数据源，避免目录与模板失同步。
+ * 自定义组件并入 schema 后，AI 的组件库提示词与名称白名单均能感知它们。
+ */
+export function buildComponentSchemaJson(): string {
+  // 合并内置 + 自定义组件；同名去重（内置优先），避免覆盖内置模板
+  const seen = new Set(COMPONENT_TEMPLATES.map((t) => t.name))
+  const custom = loadCustomComponents().filter((t) => !seen.has(t.name))
+  const templates = [...COMPONENT_TEMPLATES, ...custom]
+  const payload = {
+    components: templates.map((t) => ({
+      name: t.name,
+      keywords: t.keywords ?? [],
+      note: t.description,
+      props: (t.props ?? []).map((p) => {
+        const o: Record<string, unknown> = { key: p.key, type: p.type }
+        if (p.label) o.label = p.label
+        if (p.default !== undefined) o.default = p.default
+        if (p.min !== undefined) o.min = p.min
+        if (p.max !== undefined) o.max = p.max
+        if (p.options?.length) o.options = p.options.map((x) => x.value)
+        return o
+      }),
+    })),
+  }
+  return JSON.stringify(payload)
 }
 
 export function buildComponent(name: string, x: number, y: number): LayerNode {

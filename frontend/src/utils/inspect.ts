@@ -1,4 +1,7 @@
 import type { LayerNode, DesignDocument } from '../types/design'
+import { isComponentNode } from './layers'
+import { backgroundOf } from './style'
+import { renderComponentChildren } from '../fixtures/component-library'
 import { MUTED } from '../constants/colors'
 
 /** 生成图层的 CSS 片段（递归输出子节点） */
@@ -13,11 +16,12 @@ export function toCss(node: LayerNode): string {
   if (node.style.opacity !== undefined) lines.push(`  opacity: ${node.style.opacity};`)
   if (node.style.cornerRadius) lines.push(`  border-radius: ${node.style.cornerRadius}px;`)
   if (node.type === 'rectangle' || node.type === 'frame') {
-    if (node.style.fillGradient) {
-      lines.push(`  background: linear-gradient(${node.style.fillGradient.angle ?? 0}deg, ${node.style.fillGradient.from}, ${node.style.fillGradient.to});`)
+    const bg = backgroundOf(node.style)
+    if (bg) {
+      lines.push(`  background: ${bg};`)
     } else {
-      const bg = node.type === 'frame' ? (node.style.backgroundColor ?? node.style.fill) : node.style.fill
-      if (bg) lines.push(`  background-color: ${bg};`)
+      const fill = node.type === 'frame' ? (node.style.backgroundColor ?? node.style.fill) : node.style.fill
+      if (fill) lines.push(`  background-color: ${fill};`)
     }
     if (node.style.stroke) lines.push(`  border: ${node.style.strokeWidth ?? 1}px solid ${node.style.stroke};`)
     if (node.style.shadow) lines.push(`  box-shadow: ${node.style.shadow};`)
@@ -38,9 +42,12 @@ export function toCss(node: LayerNode): string {
     if (node.style.fill) lines.push(`  background-color: ${node.style.fill};`)
   }
   lines.push('}')
-  // 递归输出子节点 CSS
-  if ((node.type === 'group' || node.type === 'frame') && node.children.length > 0) {
-    for (const child of node.children) {
+  // 递归输出子节点 CSS（组件节点展开实时子节点，回退落盘 children）
+  const children = isComponentNode(node)
+    ? (renderComponentChildren(node, 'default') ?? node.children)
+    : node.children
+  if ((node.type === 'group' || node.type === 'frame') && children.length > 0) {
+    for (const child of children) {
       lines.push('')
       lines.push(toCss(child))
     }
@@ -48,8 +55,11 @@ export function toCss(node: LayerNode): string {
   return lines.join('\n')
 }
 
-/** 生成图层的 JSON 数据片段（包含子节点） */
+/** 生成图层的 JSON 数据片段（包含子节点；组件节点展开实时子节点） */
 export function toJson(node: LayerNode): string {
+  const children = isComponentNode(node)
+    ? (renderComponentChildren(node, 'default') ?? node.children)
+    : node.children
   return JSON.stringify({
     id: node.id,
     type: node.type,
@@ -63,6 +73,7 @@ export function toJson(node: LayerNode): string {
     style: node.style,
     content: node.content,
     imageUrl: node.imageUrl,
+    component: node.component,
     componentProps: node.componentProps,
     chartBars: node.chartBars,
     chartType: node.chartType,
@@ -72,7 +83,7 @@ export function toJson(node: LayerNode): string {
     chartShowLegend: node.chartShowLegend,
     chartShowAxis: node.chartShowAxis,
     chartSeries: node.chartSeries,
-    children: node.children.length > 0 ? node.children : undefined,
+    children: children.length > 0 ? children : undefined,
   }, null, 2)
 }
 

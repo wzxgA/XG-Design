@@ -214,9 +214,12 @@ function ComponentGrid({ dispatch, readOnly, activePage, state }: {
         e.dataTransfer.effectAllowed = 'copy'
       }}
       onDragEnd={() => setDragging(null)}
-      onClick={() => insert(tpl.name)}
+      onClick={() => {
+        // 点击不再直接生成实例；有属性 schema 的主组件弹出编辑对话框（只读不弹）
+        if (!readOnly && tpl.props?.length) dispatch({ type: 'ENTER_MASTER_EDIT', componentName: tpl.name })
+      }}
       onMouseEnter={(e) => showTip(e, tpl)}
-      title={`插入「${tpl.name}」到当前画板`}
+      title={tpl.props?.length ? `点击编辑主组件 · 拖拽插入到画布` : `拖拽「${tpl.short}」到当前画板插入`}
     >
       <span className={`component-tile-icon ${dragging === tpl.name ? 'dragging' : ''}`}><ComponentGlyph name={tpl.name} /></span>
       <span className="component-tile-name">{tpl.short}</span>

@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
-import type { LayerNode, PrototypeLink, ComponentPropDef, ComponentState } from '../../types/design'
+import type { LayerNode, PrototypeLink, ComponentPropDef, ComponentState, Transition, Direction, Easing, OverlayConfig } from '../../types/design'
+import { GradientStyleEditor, EffectsEditor } from './EffectEditors'
+import { AutoLayoutEditor } from './AutoLayoutEditor'
 import { Icon } from '../common/brand'
 import { PropertyInput } from './PropertyInput'
 import { MIN_SIZE } from '../../utils/geometry'
 import { exportPageAsPng } from '../../utils/export'
 import { toCss, toJson, checkLayer } from '../../utils/inspect'
 import { compressImageFile } from '../../utils/image'
-import { COMPONENT_TEMPLATES, defaultProps } from '../../fixtures/component-library'
+import { COMPONENT_TEMPLATES, defaultProps, getEffectiveProp, countTemplateInstances } from '../../fixtures/component-library'
 import type { ComponentTemplate } from '../../fixtures/component-library'
 import { DEFAULT_CHART_COLORS } from '../../utils/chart'
 import { CHART_MAX_POINTS, CHART_MAX_SERIES, CHART_MAX_COLORS, RADIUS_MAX, FONT_SIZE_MIN, FEEDBACK_DELAY } from '../../constants/limits'
@@ -34,27 +36,79 @@ function findBoard(state: EditorState): { width: number; height: number } | unde
   return frame ? { width: frame.width, height: frame.height } : undefined
 }
 
+function findFrameInPage(page: import('../../types/design').PageNode, frameId: string): import('../../types/design').LayerNode | undefined {
+  return page.children.find((n) => n.id === frameId)
+}
+
+/** 递归收集页面内所有 frame（含嵌套），与预览端 findFrameById 保持一致 */
+function collectAllFrames(nodes: import('../../types/design').LayerNode[], acc: import('../../types/design').LayerNode[] = []): import('../../types/design').LayerNode[] {
+  for (const n of nodes) {
+    if (n.type === 'frame') acc.push(n)
+    collectAllFrames(n.children, acc)
+  }
+  return acc
+}
+
 function PrototypePanel({ state, dispatch, selected, readOnly }: { state: EditorState; dispatch: EditorDispatch; selected: LayerNode; readOnly: boolean }) {
   const links = state.document.prototypeLinks.filter((l) => l.sourceLayerId === selected.id)
+  // 目标页支持任意页（含当前页：用于同页 Overlay / 同页多 frame 跳转）
+  const allPages = state.document.pages
   const otherPages = state.document.pages.filter((p) => p.id !== state.document.activePageId)
-  const [targetPageId, setTargetPageId] = useState(otherPages[0]?.id ?? '')
-  const [transition, setTransition] = useState<'instant' | 'dissolve' | 'slide'>('instant')
+  // 默认目标：优先其他页第一页；单页文档回退当前页，避免 targetPageId 落空导致目标 frame 下拉消失
+  const [targetPageId, setTargetPageId] = useState(otherPages[0]?.id ?? state.document.activePageId ?? '')
+  const [transition, setTransition] = useState<Transition>('instant')
+  const [direction, setDirection] = useState<Direction>('left')
+  const [duration, setDuration] = useState(400)
+  const [easing, setEasing] = useState<Easing>('easeInOut')
+  const [trigger, setTrigger] = useState<'click' | 'hover' | 'afterDelay' | 'mouseDown' | 'keyDown'>('click')
+  const [delay, setDelay] = useState(2000)
+  const [key, setKey] = useState('Escape')
+  const [targetFrameId, setTargetFrameId] = useState('')
+  // Overlay 配置编辑
+  const [overlayPosition, setOverlayPosition] = useState<OverlayConfig['position']>('center')
+  const [overlayOffsetX, setOverlayOffsetX] = useState(0)
+  const [overlayOffsetY, setOverlayOffsetY] = useState(0)
+  const [overlayBackdrop, setOverlayBackdrop] = useState('rgba(0,0,0,0.45)')
+  const [closeOnBackdrop, setCloseOnBackdrop] = useState(true)
+  const [closeOnEsc, setCloseOnEsc] = useState(true)
+
+  const targetPage = state.document.pages.find((p) => p.id === targetPageId)
+  const targetFrames = targetPage ? collectAllFrames(targetPage.children) : []
 
   const addLink = () => {
     if (!targetPageId) return
     // 避免对同一对象重复添加同一目标
-    if (links.some((l) => l.targetPageId === targetPageId)) return
+    if (links.some((l) => l.targetPageId === targetPageId && l.transition === transition)) return
+    const isOverlay = transition === 'overlay'
     const link: PrototypeLink = {
       id: `link-${Date.now().toString(36)}`,
       sourceLayerId: selected.id,
       targetPageId,
-      trigger: 'click',
+      trigger,
       transition,
+      targetFrameId: targetFrameId || undefined,
+      duration: transition === 'instant' ? undefined : duration,
+      easing: easing === 'easeInOut' ? undefined : easing,
+      direction: ['moveIn', 'moveOut', 'push'].includes(transition) ? direction : undefined,
+      delay: trigger === 'afterDelay' ? delay : undefined,
+      key: trigger === 'keyDown' ? key : undefined,
+      overlay: isOverlay
+        ? {
+            position: overlayPosition,
+            offsetX: overlayPosition === 'manual' ? overlayOffsetX : undefined,
+            offsetY: overlayPosition === 'manual' ? overlayOffsetY : undefined,
+            backdrop: overlayBackdrop || undefined,
+            closeOnBackdrop,
+            closeOnEsc,
+          }
+        : undefined,
     }
     dispatch({ type: 'ADD_PROTOTYPE_LINK', link })
   }
 
   const removeLink = (id: string) => dispatch({ type: 'REMOVE_PROTOTYPE_LINK', id })
+
+  const isDirectional = ['moveIn', 'moveOut', 'push'].includes(transition)
 
   return (
     <div className="prototype-panel">
@@ -65,24 +119,135 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
       </div>
 
       <Section title="连接" hint="＋">
-        {otherPages.length === 0 ? (
-          <div className="inspect-hint">没有其他页面可连接，请先新建页面。</div>
+        {allPages.length === 0 ? (
+          <div className="inspect-hint">没有页面可连接，请先新建页面。</div>
         ) : readOnly ? (
           <div className="inspect-hint">只读模式下不可编辑原型连接。</div>
         ) : (
           <>
             <div className="proto-field">
               <label>跳转到</label>
-              <select className="proto-select" value={targetPageId} onChange={(e) => setTargetPageId(e.target.value)}>
-                {otherPages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              <select className="proto-select" value={targetPageId} onChange={(e) => { setTargetPageId(e.target.value); setTargetFrameId('') }}>
+                {allPages.map((p) => <option key={p.id} value={p.id}>{p.name}{p.id === state.document.activePageId ? '（当前页）' : ''}</option>)}
               </select>
             </div>
+            {targetFrames.length > 1 && (
+              <div className="proto-field">
+                <label>目标 frame</label>
+                <select className="proto-select" value={targetFrameId} onChange={(e) => setTargetFrameId(e.target.value)}>
+                  <option value="">自动（首个 frame）</option>
+                  {targetFrames.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="proto-field">
+              <label>触发</label>
+              <select className="proto-select" value={trigger} onChange={(e) => setTrigger(e.target.value as typeof trigger)}>
+                <option value="click">点击</option>
+                <option value="hover">悬停</option>
+                <option value="afterDelay">延时</option>
+                <option value="mouseDown">按下</option>
+                <option value="keyDown">按键</option>
+              </select>
+            </div>
+            {trigger === 'afterDelay' && (
+              <div className="style-line">
+                <span className="style-label">延时 ms</span>
+                <PropertyInput label="" value={delay} min={0} max={30000} onChange={(v) => setDelay(v)} />
+              </div>
+            )}
+            {trigger === 'keyDown' && (
+              <div className="proto-field">
+                <label>按键</label>
+                <select className="proto-select" value={key} onChange={(e) => setKey(e.target.value)}>
+                  <option value="Escape">ESC</option>
+                  <option value="Enter">Enter</option>
+                  <option value="ArrowRight">→</option>
+                  <option value="ArrowLeft">←</option>
+                  <option value="ArrowUp">↑</option>
+                  <option value="ArrowDown">↓</option>
+                  <option value="Space">Space</option>
+                </select>
+              </div>
+            )}
             <div className="proto-field">
               <label>转场</label>
-              <select className="proto-select" value={transition} onChange={(e) => setTransition(e.target.value as typeof transition)}>
+              <select className="proto-select" value={transition} onChange={(e) => setTransition(e.target.value as Transition)}>
                 <option value="instant">无动画</option>
-                <option value="dissolve">淡入</option>
-                <option value="slide">滑动</option>
+                <option value="fade">淡入淡出</option>
+                <option value="moveIn">滑入</option>
+                <option value="moveOut">滑出</option>
+                <option value="push">推入</option>
+                <option value="smart">智能动画</option>
+                <option value="overlay">浮层</option>
+                {/* 兼容旧值 */}
+                <option value="dissolve">淡入（旧）</option>
+                <option value="slide">滑动（旧）</option>
+              </select>
+            </div>
+            {transition === 'smart' && (
+              <div className="schema-group-label" style={{ marginBottom: 10, lineHeight: 1.6 }}>对齐源/目标 frame 中同名图层，可让它们"流动"到新位置/尺寸。</div>
+            )}
+            {isDirectional && (
+              <div className="proto-field">
+                <label>方向</label>
+                <select className="proto-select" value={direction} onChange={(e) => setDirection(e.target.value as Direction)}>
+                  <option value="left">左</option>
+                  <option value="right">右</option>
+                  <option value="top">上</option>
+                  <option value="bottom">下</option>
+                  <option value="none">无方向</option>
+                </select>
+              </div>
+            )}
+            {transition === 'overlay' && (
+              <div className="overlay-config">
+                <div className="schema-group-label">浮层配置</div>
+                <div className="proto-field">
+                  <label>定位</label>
+                  <select className="proto-select" value={overlayPosition} onChange={(e) => setOverlayPosition(e.target.value as OverlayConfig['position'])}>
+                    <option value="manual">手动（相对源 frame）</option>
+                    <option value="center">居中</option>
+                    <option value="topLeft">左上</option>
+                    <option value="topCenter">上中</option>
+                    <option value="topRight">右上</option>
+                    <option value="bottomLeft">左下</option>
+                    <option value="bottomCenter">下中</option>
+                    <option value="bottomRight">右下</option>
+                  </select>
+                </div>
+                {overlayPosition === 'manual' && (
+                  <div className="property-grid">
+                    <PropertyInput label="X 偏移" value={overlayOffsetX} onChange={(v) => setOverlayOffsetX(v)} />
+                    <PropertyInput label="Y 偏移" value={overlayOffsetY} onChange={(v) => setOverlayOffsetY(v)} />
+                  </div>
+                )}
+                <div className="style-line">
+                  <span className="style-label">背景遮罩</span>
+                  <ColorField value={overlayBackdrop} allowEmpty onChange={setOverlayBackdrop} />
+                </div>
+                <label className="schema-checkbox">
+                  <input type="checkbox" checked={closeOnBackdrop} onChange={(e) => setCloseOnBackdrop(e.target.checked)} />
+                  <span>点击背景关闭</span>
+                </label>
+                <label className="schema-checkbox">
+                  <input type="checkbox" checked={closeOnEsc} onChange={(e) => setCloseOnEsc(e.target.checked)} />
+                  <span>ESC 关闭</span>
+                </label>
+              </div>
+            )}
+            <div className="style-line">
+              <span className="style-label">时长 ms</span>
+              <PropertyInput label="" value={duration} min={0} max={3000} onChange={(v) => setDuration(v)} />
+            </div>
+            <div className="proto-field">
+              <label>缓动</label>
+              <select className="proto-select" value={easing} onChange={(e) => setEasing(e.target.value as Easing)}>
+                <option value="easeInOut">缓入缓出</option>
+                <option value="linear">线性</option>
+                <option value="easeIn">缓入</option>
+                <option value="easeOut">缓出</option>
+                <option value="spring">弹簧</option>
               </select>
             </div>
             <button className="export-button" onClick={addLink} disabled={!targetPageId}>添加跳转连接 <Icon name="plus" /></button>
@@ -94,11 +259,12 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
         <Section title="已配置的连接">
           {links.map((link) => {
             const target = state.document.pages.find((p) => p.id === link.targetPageId)
+            const meta = [link.trigger, link.transition, link.direction].filter(Boolean).join(' · ')
             return (
               <div className="link-row" key={link.id}>
                 <Icon name="external" />
                 <span className="link-name">→ {target?.name ?? '未知页面'}</span>
-                <span className="link-meta">{link.trigger} · {link.transition}</span>
+                <span className="link-meta">{meta}</span>
                 {!readOnly && <button className="link-remove" onClick={() => removeLink(link.id)} title="删除连接">✕</button>}
               </div>
             )
@@ -458,19 +624,73 @@ function ChartEditor({ node, dispatch, readOnly }: { node: LayerNode; dispatch: 
  * 按模板 props 声明自动生成控件，变更写入 componentProps；
  * width/height 等尺寸类 prop 同时同步到节点本体，保证组件尺寸一致。
  */
-function SchemaForm({ tpl, node, dispatch, readOnly }: {
+export function SchemaForm({ tpl, node, state, dispatch, readOnly }: {
   tpl: ComponentTemplate
   node: LayerNode
+  state: EditorState
   dispatch: EditorDispatch
   readOnly: boolean
 }) {
-  const values = { ...defaultProps(tpl), ...(node.componentProps ?? {}) }
+  const isMaster = state.masterEdit?.componentName === tpl.name
+  const masterCommit = (state.document.masterOverrides ?? {})[tpl.name] ?? {}
+  const draft = (isMaster ? state.masterEdit?.draft : undefined) ?? {}
+  const values = isMaster
+    ? { ...defaultProps(tpl), ...masterCommit, ...draft }
+    : { ...defaultProps(tpl), ...(node.componentProps ?? {}), ...(node.instanceOverrides ?? {}) }
+  const stateName = node.componentState ?? 'default'
+  /** 是否被"实例级覆盖"（用户手动调整，区别于模板/变体/状态继承值）；主组件模式下为"是否被本次草稿覆盖" */
+  const isOverridden = (key: string) => isMaster ? (key in draft) : getEffectiveProp(node, tpl, stateName, key).overlapped
   const set = (key: string, value: unknown) => {
-    const next = { ...values, [key]: value }
-    const patch: Record<string, unknown> = { componentProps: next }
+    if (isMaster) {
+      // 主组件编辑：只写入本次草稿，点"完成编辑"才统一提交到所有实例
+      dispatch({ type: 'SET_MASTER_EDIT_DRAFT', componentName: tpl.name, key, value })
+      return
+    }
+    const { inherited } = getEffectiveProp(node, tpl, stateName, key)
+    const patch: Record<string, unknown> = { instanceOverrides: { ...(node.instanceOverrides ?? {}), [key]: value } }
     if (key === 'width') patch.width = Number(value)
     if (key === 'height') patch.height = Number(value)
+    // 值等于继承值时，无需覆盖（避免污染覆盖集合）——仅当传播的原始值确实不同才留存
+    if (JSON.stringify(value) === JSON.stringify(inherited)) {
+      const next = { ...(node.instanceOverrides ?? {}) }
+      delete next[key]
+      patch.instanceOverrides = next
+    }
     dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
+  }
+  /** 重置某字段为模板/变体/状态继承值 */
+  const resetOverride = (key: string) => {
+    if (isMaster) {
+      // 主组件编辑：仅从草稿移除该项（value=undefined 表示删除草稿键），恢复为已提交/模板默认
+      dispatch({ type: 'SET_MASTER_EDIT_DRAFT', componentName: tpl.name, key })
+      return
+    }
+    const next = { ...(node.instanceOverrides ?? {}) }
+    delete next[key]
+    const patch: Record<string, unknown> = { instanceOverrides: next }
+    const inherited = getEffectiveProp(node, tpl, stateName, key).inherited
+    if (key === 'width' && inherited !== undefined) patch.width = Number(inherited)
+    if (key === 'height' && inherited !== undefined) patch.height = Number(inherited)
+    // 旧数据兼容：componentProps 里的覆盖历史一并清除该键，回退到模板默认
+    if (node.componentProps && key in node.componentProps) {
+      const cp = { ...node.componentProps }
+      delete cp[key]
+      patch.componentProps = cp
+    }
+    dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
+  }
+  /** 每个 schema 字段行：继承值不显示徽标；被覆盖的显示徽标 + 重置按钮 */
+  const renderRow = (label: string, key: string, control: ReactNode) => {
+    const overridden = isOverridden(key)
+    return (
+      <div className={`style-line schema-prop-row${overridden ? ' overridden' : ''}`}>
+        <span className="style-label">{label}</span>
+        {control}
+        {overridden && !readOnly && (
+          <button className="schema-reset-btn" title={isMaster ? '重置为主组件默认' : '重置为模板默认'} onClick={() => resetOverride(key)}>⟲</button>
+        )}
+      </div>
+    )
   }
   const renderControl = (p: ComponentPropDef) => {
     switch (p.type) {
@@ -688,16 +908,25 @@ function SchemaForm({ tpl, node, dispatch, readOnly }: {
     if (next.height !== undefined) patch.height = Number(next.height)
     dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
   }
+  const instanceCount = countTemplateInstances(state.document.pages.flatMap((p) => p.children), tpl.name)
   return (
     <div className="schema-form">
-      {tpl.themes && tpl.themes.length > 0 && (
+      <div className={`instance-linkage${isMaster ? ' master-editing' : ''}`}>
+        <span className="instance-linkage-name" title={`主组件「${tpl.name}」`}>{tpl.name}</span>
+        {isMaster ? (
+          <span className="instance-linkage-count master-edit-hint">正在编辑主组件 · 改动将影响所有实例</span>
+        ) : (
+          <span className="instance-linkage-count">{instanceCount} 个实例引用本主组件</span>
+        )}
+      </div>
+      {!isMaster && tpl.themes && tpl.themes.length > 0 && (
         <div className="schema-themes">
           {tpl.themes.map((t) => (
             <button key={t.name} className="theme-chip" disabled={readOnly} onClick={() => applyTheme(t.props)}>{t.name}</button>
           ))}
         </div>
       )}
-      {tpl.states && tpl.states.length > 0 && (
+      {!isMaster && tpl.states && tpl.states.length > 0 && (
         <div className="style-line">
           <span className="style-label">状态</span>
           <select
@@ -711,19 +940,60 @@ function SchemaForm({ tpl, node, dispatch, readOnly }: {
           </select>
         </div>
       )}
-      {tpl.slots && tpl.slots.length > 0 && (
+      {!isMaster && tpl.slots && tpl.slots.length > 0 && (
         <div className="style-line schema-slots-note">
           <span className="style-label">插槽</span>
           <em>{tpl.slots.map((s) => s.label).join('、')}</em>
         </div>
       )}
+      {!isMaster && tpl.variantProps && tpl.variantProps.length > 0 && (
+        <div className="schema-group-label">变体</div>
+      )}
+      {!isMaster && tpl.variantProps?.map((vp) => {
+        const sel = node.variantSelection ?? {}
+        const current = sel[vp.key] ?? tpl.variants?.find((v) => v.props[vp.key] !== undefined && Object.keys(v.props).length === 1)?.props[vp.key]
+          ?? vp.default
+        const setVariant = (value: string) => {
+          const nextSel = { ...sel, [vp.key]: value }
+          const patch: Record<string, unknown> = { variantSelection: nextSel }
+          // 重新合并命中变体的宽度/高度覆盖，同步到节点本体
+          const wOverrides: Record<string, unknown> = {}
+          for (const v of tpl.variants ?? []) {
+            const keys = Object.keys(v.props)
+            if (keys.length > 0 && keys.every((k) => nextSel[k] === v.props[k]) && v.overrides) {
+              if (v.overrides.width !== undefined) wOverrides.width = Number(v.overrides.width)
+              if (v.overrides.height !== undefined) wOverrides.height = Number(v.overrides.height)
+              Object.assign(wOverrides, v.overrides)
+            }
+          }
+          const nextProps = { ...values, ...wOverrides }
+          let hasSize = false
+          if (wOverrides.width !== undefined) { patch.width = Number(wOverrides.width); hasSize = true }
+          if (wOverrides.height !== undefined) { patch.height = Number(wOverrides.height); hasSize = true }
+          // 变体覆盖的颜色类 props 也写回 componentProps，保证 SchemaForm 与画布显示一致
+          const propKeys = new Set((tpl.props ?? []).map((p) => p.key))
+          const styleOverrides: Record<string, unknown> = {}
+          for (const k of Object.keys(wOverrides)) {
+            if (k !== 'width' && k !== 'height' && propKeys.has(k)) styleOverrides[k] = wOverrides[k]
+          }
+          patch.componentProps = hasSize ? nextProps : { ...values, ...styleOverrides }
+          dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
+        }
+        return (
+          <div key={vp.key} className="style-line">
+            <span className="style-label">{vp.label}</span>
+            <select className="proto-select" disabled={readOnly} value={current} onChange={(e) => setVariant(e.target.value)}>
+              {vp.values.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+        )
+      })}
       {[...groups.entries()].map(([g, defs]) => (
         <div key={g}>
           {groups.size > 1 && <div className="schema-group-label">{g}</div>}
           {defs.map((p) => (
-            <div key={p.key} className="style-line">
-              <span className="style-label">{p.label}</span>
-              {renderControl(p)}
+            <div key={p.key}>
+              {renderRow(p.label, p.key, renderControl(p))}
             </div>
           ))}
         </div>
@@ -881,9 +1151,44 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
             </div>
           </Section>
 
+          <AutoLayoutEditor
+            node={selected}
+            document={state.document}
+            readOnly={readOnly}
+            patch={patch}
+            patchChild={patchChild}
+            dispatch={dispatch}
+          />
+
+          {selected.type === 'frame' && (
+            <Section title="溢出">
+              <div className="overflow-options">
+                {(['hidden', 'visible', 'verticalScroll', 'horizontalScroll', 'bothScroll'] as const).map((opt) => {
+                  const labels: Record<string, string> = {
+                    hidden: '裁剪',
+                    visible: '不裁剪',
+                    verticalScroll: '纵向滚动',
+                    horizontalScroll: '横向滚动',
+                    bothScroll: '双向滚动',
+                  }
+                  return (
+                    <button
+                      key={opt}
+                      className={`seg-btn ${(selected.overflow ?? 'hidden') === opt ? 'active' : ''}`}
+                      disabled={readOnly}
+                      onClick={() => patch({ overflow: opt === 'hidden' ? undefined : opt })}
+                    >
+                      {labels[opt]}
+                    </button>
+                  )
+                })}
+              </div>
+            </Section>
+          )}
+
           {hasSchema && schemaTpl ? (
             <Section title="组件" hint="＋">
-              <SchemaForm tpl={schemaTpl} node={selected} dispatch={dispatch} readOnly={readOnly} />
+              <SchemaForm tpl={schemaTpl} node={selected} state={state} dispatch={dispatch} readOnly={readOnly} />
             </Section>
           ) : (
             componentChildren && (componentChildren.bgRect || componentChildren.textNodes.length > 0) && (
@@ -960,6 +1265,9 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
                 onChange={(e) => patchStyle({ opacity: +e.target.value / 100 })} />
               <span className="style-value">{Math.round((selected.style.opacity ?? 1) * 100)}%</span>
             </div>
+            {selected.type !== 'text' && !isComponentGroup && (
+              <GradientStyleEditor style={selected.style} readOnly={readOnly} onChange={patchStyle} />
+            )}
           </Section>
 
           {selected.type !== 'text' && !isComponentGroup && (
@@ -979,6 +1287,7 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
 
           <Section title="效果" hint="＋">
             <ShadowEditor value={selected.style.shadow} onChange={(v) => patchStyle({ shadow: v })} readOnly={readOnly} />
+            <EffectsEditor style={selected.style} readOnly={readOnly} onChange={patchStyle} />
           </Section>
 
           {selected.type === 'chart' && (

@@ -80,3 +80,24 @@ export function createLayer(kind: 'rectangle' | 'text' | 'frame' | 'group' | 'ch
       return { id, type: 'group', name: '分组', x, y, width: 200, height: 120, rotation: 0, visible: true, locked: false, expanded: true, style: { opacity: 1 }, children: [] }
   }
 }
+
+/**
+ * 兜底保证 AI 生成图层数组顶层是单一父节点（frame/group）。
+ * 后端已校验顶层单节点；历史数据或异常数据顶层散开时，自动包裹为 frame。
+ */
+export function ensureAiParent(layers: LayerNode[]): LayerNode[] {
+  if (layers.length === 1 && (layers[0].type === 'frame' || layers[0].type === 'group')) {
+    return layers
+  }
+  // 多顶层 frame：AI 多界面/多页面输出，直接放行（前端按 frame 逐页建 Page）
+  if (layers.length >= 2 && layers.every((n) => n.type === 'frame')) {
+    return layers
+  }
+  const frame = createLayer('frame', 0, 0)
+  frame.name = 'AI 设计'
+  frame.width = 1440
+  frame.height = 900
+  frame.style = { opacity: 1, fill: WHITE }
+  frame.children = layers
+  return [frame]
+}

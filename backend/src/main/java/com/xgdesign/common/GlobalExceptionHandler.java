@@ -88,6 +88,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception ex) {
+        // SSE 流式响应的异步异常：response 已提交，不能再写 JSON，仅记录日志
+        if (ex.getClass().getName().startsWith("org.springframework.security")
+                || ex.getMessage() != null && ex.getMessage().contains("response is already committed")) {
+            log.error("Async SSE exception (response already committed)", ex);
+            return null;
+        }
         log.error("Unhandled exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(500, "服务器内部错误"));

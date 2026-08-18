@@ -7,9 +7,11 @@ import { CanvasArea } from './components/canvas/CanvasArea'
 import { InspectorPanel } from './components/inspector/InspectorPanel'
 import { PreviewOverlay } from './components/canvas/PreviewOverlay'
 import { ResizeHandle } from './components/layout/ResizeHandle'
+import { AiChatPanel } from './components/ai/AiChatPanel'
 import { PANEL_MIN_LEFT, PANEL_MAX_LEFT, PANEL_MIN_RIGHT, PANEL_MAX_RIGHT } from './constants/limits'
 import { ProjectsPage } from './components/projects/ProjectsPage'
 import { ShareModal } from './components/share/ShareModal'
+import { MasterComponentModal } from './components/master/MasterComponentModal'
 import { AuthPage } from './components/auth/AuthPage'
 import { ConfirmDialog } from './components/common/ConfirmDialog'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -82,6 +84,7 @@ const WRITE_ACTIONS = new Set<EditorAction['type']>([
   'GROUP_LAYERS',
   'UNGROUP_LAYERS',
   'REORDER_LAYER',
+  'REORDER_TO_INDEX',
   'RENAME_PAGE',
   'DELETE_PAGE',
   'DUPLICATE_PAGE',
@@ -90,6 +93,8 @@ const WRITE_ACTIONS = new Set<EditorAction['type']>([
   'CLEAR_HISTORY',
   'UNDO',
   'REDO',
+  'APPLY_DESIGN',
+  'APPLY_EDIT',
 ])
 
 export default function App() {
@@ -268,9 +273,11 @@ function Editor({ route, user, onUserChange }: {
         <CanvasArea state={state} dispatch={guardedDispatch} readOnly={readOnly} />
         <ResizeHandle side="right" value={rightW} onChange={setRightW} min={PANEL_MIN_RIGHT} max={PANEL_MAX_RIGHT} limit={wsW ? wsW * 0.4 : null} />
         <InspectorPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} />
+        <AiChatPanel state={state} dispatch={guardedDispatch} readOnly={readOnly} />
       </div>
       {previewing && <PreviewOverlay state={state} onClose={() => setPreviewing(false)} />}
       {shareOpen && !readOnly && <ShareModal projectId={state.document.id} onClose={() => setShareOpen(false)} />}
+      {!readOnly && <MasterComponentModal state={state} dispatch={guardedDispatch} readOnly={readOnly} />}
       {loading && (
         <div className="editor-loading">
           <div className="editor-loading-spinner" />

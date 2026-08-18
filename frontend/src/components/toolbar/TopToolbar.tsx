@@ -9,6 +9,7 @@ import { downloadProjectFile } from '../../services/exportProject'
 import { HistoryModal } from '../history/HistoryModal'
 import { avatarColor } from '../../constants/colors'
 import { AVATAR_MAX_VISIBLE } from '../../constants/limits'
+import { aiActions } from '../../state/ai-store'
 
 const toolItems: [IconName, string, string, ToolType][] = [
   ['cursor', '选择', 'V', 'select'],
@@ -73,7 +74,9 @@ export function TopToolbar({
   const saving = saveStatus === 'saving'
   const canUndo = state.history.past.length > 0 && !readOnly
   const canRedo = state.history.future.length > 0 && !readOnly
+  const selectedNodes = state.selectedIds.map((id) => findLayerInDoc(doc, id)).filter((n): n is LayerNode => n !== null)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [booleanOpen, setBooleanOpen] = useState(false)
   const [exporting, setExporting] = useState<'selected-1' | 'selected-2' | 'page-1' | 'page-2' | 'page-3' | 'project' | 'pages-1' | 'pages-2' | null>(null)
   const [exportProgress, setExportProgress] = useState<{ index: number; total: number; pageName: string } | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -88,6 +91,12 @@ export function TopToolbar({
       .catch(() => { /* 成员加载失败静默 */ })
     return () => { alive = false }
   }, [doc.id, readOnly])
+
+  /** 布尔运算：以选中矢量形状做合并/减去/相交/排除 */
+  const runBoolean = (mode: 'union' | 'subtract' | 'intersect' | 'exclude') => {
+    dispatch({ type: 'APPLY_BOOLEAN', ids: state.selectedIds, mode })
+    setBooleanOpen(false)
+  }
 
   const exportSelected = async (scale: 1 | 2) => {
     const selected = findLayerInDoc(doc, state.selectedIds[0] ?? '')
@@ -189,6 +198,21 @@ export function TopToolbar({
             <kbd className="tool-key">{key}</kbd>
           </button>
         ))}
+        {/* 布尔运算：多选 2+ 个矢量形状（矩形/路径）时可用 */}
+        {selectedNodes.length >= 2 && selectedNodes.every((n) => n.type === 'rectangle' || n.type === 'path') && !readOnly && (
+          <div className="more-wrap" onClick={(e) => e.stopPropagation()}>
+            <button className="tool-button" onClick={() => setBooleanOpen((v) => !v)} title="布尔运算（合并/减去/相交/排除）">⊚</button>
+            {booleanOpen && (
+              <div className="more-menu">
+                <div className="more-menu-label">布尔运算</div>
+                <button onClick={() => runBoolean('union')}>合并</button>
+                <button onClick={() => runBoolean('subtract')}>减去</button>
+                <button onClick={() => runBoolean('intersect')}>相交</button>
+                <button onClick={() => runBoolean('exclude')}>排除</button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="more-wrap" onClick={(e) => e.stopPropagation()}>
           <button className="tool-button more" onClick={() => setMoreOpen((v) => !v)}>•••</button>
           {moreOpen && (
@@ -271,6 +295,15 @@ export function TopToolbar({
         )}
         <button className="preview-button" onClick={onPreview}><Icon name="play" /> 预览</button>
         {!readOnly && <button className="share-button" onClick={onShare}>分享 <Icon name="external" /></button>}
+        {!readOnly && (
+          <button
+            className="ai-toggle-btn"
+            onClick={() => aiActions.togglePanel()}
+            title="AI 助手"
+          >
+            <Icon name="spark" /> AI
+          </button>
+        )}
         <span className="top-zoom">{zoom}%</span>
       </div>
       {historyOpen && <HistoryModal projectId={doc.id} onClose={() => setHistoryOpen(false)} />}

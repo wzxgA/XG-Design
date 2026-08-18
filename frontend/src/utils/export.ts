@@ -1,5 +1,7 @@
 import type { DesignDocument, LayerNode, PageNode } from '../types/design'
 import { isComponentNode } from './layers'
+import { backgroundCss } from './style'
+import { pathToSvgD } from './path'
 import { renderComponentChildren } from '../fixtures/component-library'
 import { renderChartSvg } from './chart'
 import { MUTED } from '../constants/colors'
@@ -22,9 +24,7 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
 
   switch (node.type) {
     case 'rectangle':
-      el.style.background = node.style.fillGradient
-        ? `linear-gradient(${node.style.fillGradient.angle ?? 0}deg, ${node.style.fillGradient.from}, ${node.style.fillGradient.to})`
-        : (node.style.fill ?? 'transparent')
+      el.style.background = backgroundCss(node.style) ?? 'transparent'
       if (node.style.cornerRadius) el.style.borderRadius = `${node.style.cornerRadius}px`
       if (node.style.stroke) el.style.border = `${node.style.strokeWidth ?? 1}px solid ${node.style.stroke}`
       if (node.style.shadow) el.style.boxShadow = node.style.shadow
@@ -67,21 +67,21 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
         svg.setAttribute('width', String(node.width))
         svg.setAttribute('height', String(node.height))
         svg.setAttribute('viewBox', `0 0 ${node.width} ${node.height}`)
-        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline')
-        poly.setAttribute('points', pts.map((p) => `${p.x},${p.y}`).join(' '))
-        poly.setAttribute('fill', 'none')
-        poly.setAttribute('stroke', node.style.stroke ?? '#4e8ff4')
-        poly.setAttribute('stroke-width', String(node.style.strokeWidth ?? 2))
-        poly.setAttribute('stroke-linejoin', 'round')
-        poly.setAttribute('stroke-linecap', 'round')
-        svg.appendChild(poly)
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        path.setAttribute('d', pathToSvgD(pts, node.pathClosed))
+        path.setAttribute('fill', node.style.fill ?? 'none')
+        path.setAttribute('stroke', node.style.stroke ?? '#4e8ff4')
+        path.setAttribute('stroke-width', String(node.style.strokeWidth ?? 2))
+        path.setAttribute('stroke-linejoin', 'round')
+        path.setAttribute('stroke-linecap', 'round')
+        svg.appendChild(path)
         el.appendChild(svg)
       }
       break
     }
     case 'image': {
-      // 未设置图片时保留背景占位色
-      if (!node.style.fill) el.style.background = '#eef2f4'
+      // 未设置图片时保留背景占位色（统一 backgroundCss 优先级）
+      if (!node.imageUrl) el.style.background = backgroundCss(node.style) ?? '#eef2f4'
       if (node.style.cornerRadius) {
         el.style.borderRadius = `${node.style.cornerRadius}px`
         el.style.overflow = 'hidden'
@@ -100,9 +100,10 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
     }
     case 'group':
     case 'frame': {
+      const isComp = isComponentNode(node)
       // 组件优先用 componentProps + 模板 render 实时计算子节点（fallback 到落盘的 node.children）
       // 导出始终使用 default 态，不受编辑态/预览演示态影响
-      const children = isComponentNode(node) ? (renderComponentChildren(node, 'default') ?? node.children) : node.children
+      const children = isComp ? (renderComponentChildren(node, 'default') ?? node.children) : node.children
       children.forEach((child) => {
         const childEl = renderNodeToHtml(child)
         if (!childEl) return
@@ -110,9 +111,11 @@ function renderNodeToHtml(node: LayerNode): HTMLElement | null {
         childEl.style.top = `${child.y}px`
         el.appendChild(childEl)
       })
-      // 画板背景：backgroundColor 优先于 fill
-      const bg = node.style.backgroundColor ?? node.style.fill
-      if (bg) el.style.background = bg
+      // 组件节点自身不画背景（与画布一致，视觉由模板 render 子节点承担）；非组件容器补画
+      if (!isComp) {
+        const bg = backgroundCss(node.style)
+        if (bg) el.style.background = bg
+      }
       break
     }
   }
