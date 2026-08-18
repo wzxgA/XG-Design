@@ -125,6 +125,24 @@ export interface ComponentPropDef {
   dependsOn?: { key: string; equals: string[] }
 }
 
+/** 变体属性定义：一个"维"（对应 Figma variant property），含若干可选值 */
+export interface VariantPropDef {
+  key: string          // 如 'type' | 'size'
+  label: string
+  values: string[]     // 可选项，如 ['primary','secondary','outline']
+  default?: string
+}
+
+/** 组件集内一个具体变体：属性键→选中值 + 相对基准的 props 覆盖 */
+export interface VariantDef {
+  /** 稳定唯一名（供实例记录选中组合），如 'primary/large' */
+  id: string
+  name: string          // 展示名，可中文
+  props: Record<string, string>      // 属性键→选中值，如 { type:'primary', size:'large' }
+  /** 该变体相对基准的 props 覆盖（合并进 componentProps） */
+  overrides?: Record<string, unknown>
+}
+
 /** 路径锚点：handleIn/handleOut 为相对锚点的贝塞尔控制点（undefined = 直线段） */
 export interface PathPoint {
   x: number
@@ -179,6 +197,10 @@ export interface LayerNode {
   componentProps?: Record<string, unknown>
   /** 组件交互状态（画布编辑态显式设置；预览演示态由 demo 模式临时覆盖） */
   componentState?: ComponentState
+  /** 变体选中组合：{ 属性键: 值 }（实例记录，供下拉回显；对应组件集 VariantDef.props 子集） */
+  variantSelection?: Record<string, string>
+  /** 实例级覆盖：用户在画布上对该实例的手动调整（不写回主组件，优先级最高） */
+  instanceOverrides?: Record<string, unknown>
   /** 容器插槽绑定：slot key → 子节点 id 列表（插槽内容渲染进组件内占位区） */
   componentSlots?: Record<string, string[]>
   /** Auto Layout 布局（仅 frame/group 有意义）；存在时子节点坐标由布局引擎重排 */

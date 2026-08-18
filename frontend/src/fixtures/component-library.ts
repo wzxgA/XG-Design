@@ -1,4 +1,4 @@
-import type { ChartType, ComponentPropDef, ComponentState, LayerNode } from '../types/design'
+import type { ChartType, ComponentPropDef, ComponentState, LayerNode, VariantDef, VariantPropDef } from '../types/design'
 import { layerId } from '../utils/layers'
 import { DEFAULT_CHART_COLORS } from '../utils/chart'
 import { loadCustomComponents } from '../utils/customComponents'
@@ -20,6 +20,10 @@ export interface ComponentTemplate {
   themes?: { name: string; props: Record<string, unknown> }[]
   /** 交互状态预设：渲染时按 componentState 覆盖 props（default 优先） */
   states?: { name: ComponentState; props: Record<string, unknown> }[]
+  /** 变体属性（组件集"维"）：声明后组件即升级为组件集，Inspector 显示变体下拉 */
+  variantProps?: VariantPropDef[]
+  /** 组件集内所有变体组合 */
+  variants?: VariantDef[]
   /** 缩放约束（CO-6）：最小尺寸 / 等比锁定 */
   resize?: { minWidth?: number; minHeight?: number; lockRatio?: boolean }
   /** 容器插槽声明（CO-6）：组件内可嵌入外部内容 */
@@ -157,11 +161,21 @@ export function renderComponentChildren(node: LayerNode, overrideState?: string,
   const tpl = COMPONENT_TEMPLATES.find((t) => t.name === node.component)
   if (!tpl?.render) return null
   let props = { ...defaultProps(tpl), ...(node.componentProps ?? {}) }
+  // 变体覆盖：按 variantSelection 匹配组件集中**所有**命中的变体（支持按维度拆分），overrides 依次合并
+  if (tpl.variants?.length) {
+    const sel = node.variantSelection ?? {}
+    for (const v of tpl.variants) {
+      const keys = Object.keys(v.props)
+      if (keys.length === 0) continue
+      if (keys.every((k) => sel[k] === v.props[k]) && v.overrides) props = { ...props, ...v.overrides }
+    }
+  }
   // 状态覆盖（CO-4）：显式状态 > default；状态 props 覆盖后合并，并注入 __state 供 render 内部判断
   const stateName = overrideState ?? node.componentState ?? 'default'
   const st = tpl.states?.find((s) => s.name === stateName)
   if (st) props = { ...props, ...st.props }
-  props = { ...props, ...(overrides ?? {}) }
+  // 实例覆盖（用户在该实例上的手动调整）优先级最高（仅低于预览交互态内存值）
+  props = { ...props, ...(node.instanceOverrides ?? {}), ...(overrides ?? {}) }
   props = { ...props, __state: stateName }
   const rendered = tpl.render(props)
   return rendered.children
@@ -196,6 +210,20 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       { name: '危险', props: { bg: '#ea4335', color: WHITE, borderColor: '' } },
       { name: '幽灵', props: { bg: WHITE, color: BLUE, borderColor: BLUE } },
     ],
+    // 组件集：type/size 两维变体（外观维；交互状态仍走 states 机制）
+    variantProps: [
+      { key: 'type', label: '类型', values: ['primary', 'secondary', 'outline', 'danger'], default: 'primary' },
+      { key: 'size', label: '尺寸', values: ['sm', 'md', 'lg'], default: 'md' },
+    ],
+    variants: [
+      { id: 'primary', name: '主色', props: { type: 'primary' }, overrides: { bg: BLUE, color: WHITE, borderColor: '' } },
+      { id: 'secondary', name: '次要', props: { type: 'secondary' }, overrides: { bg: '#f4f6f7', color: INK, borderColor: '' } },
+      { id: 'outline', name: '幽灵', props: { type: 'outline' }, overrides: { bg: WHITE, color: BLUE, borderColor: BLUE } },
+      { id: 'danger', name: '危险', props: { type: 'danger' }, overrides: { bg: '#ea4335', color: WHITE, borderColor: '' } },
+      { id: 'size-sm', name: '小', props: { size: 'sm' }, overrides: { width: 96, height: 32 } },
+      { id: 'size-md', name: '中', props: { size: 'md' }, overrides: { width: 140, height: 40 } },
+      { id: 'size-lg', name: '大', props: { size: 'lg' }, overrides: { width: 184, height: 48 } },
+    ],
     states: [
       { name: 'hover', props: { bg: '#3d7de0' } },
       { name: 'pressed', props: { bg: '#3570c4' } },
@@ -206,15 +234,17 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     render: (p) => {
       const g = p.bgGradient as { enabled?: boolean; from?: string; to?: string; angle?: number } | undefined
       const loading = p.__state === 'loading'
-      return group(Number(p.width), 40, '按钮', [
-        rect(0, 0, Number(p.width), 40, {
+      const w = Number(p.width ?? 140)
+      const h = Number(p.height ?? 40)
+      return group(w, h, '按钮', [
+        rect(0, 0, w, h, {
           fill: String(p.bg ?? ''),
           fillGradient: g?.enabled ? { from: g.from ?? WHITE, to: g.to ?? BLUE, angle: g.angle ?? 0 } : undefined,
           cornerRadius: Number(p.radius ?? 0),
           stroke: p.borderColor ? String(p.borderColor) : undefined,
           strokeWidth: p.borderColor ? 1 : undefined,
         }),
-        text(0, 10, Number(p.width), loading ? `⟳ ${String(p.text ?? '按钮')}` : String(p.text ?? '按钮'), { color: String(p.color ?? WHITE), fontWeight: 600, textAlign: 'center' }),
+        text(0, h / 2 - 10, w, loading ? `⟳ ${String(p.text ?? '按钮')}` : String(p.text ?? '按钮'), { color: String(p.color ?? WHITE), fontWeight: 600, textAlign: 'center' }),
       ])
     },
     build: (x, y) => {
@@ -223,6 +253,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
         text(0, 10, 140, '按钮', { color: WHITE, fontWeight: 600, textAlign: 'center' }),
       ])
       g.x = x; g.y = y
+      g.variantSelection = { type: 'primary', size: 'md' }
       return g
     },
   },

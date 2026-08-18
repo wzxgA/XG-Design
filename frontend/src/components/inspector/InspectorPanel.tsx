@@ -882,6 +882,48 @@ function SchemaForm({ tpl, node, dispatch, readOnly }: {
           <em>{tpl.slots.map((s) => s.label).join('、')}</em>
         </div>
       )}
+      {tpl.variantProps && tpl.variantProps.length > 0 && (
+        <div className="schema-group-label">变体</div>
+      )}
+      {tpl.variantProps?.map((vp) => {
+        const sel = node.variantSelection ?? {}
+        const current = sel[vp.key] ?? tpl.variants?.find((v) => v.props[vp.key] !== undefined && Object.keys(v.props).length === 1)?.props[vp.key]
+          ?? vp.default
+        const setVariant = (value: string) => {
+          const nextSel = { ...sel, [vp.key]: value }
+          const patch: Record<string, unknown> = { variantSelection: nextSel }
+          // 重新合并命中变体的宽度/高度覆盖，同步到节点本体
+          const wOverrides: Record<string, unknown> = {}
+          for (const v of tpl.variants ?? []) {
+            const keys = Object.keys(v.props)
+            if (keys.length > 0 && keys.every((k) => nextSel[k] === v.props[k]) && v.overrides) {
+              if (v.overrides.width !== undefined) wOverrides.width = Number(v.overrides.width)
+              if (v.overrides.height !== undefined) wOverrides.height = Number(v.overrides.height)
+              Object.assign(wOverrides, v.overrides)
+            }
+          }
+          const nextProps = { ...values, ...wOverrides }
+          let hasSize = false
+          if (wOverrides.width !== undefined) { patch.width = Number(wOverrides.width); hasSize = true }
+          if (wOverrides.height !== undefined) { patch.height = Number(wOverrides.height); hasSize = true }
+          // 变体覆盖的颜色类 props 也写回 componentProps，保证 SchemaForm 与画布显示一致
+          const propKeys = new Set((tpl.props ?? []).map((p) => p.key))
+          const styleOverrides: Record<string, unknown> = {}
+          for (const k of Object.keys(wOverrides)) {
+            if (k !== 'width' && k !== 'height' && propKeys.has(k)) styleOverrides[k] = wOverrides[k]
+          }
+          patch.componentProps = hasSize ? nextProps : { ...values, ...styleOverrides }
+          dispatch({ type: 'UPDATE_LAYER_PROPERTIES', ids: [node.id], patch })
+        }
+        return (
+          <div key={vp.key} className="style-line">
+            <span className="style-label">{vp.label}</span>
+            <select className="proto-select" disabled={readOnly} value={current} onChange={(e) => setVariant(e.target.value)}>
+              {vp.values.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+        )
+      })}
       {[...groups.entries()].map(([g, defs]) => (
         <div key={g}>
           {groups.size > 1 && <div className="schema-group-label">{g}</div>}
