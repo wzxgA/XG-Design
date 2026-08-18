@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><title>WAAPI 诊断</title></head>
+<body style="font-family: monospace; font-size: 16px; padding: 20px;">
+<h3>WAAPI 时序诊断</h3>
+<pre id="out">检测中…</pre>
+<script>
+  (function () {
+    const out = document.getElementById('out')
+    const lines = []
+    const log = (k, v) => { lines.push(k + ' = ' + v); out.textContent = lines.join('\n') }
+    try {
+      const hasAnimate = typeof Element !== 'undefined' && typeof Element.prototype.animate === 'function'
+      log('hasAnimate', hasAnimate)
+      log('visibilityState', document.visibilityState)
+      log('hasFocus', document.hasFocus())
+      const div = document.createElement('div')
+      div.style.cssText = 'position:absolute;left:0;top:0;width:80px;height:20px;background:#4e8ff4;opacity:1'
+      document.body.appendChild(div)
+      if (hasAnimate) {
+        const t0 = performance.now()
+        const a = div.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1000, fill: 'forwards' })
+        setTimeout(() => {
+          log('op_after_300ms', getComputedStyle(div).opacity)
+          log('playState_300ms', a.playState)
+          log('elapsed_at_300ms', Math.round(performance.now() - t0))
+        }, 300)
+        a.finished.then(() => {
+          log('finished_elapsed', Math.round(performance.now() - t0))
+          log('op_after_finish', getComputedStyle(div).opacity)
+          log('DONE')
+        })
+        setTimeout(() => {
+          if (!a.playState || a.playState === 'running') {
+            // 若 1.5s 仍未完成，说明时间线未推进
+            setTimeout(() => log('after_1500ms_playState', a.playState), 0)
+          }
+        }, 1500)
+      }
+    } catch (e) {
+      log('ERROR', String(e && e.message || e))
+    }
+  })()
+</script>
+</body>
+</html>

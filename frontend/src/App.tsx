@@ -10,6 +10,7 @@ import { ResizeHandle } from './components/layout/ResizeHandle'
 import { AiChatPanel } from './components/ai/AiChatPanel'
 import { PANEL_MIN_LEFT, PANEL_MAX_LEFT, PANEL_MIN_RIGHT, PANEL_MAX_RIGHT } from './constants/limits'
 import { ProjectsPage } from './components/projects/ProjectsPage'
+import { TutorialPage } from './components/tutorial/TutorialPage'
 import { ShareModal } from './components/share/ShareModal'
 import { MasterComponentModal } from './components/master/MasterComponentModal'
 import { AuthPage } from './components/auth/AuthPage'
@@ -22,6 +23,7 @@ import { Watermelon } from './components/common/brand'
 type Route =
   | { name: 'login'; redirectTo?: string }
   | { name: 'projects' }
+  | { name: 'tutorials'; tutorialId?: string }
   | { name: 'editor'; projectId?: string; share?: { token: string; permission: 'view' | 'edit' } }
 
 /** 解析当前 hash 路由：/#/login / #/projects / #/editor / #/doc/:id / #/share/:token */
@@ -40,6 +42,11 @@ function readRoute(): Route {
   const doc = hash.match(/#\/doc\/([^/]+)/)
   if (doc) {
     return { name: 'editor', projectId: doc[1] }
+  }
+  // 教程页：支持 #/tutorials 与深链 #/tutorials/<id>
+  const tutorial = hash.match(/#\/tutorials(?:\/([^/]+))?/)
+  if (tutorial) {
+    return { name: 'tutorials', tutorialId: tutorial[1] ? decodeURIComponent(tutorial[1]) : undefined }
   }
   // #/ 与 #/projects 均进入项目列表首页（登录后默认落地页）
   if (hash === '' || hash === '#' || hash === '#/' || /^#\/projects/.test(hash)) {
@@ -122,9 +129,9 @@ export default function App() {
   useEffect(() => {
     const r = readRoute()
     if (r.name === 'login') return
-    const requiresLogin = r.name === 'projects' || (r.name === 'editor' && !r.share)
+    const requiresLogin = r.name === 'projects' || r.name === 'tutorials' || (r.name === 'editor' && !r.share)
     if (requiresLogin && !isAuthenticated()) {
-      const target = r.name === 'projects' ? '/projects' : `/${r.name}${r.projectId ? '/' + r.projectId : ''}`
+      const target = r.name === 'projects' || r.name === 'tutorials' ? `/${r.name}` : `/${r.name}${r.projectId ? '/' + r.projectId : ''}`
       window.location.hash = `#/login?redirect=${encodeURIComponent(target)}`
     }
   }, [route.name])
@@ -142,6 +149,10 @@ export default function App() {
 
   if (route.name === 'projects') {
     return <ProjectsPage userName={user?.displayName} userEmail={user?.email} onUserChange={setUser} />
+  }
+
+  if (route.name === 'tutorials') {
+    return <TutorialPage initialId={route.tutorialId} onBack={() => { window.location.hash = '#/projects' }} />
   }
 
   return <Editor route={route} user={user} onUserChange={setUser} />

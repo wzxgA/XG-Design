@@ -205,6 +205,7 @@ export function ProjectsPage({ userName, userEmail, onUserChange }: Props) {
       <header className="projects-topbar">
         <div className="brand"><Watermelon /><strong>XG<span>Design</span></strong></div>
         <div className="projects-topbar-user">
+          <button className="tutorial-btn" onClick={() => { window.location.hash = '#/tutorials' }} title="查看使用教程">教程</button>
           <button className="settings-btn" onClick={() => setSettingsOpen(true)} title="AI 服务设置">⚙</button>
           <div className="user-chip">
             <span className="user-avatar">{initials}</span>

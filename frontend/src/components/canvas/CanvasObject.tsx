@@ -213,6 +213,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     return (
       <div
         className={`canvas-group ${outline} ${fx}`}
+        data-demo-id={node.id}
         style={overflow ? { ...containerStyle, ...overflow } : dimmed ? { ...containerStyle, opacity: (Number(containerStyle.opacity ?? 1)) * 0.55 } : containerStyle}
         data-component-id={isComponent ? node.id : undefined}
         {...base}
@@ -236,7 +237,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     case 'rectangle':
       return (
         <div
-          className={`canvas-rect ${outline} ${fx}`} data-layer-name={node.name}
+          className={`canvas-rect ${outline} ${fx}`} data-layer-name={node.name} data-demo-id={node.id}
           style={{
             ...style,
             background: backgroundCss(node.style) ?? RECT_FILL,
@@ -298,7 +299,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     case 'chart': {
       const svg = renderChartSvg(node)
       return (
-        <div className={`canvas-chart ${outline} ${fx}`} data-layer-name={node.name} style={style} {...base}>
+        <div className={`canvas-chart ${outline} ${fx}`} data-layer-name={node.name} data-demo-id={node.id} style={style} {...base}>
           {svg ? (
             <div className="canvas-chart-svg" dangerouslySetInnerHTML={{ __html: svg }} />
           ) : (
@@ -346,7 +347,7 @@ function CanvasPath({ node, style, outline, fx, base, onEdit }: {
   const d = pathToSvgD(pts, node.pathClosed)
   return (
     <div
-      className={`canvas-path ${outline} ${fx}`} data-layer-name={node.name}
+      className={`canvas-path ${outline} ${fx}`} data-layer-name={node.name} data-demo-id={node.id}
       style={style}
       {...base}
       onDoubleClick={(e) => { if (onEdit) { e.stopPropagation(); onEdit() } }}
@@ -376,7 +377,7 @@ function CanvasImage({ node, style, outline, fx, base }: {
   const src = node.imageUrl
   return (
     <div
-      className={`canvas-image ${outline} ${fx}`} data-layer-name={node.name}
+      className={`canvas-image ${outline} ${fx}`} data-layer-name={node.name} data-demo-id={node.id}
       style={{
         ...style,
         background: src ? undefined : (backgroundCss(node.style) ?? IMAGE_PLACEHOLDER),
@@ -442,7 +443,7 @@ function CanvasText({ node, style, outline, fx, base, state, dispatch, readOnly 
 
   return (
     <div
-      className={`canvas-text ${outline} ${fx}`} data-layer-name={node.name}
+      className={`canvas-text ${outline} ${fx}`} data-layer-name={node.name} data-demo-id={node.id}
       style={{
         ...style,
         color: node.style.fontColor ?? node.style.color ?? MUTED,
@@ -508,7 +509,7 @@ function CanvasComment({ node, style, outline, fx, base, state, dispatch, readOn
   }
 
   return (
-    <div className={`canvas-comment ${outline} ${fx}`} style={style} {...base}>
+    <div className={`canvas-comment ${outline} ${fx}`} data-demo-id={node.id} style={style} {...base}>
       <span className="comment-pin">{selected ? '💬' : '●'}</span>
       {showBubble && (
         <div className="comment-bubble" style={{ transform: `scale(${1 / scale})` }}>
