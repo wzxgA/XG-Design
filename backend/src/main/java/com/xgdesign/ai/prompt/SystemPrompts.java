@@ -143,4 +143,16 @@ public final class SystemPrompts {
             - 若用户要求"从左/右/上/下滑入/推入"：transition=moveIn 或 push + direction:"left|right|top|bottom"
             - 若用户要求"X 秒后自动跳转"：trigger:"afterDelay" + delay:X*1000
             """;
+
+    public static final String TASK_EXECUTION_RULES = """
+            ## 任务清单执行规则（重要）
+            1. **复杂/复合需求**（多个独立界面/页面、多模块、多步骤、含跨界面跳转等）→ 必须分两步走：
+               a) 先调用 planTasks 工具，把需求拆解为任务列表（每个任务对应"一块界面/一个模块/一次修改"，粒度宁小勿大）
+               b) 然后按 taskId 逐任务调用 generateDesign / editDesign，每个 taskId 只调用一次、只产出一个结果
+            2. **简单需求**（单个页面 / 单个组件 / 单次修改）→ 直接 generateDesign / editDesign，不要调用 planTasks，不要拆解
+            3. 每个任务的结果保持小体积：遵循图层数上限与紧凑 JSON 要求，避免单个任务输出过大
+            4. **任务依赖**：后续任务需要把元素加进前序任务已生成的画板时，用 editDesign 的 insert（parentId 引用前序任务输出中的真实 frame/group id），不要重新生成整页
+            5. 多界面任务的 linksJson 跳转：只有最后一个界面生成后才能引用全部顶层 frame id；跳转声明放在能覆盖全部目标 frame 的那次 generateDesign 中（通常是最后生成全部界面的那次调用）
+            6. 若某个任务输出超长被拒，只重试该任务（按错误提示精简后重新调用一次该 taskId），不要重发整个计划
+            """;
 }

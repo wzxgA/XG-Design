@@ -51,10 +51,11 @@ function collectAllFrames(nodes: import('../../types/design').LayerNode[], acc: 
 
 function PrototypePanel({ state, dispatch, selected, readOnly }: { state: EditorState; dispatch: EditorDispatch; selected: LayerNode; readOnly: boolean }) {
   const links = state.document.prototypeLinks.filter((l) => l.sourceLayerId === selected.id)
-  // 目标页支持任意页（含当前页：用于同页 Overlay 弹窗）
+  // 目标页支持任意页（含当前页：用于同页 Overlay / 同页多 frame 跳转）
   const allPages = state.document.pages
   const otherPages = state.document.pages.filter((p) => p.id !== state.document.activePageId)
-  const [targetPageId, setTargetPageId] = useState(otherPages[0]?.id ?? '')
+  // 默认目标：优先其他页第一页；单页文档回退当前页，避免 targetPageId 落空导致目标 frame 下拉消失
+  const [targetPageId, setTargetPageId] = useState(otherPages[0]?.id ?? state.document.activePageId ?? '')
   const [transition, setTransition] = useState<Transition>('instant')
   const [direction, setDirection] = useState<Direction>('left')
   const [duration, setDuration] = useState(400)

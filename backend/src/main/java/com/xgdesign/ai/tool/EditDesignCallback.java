@@ -8,7 +8,7 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Map;
 
 /**
  * 设计修改工具（Function Calling）。
@@ -23,29 +23,29 @@ public class EditDesignCallback {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final AtomicReference<String> operationsRef;
-    private final AtomicReference<String> descriptionRef;
+    /** 按任务累计的工具结果（taskId → 结果）；插入顺序即工具调用顺序 */
+    private final Map<String, TaskToolResult> results;
     private final AiComponentCatalog componentCatalog;
     /** 前端随请求发送的组件 schema（含完整 props 契约）；为空时仅做组件名白名单校验 */
     private final List<AiComponentCatalog.ComponentSpec> requestComponents;
 
-    public EditDesignCallback(AtomicReference<String> operationsRef, AtomicReference<String> descriptionRef,
+    public EditDesignCallback(Map<String, TaskToolResult> results,
                               AiComponentCatalog componentCatalog,
                               List<AiComponentCatalog.ComponentSpec> requestComponents) {
-        this.operationsRef = operationsRef;
-        this.descriptionRef = descriptionRef;
+        this.results = results;
         this.componentCatalog = componentCatalog;
         this.requestComponents = requestComponents;
     }
 
-    @Tool(description = "在已有画布上原位修改：调整、删除、替换或新增元素/模块（如给已有界面加搜索框、导航栏、评论区、帖子卡片）。当用户要求修改已有界面或给已有界面增加内容时调用此工具；只有创建全新独立页面/组件时才用 generateDesign。operationsJson 是操作指令数组的 JSON 字符串。")
+    @Tool(description = "在已有画布上原位修改：调整、删除、替换或新增元素/模块（如给已有界面加搜索框、导航栏、评论区、帖子卡片）。当用户要求修改已有界面或给已有界面增加内容时调用此工具；只有创建全新独立页面/组件时才用 generateDesign。operationsJson 是操作指令数组的 JSON 字符串。任务清单场景（先调用过 planTasks）必须携带 taskId，且每个 taskId 只调用一次、只产出一个结果。")
     public EditResult editDesign(
             @ToolParam(description = "操作指令数组的 JSON 字符串，例如 [{\"op\":\"update\",\"id\":\"layer-1\",\"patch\":{\"style\":{\"fill\":\"#ff0000\"}}},{\"op\":\"delete\",\"id\":\"layer-2\"},{\"op\":\"replace\",\"id\":\"old-btn\",\"node\":{\"type\":\"group\",\"name\":\"按钮\",\"component\":\"按钮\",\"componentProps\":{\"text\":\"提交\"},\"x\":0,\"y\":0,\"width\":140,\"height\":40,\"children\":[]}},{\"op\":\"insert\",\"parentId\":\"frame-1\",\"node\":{\"type\":\"text\",\"name\":\"Logo\",\"content\":\"B\",\"x\":24,\"y\":20,\"width\":40,\"height\":40,\"children\":[]}}]") String operationsJson,
-            @ToolParam(description = "修改说明，简要描述做了哪些修改") String description
+            @ToolParam(description = "修改说明，简要描述做了哪些修改") String description,
+            @ToolParam(required = false, description = "任务 ID（任务清单场景必填，对应 planTasks 输出的 taskId；简单需求不填）") String taskId
     ) {
         validateOperationsJson(operationsJson);
-        operationsRef.set(operationsJson);
-        descriptionRef.set(description);
+        String key = (taskId != null && !taskId.isBlank()) ? taskId : TaskToolResult.DEFAULT_TASK;
+        results.put(key, new TaskToolResult(key, "edit", operationsJson, description, null));
         return new EditResult(operationsJson, description);
     }
 
@@ -126,7 +126,7 @@ public class EditDesignCallback {
             if (!"group".equals(type)) {
                 throw new IllegalArgumentException("组件节点 type 必须为 group，当前为 " + type + " (组件: " + name + ")");
             }
-            if (!componentCatalog.isValidComponentName(name)) {
+            if (!componentCatalog.isValidComponentName(requestComponents, name)) {
                 throw new IllegalArgumentException("组件名 \"" + name + "\" 不在组件库中，可用组件: " + componentCatalog.componentNames());
             }
             // componentProps 契约校验（key 白名单 / select 枚举 / 数值范围），失败由上层转错误事件让模型自愈

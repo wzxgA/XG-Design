@@ -3,6 +3,7 @@ import type { AiProtoLink, ChatMessage, EditOperation } from '../../types/ai'
 import type { LayerNode } from '../../types/design'
 import { DesignPreviewCard } from './DesignPreviewCard'
 import { EditPreviewCard } from './EditPreviewCard'
+import { TaskChecklist } from './TaskChecklist'
 
 interface Props {
   message: ChatMessage
@@ -33,6 +34,15 @@ export function ChatMessageItem({ message, onApply, onApplyEdit }: Props) {
         )}
         {message.status === 'error' && (
           <div className="ai-msg-error">请求失败</div>
+        )}
+        {Array.isArray(message.taskPlan) && message.taskPlan.length > 0 && (
+          <TaskChecklist
+            plan={message.taskPlan}
+            results={message.taskResults ?? []}
+            streaming={message.status === 'streaming'}
+            onApplyDesign={onApply}
+            onApplyEdit={onApplyEdit}
+          />
         )}
         {message.designSuggestion && Array.isArray(message.designSuggestion.parsedLayers) && (
           <DesignPreviewCard suggestion={message.designSuggestion} onApply={onApply} />

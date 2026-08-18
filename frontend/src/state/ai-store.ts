@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { aiService } from '../services/aiService'
 import { buildComponentSchemaJson } from '../fixtures/component-library'
-import type { ChatMessage, ChatSession, ChatStreamEvent } from '../types/ai'
+import type { ChatMessage, ChatSession, ChatStreamEvent, TaskResultItem } from '../types/ai'
 
 // ===== 类型定义 =====
 
@@ -167,7 +167,15 @@ export const aiActions = {
 // ===== 流式事件处理 =====
 
 function onStreamEvent(event: ChatStreamEvent, streamingId: string) {
-  if (event.type === 'text') {
+  if (event.type === 'plan') {
+    // 任务清单：解析并挂到消息上，逐任务标记未开始
+    const plan = aiService.parseTaskPlan(event.content)
+    setState({
+      messages: state.messages.map(m =>
+        m.id === streamingId ? { ...m, taskPlan: plan } : m
+      ),
+    })
+  } else if (event.type === 'text') {
     setState({
       messages: state.messages.map(m =>
         m.id === streamingId
@@ -176,6 +184,16 @@ function onStreamEvent(event: ChatStreamEvent, streamingId: string) {
       ),
     })
   } else if (event.type === 'design') {
+    // 带 taskId → 任务清单场景：按任务累计结果（打勾）
+    if (event.taskId) {
+      upsertTaskResult(streamingId, {
+        taskId: event.taskId,
+        kind: 'design',
+        content: event.content,
+        linksJson: event.linksJson,
+      })
+      return
+    }
     try {
       const suggestion = aiService.parseDesignSuggestion(event.content, undefined, event.linksJson)
       setState({
@@ -187,6 +205,15 @@ function onStreamEvent(event: ChatStreamEvent, streamingId: string) {
       })
     } catch { /* skip invalid design JSON */ }
   } else if (event.type === 'edit') {
+    // 带 taskId → 任务清单场景：按任务累计结果（打勾）
+    if (event.taskId) {
+      upsertTaskResult(streamingId, {
+        taskId: event.taskId,
+        kind: 'edit',
+        content: event.content,
+      })
+      return
+    }
     try {
       const suggestion = aiService.parseEditOperations(event.content)
       setState({
@@ -211,6 +238,17 @@ function onStreamEvent(event: ChatStreamEvent, streamingId: string) {
       error: event.content,
     })
   }
+}
+
+/** 按 taskId 写入/更新消息的任务结果（同 taskId 覆盖，其余保留） */
+function upsertTaskResult(streamingId: string, result: TaskResultItem) {
+  setState({
+    messages: state.messages.map(m => {
+      if (m.id !== streamingId) return m
+      const others = (m.taskResults ?? []).filter(r => r.taskId !== result.taskId)
+      return { ...m, taskResults: [...others, result] }
+    }),
+  })
 }
 
 // ===== React Hook =====

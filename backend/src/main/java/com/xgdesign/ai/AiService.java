@@ -1,10 +1,16 @@
 package com.xgdesign.ai;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xgdesign.ai.dto.*;
 import com.xgdesign.ai.prompt.PromptBuilder;
 import com.xgdesign.ai.prompt.AiComponentCatalog;
 import com.xgdesign.ai.tool.DesignToolCallback;
 import com.xgdesign.ai.tool.EditDesignCallback;
+import com.xgdesign.ai.tool.PlanToolCallback;
+import com.xgdesign.ai.tool.TaskToolResult;
 import com.xgdesign.security.CurrentUserProvider;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -24,6 +30,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @Service
 public class AiService {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final ChatSessionRepository sessionRepo;
     private final ChatMessageRepository messageRepo;
@@ -117,15 +125,14 @@ public class AiService {
             }
 
             // 6. 真实 LLM 调用
-            AtomicReference<String> designRef = new AtomicReference<>();
-            AtomicReference<String> descRef = new AtomicReference<>();
-            AtomicReference<String> linksRef = new AtomicReference<>();
-            DesignToolCallback toolCallback = new DesignToolCallback(designRef, descRef, linksRef, componentCatalog, requestComponents);
-
+            // 结果按任务累计（taskId → 结果，插入顺序即工具调用顺序）；planTasks 拆解任务清单
+            AtomicReference<String> planRef = new AtomicReference<>();
+            Map<String, TaskToolResult> taskResults = Collections.synchronizedMap(new LinkedHashMap<>());
+            DesignToolCallback toolCallback = new DesignToolCallback(taskResults, componentCatalog, requestComponents);
             // editDesign 工具：修改/删除/替换/新增图层
-            AtomicReference<String> editOpsRef = new AtomicReference<>();
-            AtomicReference<String> editDescRef = new AtomicReference<>();
-            EditDesignCallback editToolCallback = new EditDesignCallback(editOpsRef, editDescRef, componentCatalog, requestComponents);
+            EditDesignCallback editToolCallback = new EditDesignCallback(taskResults, componentCatalog, requestComponents);
+            // planTasks 工具：复杂需求先拆解任务清单，再逐任务执行
+            PlanToolCallback planToolCallback = new PlanToolCallback(planRef);
 
             StringBuilder aiReplyBuffer = new StringBuilder();
             String sid = sessionId.toString();
@@ -135,7 +142,7 @@ public class AiService {
                     .system(systemPrompt)
                     .messages(history)
                     .user(request.message())
-                    .tools(toolCallback, editToolCallback)
+                    .tools(toolCallback, editToolCallback, planToolCallback)
                     .stream()
                     .chatResponse()
                     .<ServerSentEvent<ChatStreamEvent>>handle((resp, sink) -> {
@@ -146,21 +153,43 @@ public class AiService {
                     })
                     .concatWith(Flux.defer(() -> {
                         List<ServerSentEvent<ChatStreamEvent>> events = new ArrayList<>();
-                        String design = designRef.get();
-                        String editOps = editOpsRef.get();
-                        if (design != null) {
-                            events.add(designEvent(design, descRef.get(), linksRef.get(), sid, mid));
+                        String plan = planRef.get();
+                        List<TaskToolResult> results = new ArrayList<>(taskResults.values());
+                        if (plan != null) {
+                            // 任务清单场景：plan 事件 + 逐任务 design/edit 事件（带 taskId），每任务独立小输出防截断
+                            events.add(planEvent(plan, sid, mid));
+                            for (TaskToolResult r : results) {
+                                if ("edit".equals(r.kind())) {
+                                    events.add(editEvent(r.content(), r.description(), r.taskId(), sid, mid));
+                                } else {
+                                    events.add(designEvent(r.content(), r.description(), r.linksJson(), r.taskId(), sid, mid));
+                                }
+                            }
+                            saveAiMessage(sessionId, aiReplyBuffer.toString(), null, null, null, null,
+                                    plan, toResultsJson(results));
+                        } else {
+                            // 简单场景：保持消息级建议（向后兼容），design/edit 各取最后一次调用结果
+                            TaskToolResult design = lastResult(results, "design");
+                            TaskToolResult edit = lastResult(results, "edit");
+                            if (design != null) {
+                                events.add(designEvent(design.content(), design.description(), design.linksJson(), null, sid, mid));
+                            }
+                            if (edit != null) {
+                                events.add(editEvent(edit.content(), edit.description(), null, sid, mid));
+                            }
+                            saveAiMessage(sessionId, aiReplyBuffer.toString(),
+                                    design != null ? design.content() : null,
+                                    design != null ? design.description() : null,
+                                    edit != null ? edit.content() : null,
+                                    edit != null ? edit.description() : null,
+                                    null, null);
                         }
-                        if (editOps != null) {
-                            events.add(editEvent(editOps, editDescRef.get(), sid, mid));
-                        }
-                        saveAiMessage(sessionId, aiReplyBuffer.toString(), design, descRef.get(), editOps, editDescRef.get());
                         updateSessionStats(sessionId);
                         events.add(doneEvent(sid, mid));
                         return Flux.fromIterable(events);
                     }))
                     .onErrorResume(e -> {
-                        saveAiMessage(sessionId, aiReplyBuffer.toString(), null, null, null, null);
+                        saveAiMessage(sessionId, aiReplyBuffer.toString(), null, null, null, null, null, null);
                         updateSessionStats(sessionId);
                         return Flux.just(errorEvent(e.getMessage(), sid));
                     });
@@ -172,11 +201,15 @@ public class AiService {
     // ==================== Mock 模式 ====================
 
     private Flux<ServerSentEvent<ChatStreamEvent>> mockChat(ChatRequest request, UUID sessionId, UUID messageId) {
-        String mockText = "好的，我来帮你设计「" + request.message() + "」。以下是我生成的设计方案，你可以预览后应用到画布。";
+        String mockText = "好的，我来帮你设计「" + request.message() + "」。我已将需求拆解为任务清单，正在逐个实现…";
         String mockDesign = MockDesignTemplates.getTemplate(request.message());
         String mockDesc = MockDesignTemplates.getDescription(request.message());
+        // 单任务形态：planTasks 输出 1 个任务 + 对应 design 结果，保证无 Key 时任务清单功能可演示
+        String taskId = "t1";
+        String planJson = mockPlanJson(taskId, mockDesc);
+        String resultsJson = mockResultsJson(taskId, mockDesign, mockDesc);
 
-        saveAiMessage(sessionId, mockText, mockDesign, mockDesc, null, null);
+        saveAiMessage(sessionId, mockText, null, null, null, null, planJson, resultsJson);
         updateSessionStats(sessionId);
 
         String sid = sessionId.toString();
@@ -184,7 +217,8 @@ public class AiService {
 
         return Flux.just(
                 textEvent(mockText, sid, mid),
-                designEvent(mockDesign, mockDesc, null, sid, mid),
+                planEvent(planJson, sid, mid),
+                designEvent(mockDesign, mockDesc, null, taskId, sid, mid),
                 doneEvent(sid, mid)
         );
     }
@@ -229,7 +263,7 @@ public class AiService {
     }
 
     private void saveAiMessage(UUID sessionId, String content, String designSuggestion, String designDescription,
-                               String editOperations, String editDescription) {
+                               String editOperations, String editDescription, String taskPlan, String taskResults) {
         ChatMessageEntity msg = new ChatMessageEntity();
         msg.setSessionId(sessionId);
         msg.setRole("assistant");
@@ -238,6 +272,8 @@ public class AiService {
         msg.setDesignDescription(designDescription);
         msg.setEditOperations(editOperations);
         msg.setEditDescription(editDescription);
+        msg.setTaskPlan(taskPlan);
+        msg.setTaskResults(taskResults);
         messageRepo.save(msg);
     }
 
@@ -283,32 +319,94 @@ public class AiService {
 
     private ServerSentEvent<ChatStreamEvent> textEvent(String text, String sessionId, String messageId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("text", text, sessionId, messageId, null))
+                .data(new ChatStreamEvent("text", text, sessionId, messageId, null, null))
                 .build();
     }
 
-    private ServerSentEvent<ChatStreamEvent> designEvent(String design, String description, String linksJson, String sessionId, String messageId) {
+    private ServerSentEvent<ChatStreamEvent> planEvent(String plan, String sessionId, String messageId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("design", design, sessionId, messageId, linksJson))
+                .data(new ChatStreamEvent("plan", plan, sessionId, messageId, null, null))
                 .build();
     }
 
-    private ServerSentEvent<ChatStreamEvent> editEvent(String operations, String description, String sessionId, String messageId) {
+    private ServerSentEvent<ChatStreamEvent> designEvent(String design, String description, String linksJson,
+                                                         String taskId, String sessionId, String messageId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("edit", operations, sessionId, messageId, null))
+                .data(new ChatStreamEvent("design", design, sessionId, messageId, linksJson, taskId))
+                .build();
+    }
+
+    private ServerSentEvent<ChatStreamEvent> editEvent(String operations, String description,
+                                                       String taskId, String sessionId, String messageId) {
+        return ServerSentEvent.<ChatStreamEvent>builder()
+                .data(new ChatStreamEvent("edit", operations, sessionId, messageId, null, taskId))
                 .build();
     }
 
     private ServerSentEvent<ChatStreamEvent> doneEvent(String sessionId, String messageId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("done", null, sessionId, messageId, null))
+                .data(new ChatStreamEvent("done", null, sessionId, messageId, null, null))
                 .build();
     }
 
     private ServerSentEvent<ChatStreamEvent> errorEvent(String message, String sessionId) {
         return ServerSentEvent.<ChatStreamEvent>builder()
-                .data(new ChatStreamEvent("error", message, sessionId, null, null))
+                .data(new ChatStreamEvent("error", message, sessionId, null, null, null))
                 .build();
+    }
+
+    // ==================== 任务清单辅助 ====================
+
+    /** 取结果列表中最后一个指定 kind 的结果（简单场景向后兼容：保留"最后一次调用"语义） */
+    private TaskToolResult lastResult(List<TaskToolResult> results, String kind) {
+        TaskToolResult found = null;
+        for (TaskToolResult r : results) {
+            if (kind.equals(r.kind())) found = r;
+        }
+        return found;
+    }
+
+    /** 任务结果列表序列化为 JSON 数组字符串（持久化用） */
+    private String toResultsJson(List<TaskToolResult> results) {
+        if (results == null || results.isEmpty()) return null;
+        try {
+            return MAPPER.writeValueAsString(results);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+    }
+
+    /** Mock 单任务清单 JSON */
+    private String mockPlanJson(String taskId, String title) {
+        try {
+            ObjectNode o = MAPPER.createObjectNode();
+            o.put("taskId", taskId);
+            o.put("title", "生成设计");
+            o.put("description", title);
+            o.put("action", "generate");
+            ArrayNode arr = MAPPER.createArrayNode();
+            arr.add(o);
+            return MAPPER.writeValueAsString(arr);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+    }
+
+    /** Mock 单任务结果 JSON */
+    private String mockResultsJson(String taskId, String design, String description) {
+        try {
+            ObjectNode o = MAPPER.createObjectNode();
+            o.put("taskId", taskId);
+            o.put("kind", "design");
+            o.put("content", design);
+            o.put("description", description);
+            o.put("linksJson", (String) null);
+            ArrayNode arr = MAPPER.createArrayNode();
+            arr.add(o);
+            return MAPPER.writeValueAsString(arr);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
     }
 
     // ==================== DTO 转换 ====================
@@ -346,6 +444,8 @@ public class AiService {
                 entity.getContent(),
                 suggestion,
                 editOps,
+                entity.getTaskPlan(),
+                entity.getTaskResults(),
                 entity.getCreatedAt().toString()
         );
     }

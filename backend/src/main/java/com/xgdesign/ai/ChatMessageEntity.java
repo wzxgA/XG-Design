@@ -42,6 +42,14 @@ public class ChatMessageEntity {
     @Column(name = "edit_description", length = 500)
     private String editDescription;
 
+    /** 任务清单 JSON 数组（planTasks 工具输出） */
+    @Column(name = "task_plan", columnDefinition = "TEXT")
+    private String taskPlan;
+
+    /** 逐任务结果 JSON 数组: [{"taskId","kind","content","description","linksJson"}] */
+    @Column(name = "task_results", columnDefinition = "TEXT")
+    private String taskResults;
+
     @Column(name = "token_count")
     private Integer tokenCount;
 
@@ -120,6 +128,22 @@ public class ChatMessageEntity {
 
     public void setEditDescription(String editDescription) {
         this.editDescription = editDescription;
+    }
+
+    public String getTaskPlan() {
+        return taskPlan;
+    }
+
+    public void setTaskPlan(String taskPlan) {
+        this.taskPlan = taskPlan;
+    }
+
+    public String getTaskResults() {
+        return taskResults;
+    }
+
+    public void setTaskResults(String taskResults) {
+        this.taskResults = taskResults;
     }
 
     public Integer getTokenCount() {

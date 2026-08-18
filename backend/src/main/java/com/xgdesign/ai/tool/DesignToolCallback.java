@@ -11,9 +11,9 @@ import org.springframework.ai.tool.annotation.ToolParam;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 设计生成工具（Function Calling）。
@@ -27,37 +27,34 @@ public class DesignToolCallback {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final AtomicReference<String> designRef;
-    private final AtomicReference<String> descriptionRef;
-    private final AtomicReference<String> linksRef;
+    /** 按任务累计的工具结果（taskId → 结果）；插入顺序即工具调用顺序 */
+    private final Map<String, TaskToolResult> results;
     private final AiComponentCatalog componentCatalog;
     /** 前端随请求发送的组件 schema（含完整 props 契约）；为空时回退静态目录做白名单校验 */
     private final List<AiComponentCatalog.ComponentSpec> requestComponents;
     /** 本次请求内连续校验失败次数，≥2 次时输出更激进的精简指令 */
     private final AtomicInteger failCount = new AtomicInteger();
 
-    public DesignToolCallback(AtomicReference<String> designRef, AtomicReference<String> descriptionRef,
-                              AtomicReference<String> linksRef, AiComponentCatalog componentCatalog,
+    public DesignToolCallback(Map<String, TaskToolResult> results,
+                              AiComponentCatalog componentCatalog,
                               List<AiComponentCatalog.ComponentSpec> requestComponents) {
-        this.designRef = designRef;
-        this.descriptionRef = descriptionRef;
-        this.linksRef = linksRef;
+        this.results = results;
         this.componentCatalog = componentCatalog;
         this.requestComponents = requestComponents;
     }
 
-    @Tool(description = "生成全新设计稿（新页面/新组件/新独立界面）。当用户要求从零创建页面、组件或独立界面时调用此工具。对已有画布内容的修改、增删、加元素/加模块请改用 editDesign 工具。layersJson 是图层数组的 JSON 字符串，每个图层包含 id/type/name/x/y/width/height/style/children 等属性。若用户要求按钮/元素点击跳转到另一界面，用 linksJson 声明跳转关系。")
+    @Tool(description = "生成全新设计稿（新页面/新组件/新独立界面）。当用户要求从零创建页面、组件或独立界面时调用此工具。对已有画布内容的修改、增删、加元素/加模块请改用 editDesign 工具。layersJson 是图层数组的 JSON 字符串，每个图层包含 id/type/name/x/y/width/height/style/children 等属性。若用户要求按钮/元素点击跳转到另一界面，用 linksJson 声明跳转关系。任务清单场景（先调用过 planTasks）必须携带 taskId，且每个 taskId 只调用一次、只产出一个结果。")
     public DesignResult generateDesign(
             @ToolParam(description = "图层数组的 JSON 字符串，例如 [{\"id\":\"layer-1\",\"type\":\"frame\",\"name\":\"容器\",\"x\":0,\"y\":0,\"width\":400,\"height\":600,\"style\":{\"fill\":\"#fff\"},\"children\":[]}]") String layersJson,
             @ToolParam(description = "设计描述/标题，简要说明这个设计的内容") String description,
-            @ToolParam(description = "原型跳转关系的 JSON 数组字符串（可选，默认空），每条: {\"sourceLayerId\":\"可点击节点id\",\"targetFrameId\":\"目标顶层frame的id\",\"transition\":\"instant|fade|moveIn|moveOut|push|smart|overlay\"}，可含 duration/easing/direction/delay/trigger/overlay 可选字段。只有多界面（多个顶层 frame）时可用") String linksJson
+            @ToolParam(description = "原型跳转关系的 JSON 数组字符串（可选，默认空），每条: {\"sourceLayerId\":\"可点击节点id\",\"targetFrameId\":\"目标顶层frame的id\",\"transition\":\"instant|fade|moveIn|moveOut|push|smart|overlay\"}，可含 duration/easing/direction/delay/trigger/overlay 可选字段。只有多界面（多个顶层 frame）时可用") String linksJson,
+            @ToolParam(required = false, description = "任务 ID（任务清单场景必填，对应 planTasks 输出的 taskId；简单需求不填）") String taskId
     ) {
         // 校验 JSON 合法性；截断、格式错误或组件名非法时抛明确异常，由 AiService 转为 SSE error 事件并让模型自愈
         validateLayersJson(layersJson);
         String normalizedLinks = validateLinksJson(linksJson, layersJson);
-        designRef.set(layersJson);
-        descriptionRef.set(description);
-        linksRef.set(normalizedLinks);
+        String key = (taskId != null && !taskId.isBlank()) ? taskId : TaskToolResult.DEFAULT_TASK;
+        results.put(key, new TaskToolResult(key, "design", layersJson, description, normalizedLinks));
         return new DesignResult(layersJson, description, normalizedLinks);
     }
 
@@ -206,7 +203,7 @@ public class DesignToolCallback {
                 if (!"group".equals(type)) {
                     throw new IllegalArgumentException("组件节点 type 必须为 group，当前为 " + type + " (组件: " + name + ")。请修正后重新生成。");
                 }
-                if (!componentCatalog.isValidComponentName(name)) {
+                if (!componentCatalog.isValidComponentName(requestComponents, name)) {
                     throw new IllegalArgumentException("组件名 \"" + name + "\" 不在组件库中，相近可用组件: " + componentCatalog.suggestSimilarText(name) + "。请改用上述名称重新生成。");
                 }
                 // componentProps 契约校验（key 白名单 / select 枚举 / 数值范围），失败由上层转错误事件让模型自愈

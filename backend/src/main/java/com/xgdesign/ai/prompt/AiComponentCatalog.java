@@ -101,6 +101,20 @@ public class AiComponentCatalog {
         return false;
     }
 
+    /**
+     * 组件名白名单校验（请求 schema 感知）：优先在请求组件列表（含前端自定义组件）中匹配，
+     * 未命中时回退静态目录。避免新增组件未同步静态目录时被误拒。
+     */
+    public boolean isValidComponentName(List<ComponentSpec> requestComponents, String name) {
+        if (name == null || name.isBlank()) return false;
+        if (requestComponents != null) {
+            for (ComponentSpec s : requestComponents) {
+                if (name.equals(s.name())) return true;
+            }
+        }
+        return isValidComponentName(name);
+    }
+
     /** 相近组件建议：按名称/关键词匹配度排序，返回最多 3 个；无匹配返回空列表 */
     public List<String> suggestSimilar(String name) {
         if (name == null || name.isBlank()) return List.of();

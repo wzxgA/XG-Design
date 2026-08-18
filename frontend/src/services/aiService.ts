@@ -1,5 +1,5 @@
 import { api } from './http'
-import type { ChatMessage, ChatSession, ChatStreamEvent, ChatRequest, DesignSuggestion, EditOperation, EditSuggestion, AiProtoLink } from '../types/ai'
+import type { ChatMessage, ChatSession, ChatStreamEvent, ChatRequest, DesignSuggestion, EditOperation, EditSuggestion, AiProtoLink, TaskItem, TaskResultItem } from '../types/ai'
 import type { LayerNode } from '../types/design'
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
@@ -17,7 +17,13 @@ export const aiService = {
   },
 
   async getMessages(sessionId: string): Promise<ChatMessage[]> {
-    return api.get<ChatMessage[]>(`/api/ai/sessions/${sessionId}/messages`)
+    const messages = await api.get<ChatMessage[]>(`/api/ai/sessions/${sessionId}/messages`)
+    // 后端返回的 taskPlan / taskResults 为原始 JSON 字符串，解析为结构化数组供 UI 渲染
+    return messages.map(m => ({
+      ...m,
+      taskPlan: this.parseTaskPlan((m as unknown as { taskPlan?: string }).taskPlan),
+      taskResults: this.parseTaskResults((m as unknown as { taskResults?: string }).taskResults),
+    }))
   },
 
   async deleteSession(sessionId: string): Promise<void> {
@@ -108,6 +114,30 @@ export const aiService = {
       const arr = JSON.parse(linksJson) as AiProtoLink[]
       if (!Array.isArray(arr)) return []
       return arr.filter((l) => l && l.sourceLayerId && l.targetFrameId)
+    } catch {
+      return []
+    }
+  },
+
+  /** 解析任务清单 JSON（planTasks 工具产出；非法/缺失时回退空数组） */
+  parseTaskPlan(json?: string | null): TaskItem[] {
+    if (!json || !json.trim()) return []
+    try {
+      const arr = JSON.parse(json) as TaskItem[]
+      if (!Array.isArray(arr)) return []
+      return arr.filter((t) => t && t.taskId && t.title)
+    } catch {
+      return []
+    }
+  },
+
+  /** 解析任务结果 JSON（taskId → 结果；非法/缺失时回退空数组） */
+  parseTaskResults(json?: string | null): TaskResultItem[] {
+    if (!json || !json.trim()) return []
+    try {
+      const arr = JSON.parse(json) as TaskResultItem[]
+      if (!Array.isArray(arr)) return []
+      return arr.filter((r) => r && r.taskId)
     } catch {
       return []
     }

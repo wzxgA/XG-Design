@@ -732,12 +732,18 @@ function simpleTemplate(name: string, short: string, description: string, catego
 }
 
 /**
- * 生成组件库 schema 载荷：把 COMPONENT_TEMPLATES 的可配置 props（key/类型/默认值/范围/选项）序列化为紧凑 JSON。
+ * 生成组件库 schema 载荷：把内置 COMPONENT_TEMPLATES 与自定义组件（loadCustomComponents）的可配置
+ * props（key/类型/默认值/范围/选项）序列化为紧凑 JSON。
  * 随每次 AI 对话请求发送，作为后端提示词构建与 componentProps 校验的单一数据源，避免目录与模板失同步。
+ * 自定义组件并入 schema 后，AI 的组件库提示词与名称白名单均能感知它们。
  */
 export function buildComponentSchemaJson(): string {
+  // 合并内置 + 自定义组件；同名去重（内置优先），避免覆盖内置模板
+  const seen = new Set(COMPONENT_TEMPLATES.map((t) => t.name))
+  const custom = loadCustomComponents().filter((t) => !seen.has(t.name))
+  const templates = [...COMPONENT_TEMPLATES, ...custom]
   const payload = {
-    components: COMPONENT_TEMPLATES.map((t) => ({
+    components: templates.map((t) => ({
       name: t.name,
       keywords: t.keywords ?? [],
       note: t.description,

@@ -6,8 +6,32 @@ export interface ChatMessage {
   content: string
   designSuggestion?: DesignSuggestion
   editSuggestion?: EditSuggestion
+  /** 任务清单（AI 先拆解需求得到的小任务列表） */
+  taskPlan?: TaskItem[]
+  /** 各任务的执行结果（taskId → 结果，用于打勾） */
+  taskResults?: TaskResultItem[]
   createdAt: string
   status: 'sending' | 'streaming' | 'done' | 'error'
+}
+
+/** 任务清单中的单个任务（planTasks 工具产出） */
+export interface TaskItem {
+  taskId: string
+  title: string
+  description?: string
+  /** 该任务使用的工具：generate（生成设计）/ edit（修改设计） */
+  action?: 'generate' | 'edit' | string
+}
+
+/** 单个任务的执行结果（对应后端 TaskToolResult） */
+export interface TaskResultItem {
+  taskId: string
+  /** 结果类型：design / edit */
+  kind: 'design' | 'edit' | string
+  /** 结果内容：design 为 LayerNode[] JSON；edit 为操作指令 JSON */
+  content: string
+  description?: string
+  linksJson?: string
 }
 
 /** AI 生成的原型跳转声明（targetFrameId 在应用时映射为真实 pageId） */
@@ -53,11 +77,13 @@ export interface ChatSession {
 
 /** SSE 流式事件 */
 export interface ChatStreamEvent {
-  type: 'text' | 'design' | 'edit' | 'done' | 'error'
+  type: 'text' | 'plan' | 'design' | 'edit' | 'done' | 'error'
   content: string
   sessionId: string
   messageId: string
   linksJson?: string
+  /** 任务清单场景下的任务 ID；为空表示消息级结果 */
+  taskId?: string
 }
 
 /** 对话请求 */
