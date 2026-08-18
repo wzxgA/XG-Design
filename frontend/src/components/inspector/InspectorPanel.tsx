@@ -40,6 +40,15 @@ function findFrameInPage(page: import('../../types/design').PageNode, frameId: s
   return page.children.find((n) => n.id === frameId)
 }
 
+/** 递归收集页面内所有 frame（含嵌套），与预览端 findFrameById 保持一致 */
+function collectAllFrames(nodes: import('../../types/design').LayerNode[], acc: import('../../types/design').LayerNode[] = []): import('../../types/design').LayerNode[] {
+  for (const n of nodes) {
+    if (n.type === 'frame') acc.push(n)
+    collectAllFrames(n.children, acc)
+  }
+  return acc
+}
+
 function PrototypePanel({ state, dispatch, selected, readOnly }: { state: EditorState; dispatch: EditorDispatch; selected: LayerNode; readOnly: boolean }) {
   const links = state.document.prototypeLinks.filter((l) => l.sourceLayerId === selected.id)
   // 目标页支持任意页（含当前页：用于同页 Overlay 弹窗）
@@ -63,7 +72,7 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
   const [closeOnEsc, setCloseOnEsc] = useState(true)
 
   const targetPage = state.document.pages.find((p) => p.id === targetPageId)
-  const targetFrames = targetPage?.children.filter((n) => n.type === 'frame') ?? []
+  const targetFrames = targetPage ? collectAllFrames(targetPage.children) : []
 
   const addLink = () => {
     if (!targetPageId) return
@@ -168,12 +177,16 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
                 <option value="moveIn">滑入</option>
                 <option value="moveOut">滑出</option>
                 <option value="push">推入</option>
+                <option value="smart">智能动画</option>
                 <option value="overlay">浮层</option>
                 {/* 兼容旧值 */}
                 <option value="dissolve">淡入（旧）</option>
                 <option value="slide">滑动（旧）</option>
               </select>
             </div>
+            {transition === 'smart' && (
+              <div className="schema-group-label" style={{ marginBottom: 10, lineHeight: 1.6 }}>对齐源/目标 frame 中同名图层，可让它们"流动"到新位置/尺寸。</div>
+            )}
             {isDirectional && (
               <div className="proto-field">
                 <label>方向</label>

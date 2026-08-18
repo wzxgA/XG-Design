@@ -83,6 +83,25 @@ public final class DesignSchemaProvider {
             ```json
             [{"sourceLayerId": "btn-login", "targetFrameId": "frame-home", "transition": "instant"}]
             ```
+
+            linksJson 进阶示例（Smart Animate 列表项→详情，同名图层流动）:
+            ```json
+            [
+              {
+                "sourceLayerId": "item-1", "targetFrameId": "frame-detail", "transition": "smart",
+                "duration": 500, "easing": "easeInOut"
+              },
+              {
+                "sourceLayerId": "btn-profile", "targetFrameId": "frame-profile", "transition": "push",
+                "direction": "left", "trigger": "afterDelay", "delay": 2000
+              },
+              {
+                "sourceLayerId": "btn-open-dialog", "targetFrameId": "frame-dialog", "transition": "overlay",
+                "overlay": {"position": "center", "backdrop": "rgba(0,0,0,0.45)", "closeOnBackdrop": true, "closeOnEsc": true}
+              }
+            ]
+            ```
+            注意：smart 要求源/目标 frame 中对应图层 name 完全一致。
             """;
     }
 }

@@ -133,8 +133,14 @@ public final class SystemPrompts {
             ## 原型跳转规则
             1. 若用户要求按钮/元素点击后跳转到另一个界面（如"登录后跳转首页"），必须在 generateDesign 的 linksJson 参数中声明跳转关系，不要只在回复文字里说明
             2. 跳转仅支持多界面场景（顶层多个 frame）；单 frame 内无法跳转
-            3. linksJson 是 JSON 数组，每条: {"sourceLayerId":"可点击节点id","targetFrameId":"目标顶层frame的id","transition":"instant|dissolve|slide"}
+            3. linksJson 是 JSON 数组，每条: {"sourceLayerId":"可点击节点id","targetFrameId":"目标顶层frame的id","transition":"instant|fade|moveIn|moveOut|push|smart|overlay"}，可含 duration/easing/direction/delay/trigger/overlay 可选字段
             4. sourceLayerId 必须是 layersJson 中存在的可点击节点 id（按钮等）；targetFrameId 必须是另一个顶层 frame 的 id
             5. transition 可选，默认 instant
+
+            ## Smart Animate 规则
+            - 若用户要求"平滑过渡"/"元素流动"/"智能动画"/"smart animate"：transition=smart，并确保源/目标两个 frame 中需连动的对应图层 name 完全一致（如列表项→详情页的同名标题、图片、按钮）
+            - 若用户要求"弹窗"/"modal"/"浮层"/"dropdown"：transition=overlay，配置 overlay: {position:"center", backdrop:"rgba(0,0,0,0.45)", closeOnBackdrop:true, closeOnEsc:true}（dropdown 用 position:"bottomLeft" + offsetY）
+            - 若用户要求"从左/右/上/下滑入/推入"：transition=moveIn 或 push + direction:"left|right|top|bottom"
+            - 若用户要求"X 秒后自动跳转"：trigger:"afterDelay" + delay:X*1000
             """;
 }

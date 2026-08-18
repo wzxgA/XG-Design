@@ -50,7 +50,7 @@ public class DesignToolCallback {
     public DesignResult generateDesign(
             @ToolParam(description = "图层数组的 JSON 字符串，例如 [{\"id\":\"layer-1\",\"type\":\"frame\",\"name\":\"容器\",\"x\":0,\"y\":0,\"width\":400,\"height\":600,\"style\":{\"fill\":\"#fff\"},\"children\":[]}]") String layersJson,
             @ToolParam(description = "设计描述/标题，简要说明这个设计的内容") String description,
-            @ToolParam(description = "原型跳转关系的 JSON 数组字符串（可选，默认空），每条: {\"sourceLayerId\":\"可点击节点id\",\"targetFrameId\":\"目标顶层frame的id\",\"transition\":\"instant|dissolve|slide\"}。只有多界面（多个顶层 frame）时可用") String linksJson
+            @ToolParam(description = "原型跳转关系的 JSON 数组字符串（可选，默认空），每条: {\"sourceLayerId\":\"可点击节点id\",\"targetFrameId\":\"目标顶层frame的id\",\"transition\":\"instant|fade|moveIn|moveOut|push|smart|overlay\"}，可含 duration/easing/direction/delay/trigger/overlay 可选字段。只有多界面（多个顶层 frame）时可用") String linksJson
     ) {
         // 校验 JSON 合法性；截断、格式错误或组件名非法时抛明确异常，由 AiService 转为 SSE error 事件并让模型自愈
         validateLayersJson(layersJson);
@@ -96,8 +96,24 @@ public class DesignToolCallback {
             o.put("sourceLayerId", source);
             o.put("targetFrameId", target);
             String trans = link.path("transition").asText("instant");
-            if (!"dissolve".equals(trans) && !"slide".equals(trans)) trans = "instant";
+            switch (trans) {
+                case "fade": case "moveIn": case "moveOut": case "push": case "smart": case "overlay":
+                    // 新原生转场透传
+                    break;
+                case "dissolve": trans = "fade"; break;   // 兼容旧值 → fade
+                case "slide":  trans = "push"; break;     // 兼容旧值 → push
+                default:       trans = "instant";         // 未知 → instant
+            }
             o.put("transition", trans);
+            // 透传可选字段
+            if (link.has("targetPageId") && !link.path("targetPageId").asText("").isBlank()) o.put("targetPageId", link.path("targetPageId").asText());
+            if (link.hasNonNull("duration")) o.put("duration", link.path("duration").asInt());
+            if (link.has("easing") && !link.path("easing").asText("").isBlank()) o.put("easing", link.path("easing").asText());
+            if (link.has("direction") && !link.path("direction").asText("").isBlank()) o.put("direction", link.path("direction").asText());
+            if (link.has("trigger") && !link.path("trigger").asText("").isBlank()) o.put("trigger", link.path("trigger").asText());
+            if (link.hasNonNull("delay")) o.put("delay", link.path("delay").asInt());
+            if (link.has("key") && !link.path("key").asText("").isBlank()) o.put("key", link.path("key").asText());
+            if (link.has("overlay") && link.path("overlay").isObject()) o.set("overlay", link.path("overlay"));
             out.add(o);
         }
         try {

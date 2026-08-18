@@ -236,7 +236,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     case 'rectangle':
       return (
         <div
-          className={`canvas-rect ${outline} ${fx}`}
+          className={`canvas-rect ${outline} ${fx}`} data-layer-name={node.name}
           style={{
             ...style,
             background: backgroundCss(node.style) ?? RECT_FILL,
@@ -298,7 +298,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     case 'chart': {
       const svg = renderChartSvg(node)
       return (
-        <div className={`canvas-chart ${outline} ${fx}`} style={style} {...base}>
+        <div className={`canvas-chart ${outline} ${fx}`} data-layer-name={node.name} style={style} {...base}>
           {svg ? (
             <div className="canvas-chart-svg" dangerouslySetInnerHTML={{ __html: svg }} />
           ) : (
@@ -346,7 +346,7 @@ function CanvasPath({ node, style, outline, fx, base, onEdit }: {
   const d = pathToSvgD(pts, node.pathClosed)
   return (
     <div
-      className={`canvas-path ${outline} ${fx}`}
+      className={`canvas-path ${outline} ${fx}`} data-layer-name={node.name}
       style={style}
       {...base}
       onDoubleClick={(e) => { if (onEdit) { e.stopPropagation(); onEdit() } }}
@@ -376,7 +376,7 @@ function CanvasImage({ node, style, outline, fx, base }: {
   const src = node.imageUrl
   return (
     <div
-      className={`canvas-image ${outline} ${fx}`}
+      className={`canvas-image ${outline} ${fx}`} data-layer-name={node.name}
       style={{
         ...style,
         background: src ? undefined : (backgroundCss(node.style) ?? IMAGE_PLACEHOLDER),
@@ -442,7 +442,7 @@ function CanvasText({ node, style, outline, fx, base, state, dispatch, readOnly 
 
   return (
     <div
-      className={`canvas-text ${outline} ${fx}`}
+      className={`canvas-text ${outline} ${fx}`} data-layer-name={node.name}
       style={{
         ...style,
         color: node.style.fontColor ?? node.style.color ?? MUTED,

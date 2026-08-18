@@ -5,7 +5,7 @@ import type { LayerNode, PageNode, PrototypeLink, Direction, Transition, Easing,
 import { CanvasObject } from './CanvasObject'
 import { PreviewDemoContext } from './preview-demo'
 import { Icon } from '../common/brand'
-import { runDirectionalAnimation, cancelAllAnimations, getDefaultDuration } from '../../utils/proto-animate'
+import { runDirectionalAnimation, cancelAllAnimations, getDefaultDuration, resolveEasing, smartAnimateFrame, collectLeaves } from '../../utils/proto-animate'
 
 interface Props {
   state: EditorState
@@ -462,20 +462,35 @@ export function PreviewOverlay({ state, onClose }: Props) {
           cancelAllAnimations(srcFrameRef.current)
           cancelAllAnimations(dstFrameRef.current)
 
-          // 运行动画
           const duration = link.duration ?? getDefaultDuration(link.transition)
-          await runDirectionalAnimation(
-            srcFrameRef.current,
-            dstFrameRef.current,
-            vp,
-            {
-              transition: link.transition,
-              direction: link.direction,
-              duration,
-              easing: link.easing,
-              easingBezier: link.easingBezier,
+          const easing = resolveEasing(link.easing, link.easingBezier)
+
+          if (link.transition === 'smart') {
+            // 降级护栏：参与插值的节点总数 > 50 时回退为整帧 fade
+            if (collectLeaves(srcFrame).size + collectLeaves(dstFrame).size > 50) {
+              await runDirectionalAnimation(
+                srcFrameRef.current,
+                dstFrameRef.current,
+                vp,
+                { transition: 'fade', direction: link.direction, duration, easing: link.easing, easingBezier: link.easingBezier }
+              )
+            } else {
+              await smartAnimateFrame(srcFrame, dstFrame, srcFrameRef.current, dstFrameRef.current, { duration, easing })
             }
-          )
+          } else {
+            await runDirectionalAnimation(
+              srcFrameRef.current,
+              dstFrameRef.current,
+              vp,
+              {
+                transition: link.transition,
+                direction: link.direction,
+                duration,
+                easing: link.easing,
+                easingBezier: link.easingBezier,
+              }
+            )
+          }
         }
       }
     }
