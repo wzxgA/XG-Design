@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
-import type { LayerNode, PrototypeLink, ComponentPropDef, ComponentState } from '../../types/design'
+import type { LayerNode, PrototypeLink, ComponentPropDef, ComponentState, Transition, Direction, Easing } from '../../types/design'
 import { GradientStyleEditor, EffectsEditor } from './EffectEditors'
 import { AutoLayoutEditor } from './AutoLayoutEditor'
 import { Icon } from '../common/brand'
@@ -36,11 +36,25 @@ function findBoard(state: EditorState): { width: number; height: number } | unde
   return frame ? { width: frame.width, height: frame.height } : undefined
 }
 
+function findFrameInPage(page: import('../../types/design').PageNode, frameId: string): import('../../types/design').LayerNode | undefined {
+  return page.children.find((n) => n.id === frameId)
+}
+
 function PrototypePanel({ state, dispatch, selected, readOnly }: { state: EditorState; dispatch: EditorDispatch; selected: LayerNode; readOnly: boolean }) {
   const links = state.document.prototypeLinks.filter((l) => l.sourceLayerId === selected.id)
   const otherPages = state.document.pages.filter((p) => p.id !== state.document.activePageId)
   const [targetPageId, setTargetPageId] = useState(otherPages[0]?.id ?? '')
-  const [transition, setTransition] = useState<'instant' | 'dissolve' | 'slide'>('instant')
+  const [transition, setTransition] = useState<Transition>('instant')
+  const [direction, setDirection] = useState<Direction>('left')
+  const [duration, setDuration] = useState(400)
+  const [easing, setEasing] = useState<Easing>('easeInOut')
+  const [trigger, setTrigger] = useState<'click' | 'hover' | 'afterDelay' | 'mouseDown' | 'keyDown'>('click')
+  const [delay, setDelay] = useState(2000)
+  const [key, setKey] = useState('Escape')
+  const [targetFrameId, setTargetFrameId] = useState('')
+
+  const targetPage = state.document.pages.find((p) => p.id === targetPageId)
+  const targetFrames = targetPage?.children.filter((n) => n.type === 'frame') ?? []
 
   const addLink = () => {
     if (!targetPageId) return
@@ -50,13 +64,21 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
       id: `link-${Date.now().toString(36)}`,
       sourceLayerId: selected.id,
       targetPageId,
-      trigger: 'click',
+      trigger,
       transition,
+      targetFrameId: targetFrameId || undefined,
+      duration: transition === 'instant' ? undefined : duration,
+      easing: easing === 'easeInOut' ? undefined : easing,
+      direction: ['moveIn', 'moveOut', 'push'].includes(transition) ? direction : undefined,
+      delay: trigger === 'afterDelay' ? delay : undefined,
+      key: trigger === 'keyDown' ? key : undefined,
     }
     dispatch({ type: 'ADD_PROTOTYPE_LINK', link })
   }
 
   const removeLink = (id: string) => dispatch({ type: 'REMOVE_PROTOTYPE_LINK', id })
+
+  const isDirectional = ['moveIn', 'moveOut', 'push'].includes(transition)
 
   return (
     <div className="prototype-panel">
@@ -75,16 +97,86 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
           <>
             <div className="proto-field">
               <label>跳转到</label>
-              <select className="proto-select" value={targetPageId} onChange={(e) => setTargetPageId(e.target.value)}>
+              <select className="proto-select" value={targetPageId} onChange={(e) => { setTargetPageId(e.target.value); setTargetFrameId('') }}>
                 {otherPages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
+            {targetFrames.length > 1 && (
+              <div className="proto-field">
+                <label>目标 frame</label>
+                <select className="proto-select" value={targetFrameId} onChange={(e) => setTargetFrameId(e.target.value)}>
+                  <option value="">自动（首个 frame）</option>
+                  {targetFrames.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="proto-field">
+              <label>触发</label>
+              <select className="proto-select" value={trigger} onChange={(e) => setTrigger(e.target.value as typeof trigger)}>
+                <option value="click">点击</option>
+                <option value="hover">悬停</option>
+                <option value="afterDelay">延时</option>
+                <option value="mouseDown">按下</option>
+                <option value="keyDown">按键</option>
+              </select>
+            </div>
+            {trigger === 'afterDelay' && (
+              <div className="style-line">
+                <span className="style-label">延时 ms</span>
+                <PropertyInput label="" value={delay} min={0} max={30000} onChange={(v) => setDelay(v)} />
+              </div>
+            )}
+            {trigger === 'keyDown' && (
+              <div className="proto-field">
+                <label>按键</label>
+                <select className="proto-select" value={key} onChange={(e) => setKey(e.target.value)}>
+                  <option value="Escape">ESC</option>
+                  <option value="Enter">Enter</option>
+                  <option value="ArrowRight">→</option>
+                  <option value="ArrowLeft">←</option>
+                  <option value="ArrowUp">↑</option>
+                  <option value="ArrowDown">↓</option>
+                  <option value="Space">Space</option>
+                </select>
+              </div>
+            )}
             <div className="proto-field">
               <label>转场</label>
-              <select className="proto-select" value={transition} onChange={(e) => setTransition(e.target.value as typeof transition)}>
+              <select className="proto-select" value={transition} onChange={(e) => setTransition(e.target.value as Transition)}>
                 <option value="instant">无动画</option>
-                <option value="dissolve">淡入</option>
-                <option value="slide">滑动</option>
+                <option value="fade">淡入淡出</option>
+                <option value="moveIn">滑入</option>
+                <option value="moveOut">滑出</option>
+                <option value="push">推入</option>
+                {/* 兼容旧值 */}
+                <option value="dissolve">淡入（旧）</option>
+                <option value="slide">滑动（旧）</option>
+              </select>
+            </div>
+            {isDirectional && (
+              <div className="proto-field">
+                <label>方向</label>
+                <select className="proto-select" value={direction} onChange={(e) => setDirection(e.target.value as Direction)}>
+                  <option value="left">左</option>
+                  <option value="right">右</option>
+                  <option value="top">上</option>
+                  <option value="bottom">下</option>
+                  <option value="none">无方向</option>
+                </select>
+              </div>
+            )}
+            <div className="style-line">
+              <span className="style-label">时长 ms</span>
+              <PropertyInput label="" value={duration} min={0} max={3000} onChange={(v) => setDuration(v)} />
+            </div>
+            <div className="proto-field">
+              <label>缓动</label>
+              <select className="proto-select" value={easing} onChange={(e) => setEasing(e.target.value as Easing)}>
+                <option value="easeInOut">缓入缓出</option>
+                <option value="linear">线性</option>
+                <option value="easeIn">缓入</option>
+                <option value="easeOut">缓出</option>
+                <option value="spring">弹簧</option>
               </select>
             </div>
             <button className="export-button" onClick={addLink} disabled={!targetPageId}>添加跳转连接 <Icon name="plus" /></button>
@@ -96,11 +188,12 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
         <Section title="已配置的连接">
           {links.map((link) => {
             const target = state.document.pages.find((p) => p.id === link.targetPageId)
+            const meta = [link.trigger, link.transition, link.direction].filter(Boolean).join(' · ')
             return (
               <div className="link-row" key={link.id}>
                 <Icon name="external" />
                 <span className="link-name">→ {target?.name ?? '未知页面'}</span>
-                <span className="link-meta">{link.trigger} · {link.transition}</span>
+                <span className="link-meta">{meta}</span>
                 {!readOnly && <button className="link-remove" onClick={() => removeLink(link.id)} title="删除连接">✕</button>}
               </div>
             )
@@ -891,6 +984,32 @@ export function InspectorPanel({ state, dispatch, readOnly = false }: Props) {
             patchChild={patchChild}
             dispatch={dispatch}
           />
+
+          {selected.type === 'frame' && (
+            <Section title="溢出">
+              <div className="overflow-options">
+                {(['hidden', 'visible', 'verticalScroll', 'horizontalScroll', 'bothScroll'] as const).map((opt) => {
+                  const labels: Record<string, string> = {
+                    hidden: '裁剪',
+                    visible: '不裁剪',
+                    verticalScroll: '纵向滚动',
+                    horizontalScroll: '横向滚动',
+                    bothScroll: '双向滚动',
+                  }
+                  return (
+                    <button
+                      key={opt}
+                      className={`seg-btn ${(selected.overflow ?? 'hidden') === opt ? 'active' : ''}`}
+                      disabled={readOnly}
+                      onClick={() => patch({ overflow: opt === 'hidden' ? undefined : opt })}
+                    >
+                      {labels[opt]}
+                    </button>
+                  )
+                })}
+              </div>
+            </Section>
+          )}
 
           {hasSchema && schemaTpl ? (
             <Section title="组件" hint="＋">

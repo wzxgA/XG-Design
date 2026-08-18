@@ -8,6 +8,52 @@ export type InspectorTab = 'design' | 'prototype' | 'inspect'
 
 export type LeftPanelTab = 'layers' | 'components'
 
+export type Transition =
+  | 'instant'        // 立即切换（无动画）
+  | 'dissolve'       // 兼容旧数据，等价 fade
+  | 'slide'          // 兼容旧数据，等价 push direction=left
+  | 'fade'           // 整体淡入淡出
+  | 'moveIn'         // 新页/浮层从指定方向滑入
+  | 'moveOut'        // 当前页向指定方向滑出
+  | 'push'           // 新页推入，旧页被推走（同时）
+  | 'smart'          // Smart Animate：同名同结构图层属性插值
+  | 'overlay'        // 浮层弹出（modal/popover/dropdown）
+
+export type Easing =
+  | 'linear' | 'easeIn' | 'easeOut' | 'easeInOut'
+  | 'spring' | 'customBezier'
+
+export type Direction = 'left' | 'right' | 'top' | 'bottom' | 'none'
+
+export type OverflowBehavior =
+  | 'hidden'              // 内容超出 frame 裁剪（默认，等价当前行为）
+  | 'visible'             // 不裁剪
+  | 'verticalScroll'      // 纵向滚动
+  | 'horizontalScroll'    // 横向滚动
+  | 'bothScroll'          // 双向滚动
+
+export interface OverlayConfig {
+  /** 浮层在 viewport 内的对齐方式 */
+  position:
+    | 'manual'           // 用 offsetX/Y 相对源 frame 左上角
+    | 'center'
+    | 'topLeft' | 'topCenter' | 'topRight'
+    | 'bottomLeft' | 'bottomCenter' | 'bottomRight'
+  /** position=manual 时相对源 frame 左上角的偏移 px */
+  offsetX?: number
+  offsetY?: number
+  /** 模态背景色（如 rgba(0,0,0,0.45)）；缺省透明 */
+  backdrop?: string
+  /** 点击背景关闭 */
+  closeOnBackdrop?: boolean
+  /** 按 ESC 关闭 */
+  closeOnEsc?: boolean
+  /** 关闭动画类型（缺省与 transition 反向：overlay→fade） */
+  closeTransition?: Transition
+  /** 关闭时长（缺省=duration） */
+  closeDuration?: number
+}
+
 export interface LayerStyle {
   fill?: string
   /** 渐变背景：线性（from/to 或 stops 多色 + 角度）/ 径向（type=radial），优先于 fill */
@@ -139,6 +185,8 @@ export interface LayerNode {
   autoLayout?: AutoLayout
   /** 子项：autoLayout 父内沿主轴填充剩余空间（FILL），默认 false（FIXED 保持自身宽/高） */
   layoutGrow?: boolean
+  /** frame 滚动溢出行为；仅 frame 类型有效；缺省 hidden */
+  overflow?: import('./design').OverflowBehavior
   style: LayerStyle
   children: LayerNode[]
 }
@@ -164,14 +212,42 @@ export interface PageNode {
   id: string
   name: string
   children: LayerNode[]
+  /** 进入页面后自动触发的跳转（进入此 page 即开始计时；用户交互取消计时） */
+  autoNavigateLink?: {
+    targetPageId: string
+    targetFrameId?: string
+    delay: number
+    transition: Transition
+    duration?: number
+    easing?: Easing
+    direction?: Direction
+  }
 }
 
 export interface PrototypeLink {
   id: string
   sourceLayerId: string
   targetPageId: string
-  trigger: 'click' | 'hover'
-  transition: 'instant' | 'dissolve' | 'slide'
+  trigger: 'click' | 'hover' | 'afterDelay' | 'mouseDown' | 'keyDown'
+  transition: Transition
+  /** 目标页内的具体 frame（缺省取该页第一个 frame） */
+  targetFrameId?: string
+  /** 动画时长 ms（缺省按 transition 类型：instant=0 / fade=300 / moveIn/push=400 / smart=500 / overlay=240） */
+  duration?: number
+  /** 缓动函数，缺省 easeInOut */
+  easing?: Easing
+  /** easing=customBezier 时的控制点 [x1, y1, x2, y2] */
+  easingBezier?: [number, number, number, number]
+  /** moveIn/moveOut/push/slide 的方向；none=无方向（按 transition 默认） */
+  direction?: Direction
+  /** trigger=afterDelay 时延后多少 ms 触发 */
+  delay?: number
+  /** trigger=keyDown 时存键码（如 'Escape' / 'Enter' / 'ArrowRight'） */
+  key?: string
+  /** transition=overlay 时的浮层配置 */
+  overlay?: OverlayConfig
+  /** 是否保留导航历史（默认 true；overlay 关闭后通常不入历史） */
+  keepHistory?: boolean
 }
 
 export interface DesignDocument {

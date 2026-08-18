@@ -24,6 +24,8 @@ interface Props {
   passive?: boolean
   /** Auto Layout 父布局信息：子节点在父内拖拽改为调整顺序 */
   layoutParent?: { al: AutoLayout; siblings: LayerNode[] }
+  /** 额外覆盖层渲染（用于原型热点、状态徽标等） */
+  overlay?: React.ReactNode
 }
 
 function findBoard(state: EditorState): LayerNode | undefined {
@@ -36,7 +38,7 @@ function findBoard(state: EditorState): LayerNode | undefined {
  * 将 LayerNode 树按绝对坐标渲染为 HTML，隐藏节点不渲染，选中节点显示边框。
  * 支持拖拽移动对象（锁定节点不可移动）、Shift 多选、多选整体拖拽。
  */
-export function CanvasObject({ node, state, dispatch, drawing = false, readOnly = false, passive = false, layoutParent }: Props) {
+export function CanvasObject({ node, state, dispatch, drawing = false, readOnly = false, passive = false, layoutParent, overlay }: Props) {
   const startRef = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null)
   const movedRef = useRef(false)
   /** Auto Layout 拖拽重排状态：记录起点与当前落点索引（指针相对父坐标） */
@@ -198,10 +200,20 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
     // CO-6：容器插槽内容（componentSlots 引用的子节点）叠加渲染进组件内
     const slotIds = new Set(Object.values(node.componentSlots ?? {}).flat())
     const slotChildren = isComponent ? node.children.filter((c) => slotIds.has(c.id)) : []
+    // 溢出滚动：编辑态显示完整内容（visible），预览态按 overflow 配置裁剪/滚动
+    const overflow = node.type === 'frame'
+      ? (drawing
+        ? (node.overflow === 'verticalScroll' ? { overflowX: 'hidden' as const, overflowY: 'auto' as const }
+          : node.overflow === 'horizontalScroll' ? { overflowX: 'auto' as const, overflowY: 'hidden' as const }
+          : node.overflow === 'bothScroll' ? { overflow: 'auto' as const }
+          : node.overflow === 'visible' ? { overflow: 'visible' as const }
+          : { overflow: 'hidden' as const })
+        : { overflow: 'visible' as const })
+      : undefined
     return (
       <div
         className={`canvas-group ${outline} ${fx}`}
-        style={dimmed ? { ...containerStyle, opacity: (Number(containerStyle.opacity ?? 1)) * 0.55 } : containerStyle}
+        style={overflow ? { ...containerStyle, ...overflow } : dimmed ? { ...containerStyle, opacity: (Number(containerStyle.opacity ?? 1)) * 0.55 } : containerStyle}
         data-component-id={isComponent ? node.id : undefined}
         {...base}
       >
@@ -215,6 +227,7 @@ export function CanvasObject({ node, state, dispatch, drawing = false, readOnly 
             onChange={(v) => demo.onValue(node.id, v)}
           />
         )}
+        {overlay}
       </div>
     )
   }
