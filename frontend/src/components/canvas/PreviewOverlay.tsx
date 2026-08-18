@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import type { CSSProperties } from 'react'
 import type { EditorState } from '../../state/editor-store'
-import type { LayerNode, PageNode, PrototypeLink, Direction, Transition, Easing } from '../../types/design'
+import type { LayerNode, PageNode, PrototypeLink, Direction, Transition, Easing, OverlayConfig } from '../../types/design'
 import { CanvasObject } from './CanvasObject'
 import { PreviewDemoContext } from './preview-demo'
 import { Icon } from '../common/brand'
@@ -53,6 +54,59 @@ function resolveTargetFrame(
     if (found) return found
   }
   return targetPage.children.find((n) => n.type === 'frame') ?? null
+}
+
+/** 浮层条目：记录浮层内容 frame 与配置 */
+interface OverlayEntry {
+  id: string
+  frame: LayerNode
+  config: OverlayConfig
+  /** 源 frame 在视口内的坐标（用于 manual 定位的基准） */
+  srcRect: { x: number; y: number; width: number; height: number }
+}
+
+/** 归一 resolveTargetFrame 结果：坐标归零 + 标记 overlay 不落文档 */
+function toOverlayFrame(frame: LayerNode): LayerNode {
+  return { ...frame, x: 0, y: 0 }
+}
+
+/** 浮层关场简单动画（WAAPI）：fade 或 moveOut bottom */
+function instructOutAnim(el: HTMLElement, transition: Transition, duration: number): Promise<void> {
+  cancelAllAnimations(el)
+  const kf = transition === 'fade'
+    ? [{ opacity: 1 }, { opacity: 0 }]
+    : [{ opacity: 1, transform: 'translate(0,0)' }, { opacity: 0, transform: 'translate(0, 24px)' }]
+  return el.animate(kf, { duration, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }).finished
+    .then(() => {})
+    .catch(() => { /* 取消动画时忽略 */ })
+}
+
+/** 计算浮层容器定位（相对 overlay 层的左/上，坐标为叠加层内） */
+function getOverlayPosition(entry: OverlayEntry): CSSProperties | undefined {
+  const c = entry.config
+  const fw = entry.frame.width
+  const fh = entry.frame.height
+  const r = entry.srcRect
+  switch (c.position) {
+    case 'manual':
+      return { left: r.x + (c.offsetX ?? 0), top: r.y + (c.offsetY ?? 0) }
+    case 'center':
+      return { left: r.x + (r.width - fw) / 2, top: r.y + (r.height - fh) / 2 }
+    case 'topLeft':
+      return { left: r.x, top: r.y }
+    case 'topCenter':
+      return { left: r.x + (r.width - fw) / 2, top: r.y }
+    case 'topRight':
+      return { left: r.x + r.width - fw, top: r.y }
+    case 'bottomLeft':
+      return { left: r.x, top: r.y + r.height - fh }
+    case 'bottomCenter':
+      return { left: r.x + (r.width - fw) / 2, top: r.y + r.height - fh }
+    case 'bottomRight':
+      return { left: r.x + r.width - fw, top: r.y + r.height - fh }
+    default:
+      return undefined
+  }
 }
 
 /** 递归渲染所有带原型连接节点的热点（按累积偏移定位） */
@@ -204,6 +258,9 @@ export function PreviewOverlay({ state, onClose }: Props) {
   const [pageId, setPageId] = useState(state.document.activePageId)
   const [history, setHistory] = useState<Array<{ pageId: string; frameId: string | null }>>([])
   const [currentFrameId, setCurrentFrameId] = useState<string | null>(null)
+  // 浮层栈：Overlay 模式叠在当页之上，不替换 pageId
+  const [overlays, setOverlays] = useState<OverlayEntry[]>([])
+  const overlayIdRef = useRef(0)
   const [viewMode, setViewMode] = useState<'flow' | 'device'>('device')
   const demo = true
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -217,6 +274,8 @@ export function PreviewOverlay({ state, onClose }: Props) {
   const srcFrameRef = useRef<HTMLDivElement>(null)
   const dstFrameRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
+  // 浮层 DOM 元素引用（用于入场/关场动画）
+  const overlayElRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   // 过渡中的源/目标 frame 数据（用于渲染过渡层）
   const [transitionData, setTransitionData] = useState<{
     srcFrame: LayerNode
@@ -364,6 +423,22 @@ export function PreviewOverlay({ state, onClose }: Props) {
     // 解析目标 frame —— 优先 link.targetFrameId，缺省取目标页第一个 frame
     const dstFrame = resolveTargetFrame(targetPage, link)
 
+    // —— Overlay 模式：不替换页面，作为浮层叠在当前页之上 ——
+    if (link.transition === 'overlay' && dstFrame) {
+      const src = activeFrame
+      overlayIdRef.current += 1
+      const entry: OverlayEntry = {
+        id: `overlay-${overlayIdRef.current}`,
+        frame: toOverlayFrame(dstFrame),
+        config: link.overlay ?? { position: 'center' },
+        // 源 frame 归一后占据视口左上（0,0），作为 manual 定位基准
+        srcRect: { x: 0, y: 0, width: src?.width ?? dstFrame.width, height: src?.height ?? dstFrame.height },
+      }
+      setOverlays((prev) => [...prev, entry])
+      // 入场动画在渲染后触发（见下方 useEffect）
+      return
+    }
+
     // 在 Device 模式下，解析源 frame 和目标 frame 做动画
     const useAnimation = viewMode === 'device' && link.transition !== 'instant'
 
@@ -420,6 +495,12 @@ export function PreviewOverlay({ state, onClose }: Props) {
   }
 
   const goBack = () => {
+    // 有浮层时优先关闭浮层，不回退页面
+    if (overlays.length > 0) {
+      const top = overlays[overlays.length - 1]
+      closeOverlay(top.id)
+      return
+    }
     setHistory((h) => {
       if (h.length === 0) return h
       const prev = h[h.length - 1]
@@ -428,6 +509,47 @@ export function PreviewOverlay({ state, onClose }: Props) {
       return h.slice(0, -1)
     })
   }
+
+  // 关闭指定浮层（播放关场动画后移除）
+  const closeOverlay = (id: string, immediate?: boolean) => {
+    const entry = overlays.find((o) => o.id === id)
+    if (!entry) return
+    const finish = () => setOverlays((prev) => prev.filter((o) => o.id !== id))
+    if (immediate) { finish(); return }
+    const el = overlayElRefs.current.get(id)
+    if (!el) { finish(); return }
+    const transition = entry.config.closeTransition ?? 'fade'
+    const duration = entry.config.closeDuration ?? getDefaultDuration('fade')
+    instructOutAnim(el, transition, duration).finally(() => {
+      setOverlays((prev) => prev.filter((o) => o.id !== id))
+    })
+  }
+
+  // ESC 关闭最上层浮层
+  useEffect(() => {
+    if (overlays.length === 0) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const top = overlays[overlays.length - 1]
+      if (top.config.closeOnEsc) closeOverlay(top.id)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [overlays]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 浮层入场动画：新加入的浮层播放 moveIn bottom
+  useEffect(() => {
+    if (overlays.length === 0) return
+    const last = overlays[overlays.length - 1]
+    const posEl = overlayElRefs.current.get(last.id)?.querySelector('.overlay-frame-pos') as HTMLElement | null
+    if (!posEl) return
+    cancelAllAnimations(posEl)
+    const duration = getDefaultDuration('overlay')
+    posEl.animate(
+      [{ opacity: 0, transform: 'translateY(24px)' }, { opacity: 1, transform: 'translateY(0)' }],
+      { duration, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }
+    )
+  }, [overlays.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 演示模式：悬停/按下组件时定位到最近组件节点
   const componentIdFrom = (e: React.MouseEvent) => {
@@ -483,7 +605,7 @@ export function PreviewOverlay({ state, onClose }: Props) {
     <div className="preview-overlay">
       <div className="preview-toolbar">
         <div className="preview-nav">
-          <button className="preview-back" onClick={goBack} disabled={history.length === 0} title="返回上一页"><Icon name="chevron" /></button>
+          <button className="preview-back" onClick={goBack} disabled={history.length === 0 && overlays.length === 0} title="返回上一页"><Icon name="chevron" /></button>
           <span className="preview-title">{activeFrame ? activeFrame.name : page.name}</span>
         </div>
         <div className="preview-actions">
@@ -513,6 +635,38 @@ export function PreviewOverlay({ state, onClose }: Props) {
           onMouseLeave={() => { setHoveredId(null); setPressedId(null) }}
         >
           {renderStage()}
+          {/* 浮层栈：叠在当页之上（仅在 Device 视图渲染） */}
+          {overlays.length > 0 && viewMode === 'device' && (
+            <div className="preview-overlay-layer">
+              {overlays.map((entry, i) => {
+                const pos = getOverlayPosition(entry)
+                return (
+                  <div
+                    key={entry.id}
+                    className="preview-overlay-entry"
+                    data-overlay-index={i}
+                    ref={(el) => {
+                      if (el) overlayElRefs.current.set(entry.id, el)
+                      else overlayElRefs.current.delete(entry.id)
+                    }}
+                  >
+                    {entry.config.backdrop && (
+                      <div
+                        className="overlay-backdrop"
+                        style={{ background: entry.config.backdrop }}
+                        onClick={() => { if (entry.config.closeOnBackdrop) closeOverlay(entry.id) }}
+                      />
+                    )}
+                    <div className="overlay-frame-pos" style={pos}>
+                      <div className="overlay-frame" style={{ left: 0, top: 0, width: entry.frame.width, height: entry.frame.height }}>
+                        <FrameRenderer frame={entry.frame} state={state} onNavigate={navigate} demo={demo} hoveredId={hoveredId} pressedId={pressedId} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
           </div>
       </PreviewDemoContext.Provider>
     </div>

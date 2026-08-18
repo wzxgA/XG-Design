@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { EditorState, EditorDispatch } from '../../state/editor-store'
-import type { LayerNode, PrototypeLink, ComponentPropDef, ComponentState, Transition, Direction, Easing } from '../../types/design'
+import type { LayerNode, PrototypeLink, ComponentPropDef, ComponentState, Transition, Direction, Easing, OverlayConfig } from '../../types/design'
 import { GradientStyleEditor, EffectsEditor } from './EffectEditors'
 import { AutoLayoutEditor } from './AutoLayoutEditor'
 import { Icon } from '../common/brand'
@@ -42,6 +42,8 @@ function findFrameInPage(page: import('../../types/design').PageNode, frameId: s
 
 function PrototypePanel({ state, dispatch, selected, readOnly }: { state: EditorState; dispatch: EditorDispatch; selected: LayerNode; readOnly: boolean }) {
   const links = state.document.prototypeLinks.filter((l) => l.sourceLayerId === selected.id)
+  // 目标页支持任意页（含当前页：用于同页 Overlay 弹窗）
+  const allPages = state.document.pages
   const otherPages = state.document.pages.filter((p) => p.id !== state.document.activePageId)
   const [targetPageId, setTargetPageId] = useState(otherPages[0]?.id ?? '')
   const [transition, setTransition] = useState<Transition>('instant')
@@ -52,6 +54,13 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
   const [delay, setDelay] = useState(2000)
   const [key, setKey] = useState('Escape')
   const [targetFrameId, setTargetFrameId] = useState('')
+  // Overlay 配置编辑
+  const [overlayPosition, setOverlayPosition] = useState<OverlayConfig['position']>('center')
+  const [overlayOffsetX, setOverlayOffsetX] = useState(0)
+  const [overlayOffsetY, setOverlayOffsetY] = useState(0)
+  const [overlayBackdrop, setOverlayBackdrop] = useState('rgba(0,0,0,0.45)')
+  const [closeOnBackdrop, setCloseOnBackdrop] = useState(true)
+  const [closeOnEsc, setCloseOnEsc] = useState(true)
 
   const targetPage = state.document.pages.find((p) => p.id === targetPageId)
   const targetFrames = targetPage?.children.filter((n) => n.type === 'frame') ?? []
@@ -59,7 +68,8 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
   const addLink = () => {
     if (!targetPageId) return
     // 避免对同一对象重复添加同一目标
-    if (links.some((l) => l.targetPageId === targetPageId)) return
+    if (links.some((l) => l.targetPageId === targetPageId && l.transition === transition)) return
+    const isOverlay = transition === 'overlay'
     const link: PrototypeLink = {
       id: `link-${Date.now().toString(36)}`,
       sourceLayerId: selected.id,
@@ -72,6 +82,16 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
       direction: ['moveIn', 'moveOut', 'push'].includes(transition) ? direction : undefined,
       delay: trigger === 'afterDelay' ? delay : undefined,
       key: trigger === 'keyDown' ? key : undefined,
+      overlay: isOverlay
+        ? {
+            position: overlayPosition,
+            offsetX: overlayPosition === 'manual' ? overlayOffsetX : undefined,
+            offsetY: overlayPosition === 'manual' ? overlayOffsetY : undefined,
+            backdrop: overlayBackdrop || undefined,
+            closeOnBackdrop,
+            closeOnEsc,
+          }
+        : undefined,
     }
     dispatch({ type: 'ADD_PROTOTYPE_LINK', link })
   }
@@ -89,8 +109,8 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
       </div>
 
       <Section title="连接" hint="＋">
-        {otherPages.length === 0 ? (
-          <div className="inspect-hint">没有其他页面可连接，请先新建页面。</div>
+        {allPages.length === 0 ? (
+          <div className="inspect-hint">没有页面可连接，请先新建页面。</div>
         ) : readOnly ? (
           <div className="inspect-hint">只读模式下不可编辑原型连接。</div>
         ) : (
@@ -98,7 +118,7 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
             <div className="proto-field">
               <label>跳转到</label>
               <select className="proto-select" value={targetPageId} onChange={(e) => { setTargetPageId(e.target.value); setTargetFrameId('') }}>
-                {otherPages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {allPages.map((p) => <option key={p.id} value={p.id}>{p.name}{p.id === state.document.activePageId ? '（当前页）' : ''}</option>)}
               </select>
             </div>
             {targetFrames.length > 1 && (
@@ -148,6 +168,7 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
                 <option value="moveIn">滑入</option>
                 <option value="moveOut">滑出</option>
                 <option value="push">推入</option>
+                <option value="overlay">浮层</option>
                 {/* 兼容旧值 */}
                 <option value="dissolve">淡入（旧）</option>
                 <option value="slide">滑动（旧）</option>
@@ -163,6 +184,42 @@ function PrototypePanel({ state, dispatch, selected, readOnly }: { state: Editor
                   <option value="bottom">下</option>
                   <option value="none">无方向</option>
                 </select>
+              </div>
+            )}
+            {transition === 'overlay' && (
+              <div className="overlay-config">
+                <div className="schema-group-label">浮层配置</div>
+                <div className="proto-field">
+                  <label>定位</label>
+                  <select className="proto-select" value={overlayPosition} onChange={(e) => setOverlayPosition(e.target.value as OverlayConfig['position'])}>
+                    <option value="manual">手动（相对源 frame）</option>
+                    <option value="center">居中</option>
+                    <option value="topLeft">左上</option>
+                    <option value="topCenter">上中</option>
+                    <option value="topRight">右上</option>
+                    <option value="bottomLeft">左下</option>
+                    <option value="bottomCenter">下中</option>
+                    <option value="bottomRight">右下</option>
+                  </select>
+                </div>
+                {overlayPosition === 'manual' && (
+                  <div className="property-grid">
+                    <PropertyInput label="X 偏移" value={overlayOffsetX} onChange={(v) => setOverlayOffsetX(v)} />
+                    <PropertyInput label="Y 偏移" value={overlayOffsetY} onChange={(v) => setOverlayOffsetY(v)} />
+                  </div>
+                )}
+                <div className="style-line">
+                  <span className="style-label">背景遮罩</span>
+                  <ColorField value={overlayBackdrop} allowEmpty onChange={setOverlayBackdrop} />
+                </div>
+                <label className="schema-checkbox">
+                  <input type="checkbox" checked={closeOnBackdrop} onChange={(e) => setCloseOnBackdrop(e.target.checked)} />
+                  <span>点击背景关闭</span>
+                </label>
+                <label className="schema-checkbox">
+                  <input type="checkbox" checked={closeOnEsc} onChange={(e) => setCloseOnEsc(e.target.checked)} />
+                  <span>ESC 关闭</span>
+                </label>
               </div>
             )}
             <div className="style-line">
