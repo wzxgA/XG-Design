@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { EditorState } from '../../state/editor-store'
-import type { LayerNode, PrototypeLink, Direction, Transition, Easing } from '../../types/design'
+import type { LayerNode, PageNode, PrototypeLink, Direction, Transition, Easing } from '../../types/design'
 import { CanvasObject } from './CanvasObject'
 import { PreviewDemoContext } from './preview-demo'
 import { Icon } from '../common/brand'
@@ -31,6 +31,28 @@ function resolveSourceFrame(nodes: LayerNode[], sourceLayerId: string): LayerNod
 function findInTree(node: LayerNode, id: string): boolean {
   if (node.id === id) return true
   return node.children.some((c) => findInTree(c, id))
+}
+
+/** 按 id 在树中查找 frame（支持嵌套 frame） */
+function findFrameById(nodes: LayerNode[], id: string): LayerNode | null {
+  for (const n of nodes) {
+    if (n.type === 'frame' && n.id === id) return n
+    const found = findFrameById(n.children, id)
+    if (found) return found
+  }
+  return null
+}
+
+/** 解析目标 frame —— 优先 link.targetFrameId，缺省取目标页第一个 frame */
+function resolveTargetFrame(
+  targetPage: PageNode,
+  link: { targetFrameId?: string }
+): LayerNode | null {
+  if (link.targetFrameId) {
+    const found = findFrameById(targetPage.children, link.targetFrameId)
+    if (found) return found
+  }
+  return targetPage.children.find((n) => n.type === 'frame') ?? null
 }
 
 /** 递归渲染所有带原型连接节点的热点（按累积偏移定位） */
@@ -180,7 +202,8 @@ const noop = () => {}
 /** 只读预览层：支持 Flow 视图（平铺）和 Device 视图（单 frame 视口）+ 原型动画 */
 export function PreviewOverlay({ state, onClose }: Props) {
   const [pageId, setPageId] = useState(state.document.activePageId)
-  const [history, setHistory] = useState<string[]>([])
+  const [history, setHistory] = useState<Array<{ pageId: string; frameId: string | null }>>([])
+  const [currentFrameId, setCurrentFrameId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'flow' | 'device'>('device')
   const demo = true
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -204,6 +227,10 @@ export function PreviewOverlay({ state, onClose }: Props) {
 
   const page = state.document.pages.find((p) => p.id === pageId)!
   const frames = page.children.filter((n) => n.type === 'frame') as LayerNode[]
+  // 当前激活 frame：currentFrameId 优先，缺省/失效回退第一个
+  const activeFrame = (currentFrameId
+    ? findFrameById(page.children, currentFrameId) ?? frames[0]
+    : frames[0]) ?? null
 
   // After Delay 计时器
   const afterDelayTimer = useRef<number | null>(null)
@@ -255,6 +282,7 @@ export function PreviewOverlay({ state, onClose }: Props) {
         id: 'auto-nav',
         sourceLayerId: target.sourceLayerId ?? '',
         targetPageId: target.targetPageId,
+        targetFrameId: target.targetFrameId,
         trigger: 'afterDelay',
         transition: target.transition as Transition,
         duration: target.duration,
@@ -271,7 +299,7 @@ export function PreviewOverlay({ state, onClose }: Props) {
         clearTimeout(afterDelayTimer.current)
       }
     }
-  }, [pageId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pageId, viewMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const collectAfterDelayLinks = (node: LayerNode, s: EditorState): Array<{
     sourceLayerId: string
@@ -333,12 +361,14 @@ export function PreviewOverlay({ state, onClose }: Props) {
     const targetPage = state.document.pages.find((p) => p.id === link.targetPageId)
     if (!targetPage) return
 
+    // 解析目标 frame —— 优先 link.targetFrameId，缺省取目标页第一个 frame
+    const dstFrame = resolveTargetFrame(targetPage, link)
+
     // 在 Device 模式下，解析源 frame 和目标 frame 做动画
     const useAnimation = viewMode === 'device' && link.transition !== 'instant'
 
     if (useAnimation) {
       const srcFrame = resolveSourceFrame(page.children, link.sourceLayerId)
-      const dstFrame = targetPage.children.find((n) => n.type === 'frame') ?? targetPage.children[0] as LayerNode | undefined
       if (srcFrame && dstFrame && viewportRef.current) {
         const vp = { width: dstFrame.width, height: dstFrame.height }
         setTransitionData({
@@ -377,9 +407,10 @@ export function PreviewOverlay({ state, onClose }: Props) {
 
     // 提交导航
     if (!skipHistory) {
-      setHistory((h) => [...h, pageId])
+      setHistory((h) => [...h, { pageId, frameId: currentFrameId }])
     }
     setPageId(link.targetPageId)
+    setCurrentFrameId(dstFrame ? dstFrame.id : null)
     setTransitioning(false)
     setTransitionData(null)
   }
@@ -392,7 +423,8 @@ export function PreviewOverlay({ state, onClose }: Props) {
     setHistory((h) => {
       if (h.length === 0) return h
       const prev = h[h.length - 1]
-      setPageId(prev)
+      setPageId(prev.pageId)
+      setCurrentFrameId(prev.frameId)
       return h.slice(0, -1)
     })
   }
@@ -441,7 +473,7 @@ export function PreviewOverlay({ state, onClose }: Props) {
     return (
       <div className="device-viewport" ref={viewportRef}>
         <div className="device-frame device-frame-active">
-          <FrameRenderer frame={frames[0]} state={state} onNavigate={navigate} demo={demo} hoveredId={hoveredId} pressedId={pressedId} />
+          <FrameRenderer frame={activeFrame} state={state} onNavigate={navigate} demo={demo} hoveredId={hoveredId} pressedId={pressedId} />
         </div>
       </div>
     )
@@ -452,7 +484,7 @@ export function PreviewOverlay({ state, onClose }: Props) {
       <div className="preview-toolbar">
         <div className="preview-nav">
           <button className="preview-back" onClick={goBack} disabled={history.length === 0} title="返回上一页"><Icon name="chevron" /></button>
-          <span className="preview-title">{frames.length > 0 ? frames[0].name : page.name}</span>
+          <span className="preview-title">{activeFrame ? activeFrame.name : page.name}</span>
         </div>
         <div className="preview-actions">
           <button
