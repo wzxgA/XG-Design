@@ -215,6 +215,29 @@ button { font: inherit; border: 0; background: none; color: inherit; cursor: poi
 .ai-msg-ai .ai-msg-avatar { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
 .ai-msg-bubble { flex: 1; min-width: 0; }
 .ai-msg-text { font-size: 12px; line-height: 1.6; color: #364249; white-space: pre-wrap; word-break: break-word; }
+.ai-msg-text > :first-child { margin-top: 0; }
+.ai-msg-text > :last-child { margin-bottom: 0; }
+.ai-msg-text p { margin: 6px 0; }
+.ai-msg-text strong { color: #232e35; font-weight: 600; }
+.ai-msg-text em { font-style: italic; }
+.ai-msg-text ul, .ai-msg-text ol { margin: 6px 0; padding-left: 20px; }
+.ai-msg-text ul { list-style: disc; }
+.ai-msg-text ol { list-style: decimal; }
+.ai-msg-text li { margin: 2px 0; }
+.ai-msg-text h1, .ai-msg-text h2, .ai-msg-text h3, .ai-msg-text h4, .ai-msg-text h5, .ai-msg-text h6 { color: #232e35; font-weight: 600; line-height: 1.35; margin: 12px 0 6px; }
+.ai-msg-text h1 { font-size: 17px; }
+.ai-msg-text h2 { font-size: 15px; }
+.ai-msg-text h3 { font-size: 13px; }
+.ai-msg-text h4, .ai-msg-text h5, .ai-msg-text h6 { font-size: 12px; }
+.ai-msg-text a { color: var(--blue); text-decoration: underline; }
+.ai-msg-text blockquote { margin: 8px 0; padding: 6px 12px; border-left: 3px solid var(--blue); background: #f4f8fd; color: #57646b; border-radius: 0 4px 4px 0; }
+.ai-msg-text code { font-family: ui-monospace, SFMono-Regular, Consolas, Menlo, monospace; font-size: 11px; background: #eef1f3; color: #d14; padding: 1px 5px; border-radius: 4px; }
+.ai-msg-text pre { margin: 8px 0; padding: 10px 12px; background: #1f2937; color: #dbe3ea; border-radius: 6px; overflow-x: auto; }
+.ai-msg-text pre code { background: transparent; color: inherit; padding: 0; font-size: 11px; white-space: pre; }
+.ai-msg-text hr { border: 0; border-top: 1px solid #e5ebee; margin: 10px 0; }
+.ai-msg-text table { border-collapse: collapse; margin: 8px 0; font-size: 11px; display: block; overflow-x: auto; }
+.ai-msg-text th, .ai-msg-text td { border: 1px solid #e0e6e9; padding: 5px 9px; text-align: left; }
+.ai-msg-text th { background: #f4f6f7; font-weight: 600; color: #4b585e; }
 .ai-msg-user .ai-msg-text { color: #4b585e; }
 .ai-msg-error { font-size: 11px; color: var(--red); padding: 4px 0; }
 .ai-typing { display: flex; gap: 4px; padding: 4px 0; }

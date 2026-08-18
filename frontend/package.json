@@ -13,6 +13,7 @@
     "polybooljs": "^1.2.2",
     "react": "latest",
     "react-dom": "latest",
+    "react-markdown": "^10.1.0",
     "typescript": "latest",
     "vite": "latest"
   },

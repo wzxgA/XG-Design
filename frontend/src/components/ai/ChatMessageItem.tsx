@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import type { AiProtoLink, ChatMessage, EditOperation } from '../../types/ai'
 import type { LayerNode } from '../../types/design'
 import { DesignPreviewCard } from './DesignPreviewCard'
@@ -13,15 +13,19 @@ interface Props {
 export function ChatMessageItem({ message, onApply, onApplyEdit }: Props) {
   const isUser = message.role === 'user'
 
+  const contentRenderer = (
+    <div className="ai-msg-text">
+      <ReactMarkdown>{message.content || ''}</ReactMarkdown>
+    </div>
+  )
+
   return (
     <div className={`ai-msg ${isUser ? 'ai-msg-user' : 'ai-msg-ai'}`}>
       <div className="ai-msg-avatar">
         {isUser ? '你' : '✦'}
       </div>
       <div className="ai-msg-bubble">
-        {message.content && (
-          <div className="ai-msg-text">{message.content}</div>
-        )}
+        {message.content && contentRenderer}
         {!message.content && message.status === 'streaming' && (
           <div className="ai-typing">
             <span /><span /><span />
